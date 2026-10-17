@@ -1,0 +1,33 @@
+{
+  "id": "./",
+  "name": "VESPER: Cathedral of Ash",
+  "short_name": "VESPER",
+  "description": "A gothic roguelike dungeon crawler. Descend the cursed cathedral, fight the dead, and try to survive.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090b11",
+  "theme_color": "#0a0b12",
+  "orientation": "any",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
