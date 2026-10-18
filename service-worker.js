@@ -1,14 +1,16 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v1';
+const CACHE_VERSION = 'vesper-cathedral-v3-chapter-one-1';
 const APP_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png',
-  './icons/favicon-64.png'
+  './castle-view.js',
+  './story-content.js',
+  './narrative.js',
+  './narrative.css',
+  './images/forgotten-knight.png',
+  './vendor/three.module.min.js',
+  './vendor/three.core.min.js'
 ];
 
 self.addEventListener('install', event => {
