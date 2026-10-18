@@ -9,7 +9,7 @@
 <title>VESPER — Cathedral of Ash</title>
 <meta name="application-name" content="VESPER" />
 <meta name="apple-mobile-web-app-title" content="VESPER" />
-<meta name="description" content="VESPER: Cathedral of Ash — a gothic roguelike dungeon crawler for your phone. Play offline." />
+<meta name="description" content="VESPER: Cathedral of Ash — a 3D gothic castle roguelike for your phone. Explore torchlit halls, battle the dead, and play offline." />
 <link rel="manifest" href="./manifest.webmanifest" />
 <link rel="icon" type="image/png" href="./icons/favicon-64.png" sizes="64x64" />
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
@@ -84,16 +84,23 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
 .install-how li{padding-left:3px;margin-bottom:7px}
 .install-note{font:11px/1.55 system-ui,sans-serif;color:#baac9f;margin-top:15px}
 @media(max-height:690px){.install-panel{padding:14px 19px}.install-panel img{width:58px;height:58px}.install-panel h2{font-size:25px}.install-how{margin:7px 0}.install-note{margin:7px 0}}
+#home{align-items:flex-end;backdrop-filter:none;background:linear-gradient(180deg,#09101a08 0%,#090b1166 28%,#090b11f5 70%)}
+#home .panel{background:linear-gradient(180deg,#121823aa,#0d1019ed);padding:22px 22px 18px;box-shadow:0 12px 50px #0008}
+#home .sigil{display:none}#home .lore{font-size:13px;line-height:1.6;margin:12px auto}#home .eyebrow{letter-spacing:2.6px}
+.iconbtn{width:44px;height:44px;font-size:13px}.secondary,.installcta{min-height:44px}
+#topbuttons{top:calc(158px + env(safe-area-inset-top));gap:5px}
+@media(min-width:850px){#home{align-items:center;justify-content:flex-start;padding-left:7vw}#home .panel{max-width:420px}}
+@media(max-height:700px){#home .help{font-size:10px}#home .panel{padding:14px 20px}#home .lore{margin:8px 0}}
 </style>
 </head>
 <body>
 <canvas id="game" aria-label="Gothic dungeon game"></canvas><div id="vignette"></div>
 <div id="hud"><div class="hud-top"><div class="hud-stats"><div class="hud-nametag"><span>THE PENITENT</span><span id="lvlabel">LVL 1</span></div><div class="bar"><span id="hpbar"></span></div><div class="bar xp"><span id="xpbar"></span></div><div class="hud-sub"><span id="hptext">110 / 110</span><span id="cointext">✦ 0 ASH</span></div></div><div class="hud-right"><div id="floorlabel" class="floorlabel">CRYPT I</div><canvas id="map" width="130" height="130" aria-label="Minimap"></canvas></div></div></div>
 <div id="obj">PURGE THE CURSED</div><div id="toast"></div>
-<div id="topbuttons"><button class="iconbtn" id="sound" aria-label="Toggle sound">♫</button><button class="iconbtn" id="pausebtn" aria-label="Pause game">Ⅱ</button></div>
+<div id="topbuttons"><button class="iconbtn" id="viewmode" aria-label="Switch between 3D and classic 2D view">3D</button><button class="iconbtn" id="sound" aria-label="Toggle sound">♫</button><button class="iconbtn" id="pausebtn" aria-label="Pause game">Ⅱ</button></div>
 <div id="controls"><div id="stick"><div id="knob"></div></div><div class="actiongroup"><button id="potion" class="action" aria-label="Drink healing potion"><b>✚</b><span id="potionlabel">×2</span></button><button id="dash" class="action" aria-label="Dash"><b>↝</b><span id="dashlabel">DASH</span></button><button id="attack" class="action" aria-label="Attack"><b>⚔</b><span>STRIKE</span></button></div></div>
 <button id="descend">DESCEND ↡</button>
-<div class="overlay" id="home"><div class="panel"><p class="eyebrow">A DARK ROGUELIKE ADVENTURE</p><div class="sigil"><span>♱</span></div><h1>VESPER</h1><p class="subtitle">Cathedral of Ash</p><div class="goldline"></div><p class="lore">Below the ruined cathedral, the dead still pray. Descend into shifting crypts, cut through the forgotten, and steal the light they guard. Every death is final. Every descent is different.</p><button class="primary" id="start">ENTER THE CATHEDRAL</button><button class="installcta" id="installBtn" type="button">✦ INSTALL GAME ON PHONE</button><div class="installstatus" id="offlineStatus" aria-live="polite"></div><div class="help"><strong>Phone:</strong> Left thumb moves · ⚔ attacks · ↝ dodges · ✚ heals<br><strong>Keyboard:</strong> WASD · Space strike · Shift dash · Q heal</div><div class="smallnote" id="best">No previous descents</div></div></div>
+<div class="overlay" id="home"><div class="panel"><p class="eyebrow">A 3D GOTHIC CASTLE ADVENTURE</p><div class="sigil"><span>♱</span></div><h1>VESPER</h1><p class="subtitle">Cathedral of Ash</p><div class="goldline"></div><p class="lore">Beyond the battlements, the dead still pray. Explore torchlit castle halls, fight beneath ancient towers, and descend into the crypts. Every death is final. Every castle is different.</p><button class="primary" id="start">ENTER THE CATHEDRAL</button><button class="installcta" id="installBtn" type="button">✦ INSTALL GAME ON PHONE</button><div class="installstatus" id="offlineStatus" aria-live="polite"></div><div class="help"><strong>Phone:</strong> Left thumb moves · ⚔ attacks · ↝ dodges · ✚ heals<br><strong>Keyboard:</strong> WASD · Space strike · Shift dash · Q heal</div><div class="smallnote" id="best">No previous descents</div></div></div>
 <div class="overlay hidden" id="upgrade"><div class="panel"><p class="eyebrow">THE BLOOD REMEMBERS</p><div class="sigil" style="height:65px;width:65px"><span style="font-size:36px">✥</span></div><h1 style="font-size:33px;letter-spacing:3px">CHOOSE A BLESSING</h1><p class="subtitle">Power has its price.</p><div id="upgrades"></div></div></div>
 <div class="overlay hidden" id="dead"><div class="panel"><p class="eyebrow">THE CATHEDRAL CLAIMS ANOTHER</p><div class="sigil"><span>☩</span></div><h1 style="font-size:43px">YOU HAVE FALLEN</h1><p class="subtitle" id="deathtag">Ashes to ashes.</p><div class="goldline"></div><div class="stats-summary" id="deathstats"></div><button class="primary" id="retry">RISE AGAIN</button><div class="smallnote">New crypt · New enemies · Another chance</div></div></div>
 <div class="overlay hidden" id="paused"><div class="panel"><p class="eyebrow">THE WORLD HOLDS ITS BREATH</p><h1 style="font-size:41px">PAUSED</h1><p class="lore">The dead will wait. Briefly.</p><button class="primary" id="resume">RESUME THE DESCENT</button><button class="secondary" id="quit">Return to title</button></div></div>
@@ -108,6 +115,7 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
     <button type="button" class="primary" id="closeInstall">RETURN TO THE CATHEDRAL</button>
   </div>
 </div>
+<script type="module" src="./castle-view.js"></script>
 <script>
 'use strict';
 (() => {
@@ -325,7 +333,7 @@ function renderEnemy(e,x,y){let T=tileSize,s=e.type==='boss'?1.7:e.type==='brute
  }
  ctx.restore();if(e.hp<e.maxHp||e.type==='boss'){let barW=T*(e.type==='boss'?1.7:.75);ctx.fillStyle='#130b12e8';ctx.fillRect(x-barW/2,y-T*(e.type==='boss'?.91:.54),barW,4);ctx.fillStyle=e.type==='boss'?'#dfa86d':'#d26071';ctx.fillRect(x-barW/2,y-T*(e.type==='boss'?.91:.54),barW*clamp(e.hp/e.maxHp,0,1),3);}
 }
-function draw(){ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#080910';ctx.fillRect(0,0,width,height);if(!world||!player)return;
+function draw(){if(window.castleView?.render({world,player,torches,stair,cam,time,enemies,chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}))return;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#080910';ctx.fillRect(0,0,width,height);if(!world||!player)return;
  ctx.save();const shake=screenShake*tileSize*.18;ctx.translate(rnd(-shake,shake),rnd(-shake,shake));
  const offY=(width<650&&height>width)?1.05:0;
  const minX=clamp(Math.floor(cam.x-width/(2*tileSize))-1,0,world.W-1),maxX=clamp(Math.ceil(cam.x+width/(2*tileSize))+1,0,world.W-1);
@@ -381,6 +389,7 @@ $('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash();});$('pot
 const dirkeys=['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Shift','q','Q','j','J','k','K','e','E'];addEventListener('keydown',e=>{if(dirkeys.includes(e.key))e.preventDefault();key[e.key]=true;if(e.repeat)return;if(e.key==='Shift'||e.key==='k'||e.key==='K')dash();if(e.key==='q'||e.key==='Q')drink();if(e.key==='e'||e.key==='E')nextFloor();if(e.key==='Escape'||e.key==='p'||e.key==='P')togglePause();if(state==='title'&&e.key==='Enter')startGame();});addEventListener('keyup',e=>{key[e.key]=false;});
 canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&state==='playing'){holdAttack=true;attemptAttack();}});window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')holdAttack=false;});window.addEventListener('blur',()=>{for(const k in key)key[k]=false;holdAttack=false;if(state==='playing')togglePause();});
 function togglePause(){if(state==='playing'){state='paused';showOverlay('paused');$('descend').style.display='none';holdAttack=false;}else if(state==='paused')setState('playing');}
+$('viewmode').addEventListener('click',()=>{if(window.castleView){window.castleView.enabled=!window.castleView.enabled;$('viewmode').textContent=window.castleView.enabled?'3D':'2D';}});
 $('start').addEventListener('click',startGame);$('retry').addEventListener('click',startGame);$('resume').addEventListener('click',()=>setState('playing'));$('quit').addEventListener('click',()=>{setState('title');$('best').textContent='BEST RUN · '+(store.get('vesperBest')||0)+' SOULS';});$('pausebtn').addEventListener('click',togglePause);$('descend').addEventListener('click',nextFloor);$('sound').addEventListener('click',()=>{soundOn=!soundOn;$('sound').textContent=soundOn?'♫':'♪̸';});
 $('best').textContent=Number(store.get('vesperBest')||0)?'BEST RUN · '+store.get('vesperBest')+' SOULS':'No previous descents';
 // Atmospheric preview behind the menu, ready when player enters.
