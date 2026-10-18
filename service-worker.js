@@ -1,10 +1,14 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v2-3d';
+const CACHE_VERSION = 'vesper-cathedral-v3-chapter-one-1';
 const APP_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './castle-view.js',
+  './story-content.js',
+  './narrative.js',
+  './narrative.css',
+  './images/forgotten-knight.png',
   './vendor/three.module.min.js',
   './vendor/three.core.min.js'
 ];

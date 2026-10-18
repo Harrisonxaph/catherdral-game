@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "VESPER: Cathedral of Ash",
+  "name": "VESPER: The Hollow Crown",
   "short_name": "VESPER",
-  "description": "A gothic roguelike dungeon crawler. Descend the cursed cathedral, fight the dead, and try to survive.",
+  "description": "A 3D gothic narrative roguelike. Escape the Forgotten Crypt, recover the Hollow Crown and remember across deaths.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
