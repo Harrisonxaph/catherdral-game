@@ -399,6 +399,8 @@ reseed();player={x:0,y:0,r:.26,hp:115,maxHp:115,xp:0,xpNeeded:48,damage:30,speed
   const status = document.getElementById('offlineStatus');
   let promptEvent = null;
   let cacheReady = false;
+  const preview = window.__VESPER_DEV__ === true || window.self !== window.top;
+  const canCache = !preview && window.isSecureContext && 'serviceWorker' in navigator;
   const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isAndroid = /Android/.test(navigator.userAgent);
@@ -409,14 +411,16 @@ reseed();player={x:0,y:0,r:.26,hp:115,maxHp:115,xp:0,xpNeeded:48,damage:30,speed
       btn.disabled = true;
       btn.style.opacity = '.63';
     }
-    if (!navigator.onLine) {
+    if (preview) {
+      status.textContent = 'ONLINE PREVIEW — INSTALL FROM YOUR PUBLISHED SITE';
+    } else if (!navigator.onLine && cacheReady) {
       status.textContent = '◈ OFFLINE MODE — THE CATHEDRAL REMAINS OPEN';
     } else if (cacheReady) {
       status.textContent = '◈ OFFLINE READY — PLAY WITHOUT INTERNET';
-    } else if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    } else if (canCache) {
       status.textContent = '◈ PREPARING OFFLINE MODE…';
     } else {
-      status.textContent = '◈ OPEN FROM YOUR HTTPS NETLIFY LINK TO INSTALL';
+      status.textContent = 'OPEN YOUR PUBLISHED HTTPS SITE TO INSTALL';
     }
   }
   function showGuide() {
@@ -450,12 +454,12 @@ reseed();player={x:0,y:0,r:.26,hp:115,maxHp:115,xp:0,xpNeeded:48,damage:30,speed
   close.addEventListener('click', hideGuide);
   guide.addEventListener('click', e => { if (e.target === guide) hideGuide(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !guide.classList.contains('hidden')) {e.stopPropagation(); hideGuide();} });
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); promptEvent = e; if (!standalone()) btn.textContent = '✦ INSTALL VESPER APP'; });
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); if (preview) return; promptEvent = e; if (!standalone()) btn.textContent = '✦ INSTALL VESPER APP'; });
   window.addEventListener('appinstalled', () => { promptEvent = null; updateStatus(); });
   window.addEventListener('online', updateStatus);
   window.addEventListener('offline', updateStatus);
   updateStatus();
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  if (canCache) {
     navigator.serviceWorker.register('./service-worker.js', {scope:'./'}).then(() => {
       return navigator.serviceWorker.ready;
     }).then(() => { cacheReady = true; updateStatus(); }).catch(error => {
