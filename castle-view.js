@@ -10,6 +10,16 @@ const box = new THREE.BoxGeometry(1, 1, 1);
 const sphere = new THREE.IcosahedronGeometry(1, 1);
 const cylinder = new THREE.CylinderGeometry(1, 1, 1, 8);
 const cone = new THREE.ConeGeometry(1, 1, 8);
+const plane = new THREE.PlaneGeometry(1,1);
+const disk = new THREE.CircleGeometry(1,32);
+const ring = new THREE.RingGeometry(.96,1,32);
+const healthMaterial=new THREE.MeshBasicMaterial({color:'#d35a70',depthTest:false,depthWrite:false});
+const shieldMaterial=new THREE.MeshBasicMaterial({color:'#61b7ff',depthTest:false,depthWrite:false});
+const barMaterial=new THREE.MeshBasicMaterial({color:'#100d18',depthTest:false,depthWrite:false});
+const hitMaterial=new THREE.MeshBasicMaterial({color:'#ffe3c2',transparent:true,opacity:.4,wireframe:true});
+const hazardMaterials=new Map();
+function hazardMaterial(color,warning){const key=color+warning;if(!hazardMaterials.has(key))hazardMaterials.set(key,new THREE.MeshBasicMaterial({color,transparent:true,opacity:warning?.18:.5,depthWrite:false,side:THREE.DoubleSide}));return hazardMaterials.get(key);}
+
 const materials = new Map();
 function colorMaterial(color) {
   if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: .4 }));
@@ -122,16 +132,42 @@ class CastleView {
   }
   actor(hero,type) {
     const group=new THREE.Group();
-    const mat=hero?steel:type==='wraith'?colorMaterial('#85bac3'):type==='bone'?trim:crimson;
+    const definition=window.VesperEnemies?.definitions[type];
+    const mat=hero?steel:definition?colorMaterial(definition.color):crimson;
     part(group,cone,hero?crimson:mat,0,.45,0,.29,.78,.25);
     part(group,box,mat,0,.73,0,.44,.4,.26);
     part(group,sphere,hero?steel:mat,0,1.08,0,.21,.25,.21);
     part(group,box,dark,0,1.1,-.2,.27,.055,.035);
     for(const side of [-1,1])part(group,box,dark,side*.13,.16,0,.13,.32,.17);
     part(group,box,hero?gold:dark,-.31,.63,-.05,.14,.46,.32);
-    const sword=part(group,box,steel,.34,.85,-.25,.055,.7,.08);sword.rotation.x=-.5;
+    const sword=part(group,box,steel,.34,.85,-.25,.055,.7,.08);sword.rotation.x=-.5;group.userData.sword=sword;
     part(group,box,gold,.34,.53,-.08,.24,.05,.1);
     if(type==='boss'||type==='brute')group.scale.setScalar(type==='boss'?1.8:1.35);
+    if(!hero&&type!=='boss'){
+      if(type==='guardian'){
+        part(group,box,colorMaterial('#497fb6'),-.38,.66,-.2,.4,.65,.14);
+        part(group,box,steel,0,.8,0,.58,.43,.34);
+      }
+      if(type==='ghoul'||type==='plague'){
+        group.scale.set(1.1,.7,1.15);part(group,sphere,mat,0,.62,-.28,.3,.28,.3);
+        for(const side of [-1,1])part(group,cone,steel,side*.36,.34,-.37,.06,.34,.06);
+        if(type==='plague')for(const side of [-1,1])part(group,sphere,colorMaterial('#b2d74f'),side*.24,.68,.18,.15,.2,.14);
+        sword.visible=false;
+      }
+      if(type==='brute')for(const side of [-1,1]){const horn=part(group,cone,gold,side*.3,1.32,0,.12,.5,.12);horn.rotation.z=-side*.6;}
+      if(type==='summoner'){
+        part(group,cylinder,dark,.38,.85,0,.06,1.5,.06);part(group,sphere,colorMaterial('#d7a1fa'),.38,1.65,0,.17,.17,.17);
+        for(const side of [-1,1])part(group,cone,gold,side*.2,1.4,0,.08,.45,.08);sword.visible=false;
+      }
+      if(type==='cultist'){part(group,cone,mat,0,1.29,0,.27,.5,.27);part(group,sphere,colorMaterial('#b583ed'),.34,.7,-.3,.16,.16,.16);sword.visible=false;}
+      if(type==='wraith'){part(group,cone,mat,0,.22,0,.35,.8,.35);sword.material=colorMaterial('#c6f4ff');group.scale.set(.8,1.15,.8);}
+      const flash=part(group,sphere,hitMaterial,0,.7,0,.48,.75,.4);flash.visible=false;group.userData.flash=flash;
+      const bars=new THREE.Group();group.add(bars);bars.position.y=type==='summoner'?1.95:1.65;group.userData.bars=bars;
+      part(bars,plane,barMaterial,0,0,0,.9,.09,1);
+      group.userData.health=part(bars,plane,healthMaterial,0,0,.01,.86,.055,1);
+      if(type==='guardian'){part(bars,plane,barMaterial,0,.13,0,.9,.09,1);group.userData.shield=part(bars,plane,shieldMaterial,0,.13,.01,.86,.055,1);}
+      bars.traverse(o=>{if(o.isMesh)o.renderOrder=20;});group.userData.health.renderOrder=21;if(group.userData.shield)group.userData.shield.renderOrder=21;
+    }
     return group;
   }
   object(key,make,active) {
@@ -140,7 +176,7 @@ class CastleView {
     return this.dynamic.get(key);
   }
   render(data) {
-    const {world,player,torches,stair,cam,time,enemies,chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}=data;
+    const {world,player,torches,stair,cam,time,enemies,hazards=[],chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}=data;
     this.renderer.domElement.hidden=!this.enabled;
     if(!this.enabled)return false;
     if(this.world!==world)this.build(world,torches,stair);
@@ -153,11 +189,46 @@ class CastleView {
     this.portalRing.material=portalReady?colorMaterial('#efc878'):dark;
     const active=new Set();
     const hero=this.object(player,()=>this.actor(true),active);hero.position.set(player.x,0,player.y);hero.rotation.y=-player.facing-Math.PI/2+(attackTimer>0?Math.sin(attackTimer*20)*.6:0);hero.visible=invul<=0||Math.floor(time*16)%2===0;
-    for(const e of enemies){if(e.dead||Math.hypot(e.x-player.x,e.y-player.y)>13)continue;const m=this.object(e,()=>this.actor(false,e.type),active);m.position.set(e.x,e.type==='wraith'?.1+Math.sin(time*3)*.1:0,e.y);m.rotation.y=-e.aim-Math.PI/2;}
+    for(const e of enemies){
+      if(e.dead||Math.hypot(e.x-player.x,e.y-player.y)>13)continue;
+      const m=this.object(e,()=>this.actor(false,e.type),active);
+      const prep=e.state==='preparing',attack=e.state==='attacking';
+      m.position.set(e.x,e.type==='wraith'?.13+Math.sin(time*3)*.1:attack?.12:0,e.y);
+      m.rotation.y=-e.aim-Math.PI/2;m.rotation.z=e.state==='stunned'?Math.sin(time*40)*.09:0;
+      if(m.userData.sword)m.userData.sword.rotation.x=prep?-1.6:attack?.8:-.5;
+      if(m.userData.flash)m.userData.flash.visible=e.hit>0;
+      if(m.userData.bars){
+        m.userData.bars.visible=e.hp<e.maxHp||e.shield<e.maxShield||!['idle','patrol'].includes(e.state);
+        m.userData.bars.quaternion.copy(m.quaternion).invert().multiply(this.camera.quaternion);
+        const health=Math.max(0,e.hp/e.maxHp);m.userData.health.scale.x=.86*health;m.userData.health.position.x=-.43*(1-health);
+        if(m.userData.shield){const shield=Math.max(0,e.shield/e.maxShield);m.userData.shield.scale.x=.86*shield;m.userData.shield.position.x=-.43*(1-shield);}
+      }
+      if(prep&&e.target&&['bolt','lunge'].includes(e.action)){
+        const dx=e.target.x-e.x,dz=e.target.y-e.y;
+        const aim=this.object(e.target,()=>new THREE.Mesh(box,hazardMaterial(e.action==='bolt'?'#b583ed':'#e6b676',false)),active);
+        aim.position.set((e.x+e.target.x)/2,.045,(e.y+e.target.y)/2);aim.scale.set(Math.hypot(dx,dz),.015,.055);aim.rotation.y=-Math.atan2(dz,dx);
+      }
+      if(e.minion)m.scale.setScalar(.65);
+      if(e.elite&&!m.userData.elite){part(m,cone,gold,0,1.5,0,.16,.22,.16);m.userData.elite=true;}
+    }
+    for(const h of hazards){
+      if(Math.hypot(h.x-player.x,h.y-player.y)>15)continue;
+      const warning=h.age<h.warning;
+      const m=this.object('hazard:'+h.id,()=>{
+        const group=new THREE.Group(),rect=h.shape==='rect';
+        const fill=part(group,rect?plane:disk,hazardMaterial(h.color,true),0,.025,0,1,1,1);fill.rotation.x=-Math.PI/2;
+        if(rect){for(const [x,z,sx,sz] of [[-.5,0,.025,1],[.5,0,.025,1],[0,-.5,1,.025],[0,.5,1,.025]])part(group,box,colorMaterial(h.color),x,.035,z,sx,.01,sz);}else{const edge=part(group,ring,colorMaterial(h.color),0,.035,0,1,1,1);edge.rotation.x=-Math.PI/2;}
+        group.userData.fill=fill;return group;
+      },active);
+      m.position.set(h.x,0,h.y);m.scale.set(h.shape==='rect'?h.width:h.radius,1,h.shape==='rect'?h.height:h.radius);
+      m.userData.fill.material=hazardMaterial(h.color,warning);
+      // The ring is always the full damage radius; the flashing fill signals timing.
+      m.userData.fill.visible=!warning||Math.sin(time*12)>-.3;
+    }
     for(const o of window.VesperStory?.objects||[]){if(Math.hypot(o.x-player.x,o.y-player.y)>12)continue;const m=this.object(o,()=>{if(o.kind==='knight')return this.actor(true);const g=new THREE.Group();if(o.kind==='crown'){part(g,cone,gold,0,.5,0,.22,.42,.22);}else{part(g,box,trim,0,.24,0,.55,.48,.4);part(g,box,o.kind==='book'?crimson:gold,0,.51,0,.45,.08,.32);}return g;},active);m.position.set(o.x,0,o.y);if(o.kind==='knight')m.rotation.y=Math.atan2(player.x-o.x,player.y-o.y);}
     for(const c of chests){if(Math.hypot(c.x-player.x,c.y-player.y)>13)continue;const m=this.object(c,()=>{const g=new THREE.Group();part(g,box,gold,0,.3,0,.65,.5,.45);part(g,box,dark,0,.32,-.24,.16,.25,.03);return g;},active);m.position.set(c.x,0,c.y);m.scale.y=c.opened?.4:1;}
     for(const t of traps){if(Math.hypot(t.x-player.x,t.y-player.y)>13)continue;const m=this.object(t,()=>{const g=new THREE.Group();part(g,box,dark,0,.025,0,.65,.05,.65);for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)part(g,cone,steel,x*.2,.15,z*.2,.07,.3,.07);return g;},active);m.position.set(t.x,0,t.y);m.scale.y=Math.sin(time*2.4+t.phase)>.12?1:.15;}
-    for(const [items,size,y,color] of [[loots,.12,.3,'#ecc575'],[bullets,.15,.65,'#ed748c'],[particles,.055,.45,null]])for(const a of items){if(Math.hypot(a.x-player.x,a.y-player.y)>13)continue;const m=this.object(a,()=>new THREE.Mesh(sphere,colorMaterial(color||(a.color))),active);m.position.set(a.x,y+Math.sin(time*4)*.05,a.y);m.scale.setScalar(size);m.rotation.y=time;}
+    for(const [items,size,y,color] of [[loots,.12,.3,'#ecc575'],[bullets,.15,.65,'#ed748c'],[particles,.055,.45,null]])for(const a of items){if(Math.hypot(a.x-player.x,a.y-player.y)>13)continue;const m=this.object(a,()=>new THREE.Mesh(sphere,colorMaterial(a.color||color)),active);m.position.set(a.x,y+Math.sin(time*4)*.05,a.y);m.scale.setScalar(size);m.rotation.y=time;}
     for(const f of flashes){const m=this.object(f,()=>{const mesh=new THREE.Mesh(new THREE.TorusGeometry(f.range*.8,.045,4,24,player.arc*2),colorMaterial('#ffe0a5'));mesh.rotation.x=Math.PI/2;return mesh;},active);m.position.set(f.x,.5,f.y);m.rotation.z=f.a-player.arc;m.scale.setScalar(1-f.t/f.duration*.3);}
     for(const text of texts){const m=this.object(text,()=>this.damageLabel(text),active);m.position.set(text.x,1.7,text.y);m.material.opacity=1-text.t/.75;}
     for(const [key,mesh] of this.dynamic)if(!active.has(key)){this.scene.remove(mesh);if(mesh.geometry?.type==='TorusGeometry')mesh.geometry.dispose();if(mesh.isSprite){mesh.material.map.dispose();mesh.material.dispose();}this.dynamic.delete(key);}

@@ -7,9 +7,9 @@ function game(){
   const context2d=new Proxy({}, {get:()=>()=>{}});
   const element=()=>({style:{},classList:{add(){},remove(){},toggle(){}},addEventListener(){},getContext:()=>context2d,querySelectorAll:()=>[],textContent:'',innerHTML:'',width:130,height:130});
   const story={paused:false,objects:[],connect(a){this.adapter=a},setup(){},update(){},emit(name,detail){events.push({name,detail})},canLeave:()=>true};
-  const sandbox={document:{hidden:false,addEventListener(name,fn){handlers[name]=fn},getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)}},localStorage:{getItem(){return null},setItem(){}},innerWidth:393,innerHeight:852,devicePixelRatio:1,addEventListener(name,fn){handlers[name]=fn},requestAnimationFrame(){},VesperStory:story,VesperFloors:require('./floors.js')};sandbox.window=sandbox;
+  const sandbox={document:{hidden:false,addEventListener(name,fn){handlers[name]=fn},getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)}},localStorage:{getItem(){return null},setItem(){}},innerWidth:393,innerHeight:852,devicePixelRatio:1,addEventListener(name,fn){handlers[name]=fn},requestAnimationFrame(){},VesperStory:story,VesperFloors:require('./floors.js'),VesperEnemies:require('./enemy-system.js')};sandbox.window=sandbox;
   const script=fs.readFileSync('index.html','utf8').match(/<script>\s*'use strict';([\s\S]*?)<\/script>/)[1];
-  vm.createContext(sandbox);vm.runInContext(script.replace(/\}\)\(\);\s*$/,`window.testGame={startGame,tick,attemptAttack,dash,drink,killEnemy,die,nextFloor,get player(){return player},get enemies(){return enemies},get state(){return state},get floor(){return floor},get portalReady(){return portalReady},get attackTimer(){return attackTimer},get dashTime(){return dashTime},get world(){return world},get finalEncounter(){return finalEncounter},get needed(){return needed},hurt,free,moveEntity,setKey(k,v){key[k]=v},atExit(){player.x=stair.x;player.y=stair.y;portalNear=true}};})();`),sandbox);
+  vm.createContext(sandbox);vm.runInContext(script.replace(/\}\)\(\);\s*$/,`window.testGame={spawnEnemy,combat,damageEnemy,fireBolt,get bullets(){return bullets},startGame,tick,attemptAttack,dash,drink,killEnemy,die,nextFloor,get player(){return player},get enemies(){return enemies},get state(){return state},get floor(){return floor},get portalReady(){return portalReady},get attackTimer(){return attackTimer},get dashTime(){return dashTime},get world(){return world},get finalEncounter(){return finalEncounter},get needed(){return needed},hurt,free,moveEntity,setKey(k,v){key[k]=v},atExit(){player.x=stair.x;player.y=stair.y;portalNear=true}};})();`),sandbox);
   return {g:sandbox.testGame,story,events,handlers,document:sandbox.document};
 }
 test('Movement, combat, dash, potions and safe reading pause',()=>{
@@ -70,4 +70,14 @@ test('Visible blur clears input without pausing; backgrounding pauses; game gest
  handlers.touchend(event);handlers.gesturestart(event);handlers.gesturechange(event);handlers.dblclick(event);assert.equal(prevented,4);
  handlers.touchend({...event,target:{closest:()=>false}});assert.equal(prevented,4);
  story.paused=true;handlers.gesturestart(event);handlers.touchend(event);assert.equal(prevented,4);
+});
+
+test('Projectile cap, expiry, summon rewards and floor-reset cleanup use game hooks',()=>{
+ const {g}=game();g.startGame();g.player.xpNeeded=1e9;
+ for(let i=0;i<100;i++)g.fireBolt(g.player.x+2,g.player.y,0,10);
+ assert.equal(g.bullets.length,48);for(let i=0;i<100;i++)g.tick(.04);assert.equal(g.bullets.length,0);
+ const m=g.spawnEnemy(g.player.x+1,g.player.y,'ghoul');m.minion=true;m.xp=0;
+ const xp=g.player.xp;g.killEnemy(m);assert.equal(g.player.xp,xp);
+ g.combat.addHazard({x:g.player.x,y:g.player.y,duration:100});g.combat.status('poison',10,2);
+ for(const e of g.enemies)g.killEnemy(e);g.atExit();g.nextFloor();assert.equal(g.floor,2);assert.equal(g.combat.hazards.length,0);assert.equal(g.combat.statuses.length,0);
 });
