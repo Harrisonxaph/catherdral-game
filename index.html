@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#0a0b12" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -17,7 +17,7 @@
 :root{--ivory:#f2e8d7;--muted:#a99b92;--gold:#dbb37b;--red:#e46e7e;--bg:#090b11;--glass:rgba(11,12,21,.78)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ivory);font-family:Georgia,'Times New Roman',serif;touch-action:none;user-select:none;-webkit-user-select:none}
-button{font:inherit;color:inherit;cursor:pointer;-webkit-appearance:none;appearance:none}
+button{touch-action:manipulation;font:inherit;color:inherit;cursor:pointer;-webkit-appearance:none;appearance:none}
 #game{width:100vw;height:100dvh;display:block;touch-action:none;background:#090b11}
 #vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 49%,transparent 34%,rgba(4,4,11,.24) 74%,rgba(0,0,5,.70) 100%);z-index:2}
 #hud{position:fixed;inset:0 0 auto 0;z-index:5;padding:calc(12px + env(safe-area-inset-top)) 14px 0;pointer-events:none;display:none}
@@ -103,6 +103,7 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
 <div class="overlay" id="home"><div class="panel"><p class="eyebrow">A 3D GOTHIC CASTLE ADVENTURE</p><div class="sigil"><span>♱</span></div><h1>VESPER</h1><p class="subtitle">The Hollow Crown</p><div class="goldline"></div><p class="lore">A king who would not die. A castle that cannot forget. Wake beneath Castle Vesper and recover the memories buried with the Hollow Crown.</p><button class="primary" id="start">BEGIN YOUR STORY</button><button class="installcta" id="installBtn" type="button">✦ INSTALL GAME ON PHONE</button><div class="installstatus" id="offlineStatus" aria-live="polite"></div><div class="help"><strong>Phone:</strong> Left thumb moves · ⚔ attacks · ↝ dodges · ✚ heals<br><strong>Keyboard:</strong> WASD · Space strike · Shift dash · Q heal</div><div class="smallnote" id="best">No previous descents</div></div></div>
 <div class="overlay hidden" id="upgrade"><div class="panel"><p class="eyebrow">THE BLOOD REMEMBERS</p><div class="sigil" style="height:65px;width:65px"><span style="font-size:36px">✥</span></div><h1 style="font-size:33px;letter-spacing:3px">CHOOSE A BLESSING</h1><p class="subtitle">Power has its price.</p><div id="upgrades"></div></div></div>
 <div class="overlay hidden" id="dead"><div class="panel"><p class="eyebrow">THE CATHEDRAL CLAIMS ANOTHER</p><div class="sigil"><span>☩</span></div><h1 style="font-size:43px">YOU HAVE FALLEN</h1><p class="subtitle" id="deathtag">Ashes to ashes.</p><div class="goldline"></div><div class="stats-summary" id="deathstats"></div><button class="primary" id="retry">RISE AGAIN</button><div class="smallnote">New crypt · New enemies · Another chance</div></div></div>
+<div class="overlay hidden" id="complete"><div class="panel"><p class="eyebrow">FIVE FLOORS · FIVE BROKEN SEALS</p><h1 style="font-size:38px">ASHES FALL SILENT</h1><p class="lore">You have survived the Cathedral of Ash.</p><button class="primary" onclick="document.getElementById('retry').click()">BEGIN ANOTHER DESCENT</button></div></div>
 <div class="overlay hidden" id="paused"><div class="panel"><p class="eyebrow">THE WORLD HOLDS ITS BREATH</p><h1 style="font-size:41px">PAUSED</h1><p class="lore">The dead will wait. Briefly.</p><button class="primary" id="resume">RESUME THE DESCENT</button><button class="secondary" id="quit">Return to title</button></div></div>
 <div class="install-guide hidden" id="installGuide" role="dialog" aria-modal="true" aria-labelledby="installTitle">
   <div class="install-panel">
@@ -116,6 +117,7 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
   </div>
 </div>
 <link rel="stylesheet" href="./narrative.css" />
+<script src="./floors.js"></script>
 <script src="./story-content.js"></script>
 <script src="./narrative.js"></script>
 <script type="module" src="./castle-view.js"></script>
@@ -126,6 +128,7 @@ const $=id=>document.getElementById(id), canvas=$('game'), ctx=canvas.getContext
 const store={get(k){try{return localStorage.getItem(k);}catch{return null;}},set(k,v){try{localStorage.setItem(k,v);}catch{}}};
 const TAU=Math.PI*2, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(b-a)*t;
 let width=1,height=1,dpr=1,tileSize=40, time=0, anim=0, last=0, state='title', floor=1,level=1, kills=0, ash=0, needed=0, floorKills=0, bossDead=true;
+let finalEncounter=[], encounterStarted=false;
 let world=null,player=null,enemies=[],bullets=[],particles=[],loots=[],flashes=[], texts=[],traps=[],torches=[],chests=[],stair=null, cam={x:0,y:0},screenShake=0, invul=0,attackTimer=0,dashTimer=0, dashTime=0, damageOverlay=0, flowCooldown=0, visited=[],flow=[],messageTimeout=0, deadAt=0;
 let audio=null,soundOn=true,fxId=0,joy={x:0,y:0,id:null},key={},holdAttack=false, mouseAim=null, portalReady=false, portalNear=false;
 const story=window.VesperStory;
@@ -139,48 +142,24 @@ function resize(){dpr=Math.min(devicePixelRatio||1,2);width=innerWidth;height=in
 window.addEventListener('resize',resize);resize();
 function sfx(type){if(!soundOn)return;try{audio=audio||new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();let f={strike:250,hit:150,kill:100,dash:440,collect:650,hurt:95,level:850,potion:500,door:180,shoot:300}[type]||250;const osc=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;osc.type=type==='collect'||type==='level'?'sine':type==='hurt'?'sawtooth':'triangle';osc.frequency.setValueAtTime(f,now);osc.frequency.exponentialRampToValueAtTime(Math.max(40,f*(type==='level'?1.5:.52)),now+.14);g.gain.setValueAtTime(.065,now);g.gain.exponentialRampToValueAtTime(.001,now+.17);osc.connect(g);g.connect(audio.destination);osc.start(now);osc.stop(now+.18);}catch(e){}}
 function showToast(a,b=''){const t=$('toast');t.innerHTML=a+(b?'<small>'+b+'</small>':'');t.classList.add('visible');messageTimeout=2.1;}
-function showOverlay(id){for(const name of ['home','upgrade','dead','paused'])$(name).classList.toggle('hidden',name!==id);}
-function hideOverlays(){for(const name of ['home','upgrade','dead','paused'])$(name).classList.add('hidden');}
+function showOverlay(id){for(const name of ['home','upgrade','dead','paused','complete'])$(name).classList.toggle('hidden',name!==id);}
+function hideOverlays(){for(const name of ['home','upgrade','dead','paused','complete'])$(name).classList.add('hidden');}
 function uiPlaying(on){$('hud').style.display=on?'block':'none';$('obj').style.display=on?'block':'none';$('controls').style.display=on?'flex':'none';$('topbuttons').style.display=on?'flex':'none';$('descend').style.display='none';}
-function setState(s){state=s;if(s==='playing'){hideOverlays();uiPlaying(true);}else if(s==='title'){showOverlay('home');uiPlaying(false);}else {showOverlay(s==='upgrade'?'upgrade':s==='dead'?'dead':'paused'); if(s==='dead')uiPlaying(false);} }
-function makeWorld(){
- const W=49,H=49,g=new Uint8Array(W*H).fill(1),rooms=[];
- const ix=(x,y)=>y*W+x, carve=(x,y)=>{if(x>1&&y>1&&x<W-2&&y<H-2)g[ix(x,y)]=0};
- for(let i=0,tryN=0;i<11&&tryN<380;tryN++){
-  const w=randi(6,10)+(floor%3===0&&i===9?2:0),h=randi(6,10),x=randi(3,W-w-4),y=randi(3,H-h-4);
-  if(rooms.some(r=>x<r.x+r.w+2&&x+w+2>r.x&&y<r.y+r.h+2&&y+h+2>r.y))continue;
-  const room={x,y,w,h,cx:Math.floor(x+w/2),cy:Math.floor(y+h/2)};rooms.push(room);
-  for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)carve(xx,yy);
-  i++;
- }
- if(rooms.length<4)return makeWorld();
- function hallX(a,b,y){for(let xx=Math.min(a,b);xx<=Math.max(a,b);xx++){carve(xx,y);carve(xx,y+1);}}
- function hallY(a,b,x){for(let yy=Math.min(a,b);yy<=Math.max(a,b);yy++){carve(x,yy);carve(x+1,yy);}}
- for(let i=1;i<rooms.length;i++){
-  let best=0,bd=1e9;for(let j=0;j<i;j++){let d=dist(rooms[i].cx,rooms[i].cy,rooms[j].cx,rooms[j].cy);if(d<bd){bd=d;best=j;}}
-  let a=rooms[i],b=rooms[best];if(rand()<.5){hallX(a.cx,b.cx,a.cy);hallY(a.cy,b.cy,b.cx);}else{hallY(a.cy,b.cy,a.cx);hallX(a.cx,b.cx,b.cy);}
- }
- // Occasional extra loops make the level less linear.
- for(let i=0;i<Math.min(3,rooms.length-1);i++){
-  const a=rooms[randi(0,rooms.length-1)],b=rooms[randi(0,rooms.length-1)];
-  if(dist(a.cx,a.cy,b.cx,b.cy)<19){hallX(a.cx,b.cx,a.cy);hallY(a.cy,b.cy,b.cx);}
- }
- const start=rooms[0],ordered=rooms.slice(1).sort((a,b)=>dist(b.cx,b.cy,start.cx,start.cy)-dist(a.cx,a.cy,start.cx,start.cy));
- return{W,H,g,rooms,start,exit:ordered[0],ix,walk:(x,y)=>x>=0&&y>=0&&x<W&&y<H&&g[ix(x,y)]===0};
-}
+function setState(s){state=s;if(s==='playing'){hideOverlays();uiPlaying(true);}else if(s==='title'){showOverlay('home');uiPlaying(false);}else {showOverlay(s==='upgrade'?'upgrade':s==='dead'?'dead':s==='complete'?'complete':'paused'); if(s==='dead'||s==='complete')uiPlaying(false);} }
+function makeWorld(){return window.VesperFloors.generate(window.VesperFloors.get(floor),rand);}
 function free(x,y,r=.28){return world.walk(Math.floor(x-r),Math.floor(y-r))&&world.walk(Math.floor(x+r),Math.floor(y-r))&&world.walk(Math.floor(x-r),Math.floor(y+r))&&world.walk(Math.floor(x+r),Math.floor(y+r));}
 function moveEntity(a,dx,dy){if(free(a.x+dx,a.y,a.r)){a.x+=dx;a.y+=dy;return;}if(free(a.x+dx,a.y,a.r))a.x+=dx;if(free(a.x,a.y+dy,a.r))a.y+=dy;}
-function spawnEnemy(x,y,type){const stats={bone:[35,1.55,9,12],wraith:[26,1.95,8,15],cultist:[44,1.15,10,18],brute:[100,.87,17,23],boss:[355,1.1,21,90]}[type];const factor=1+(floor-1)*.18;
- enemies.push({x,y,type,hp:Math.round(stats[0]*factor),maxHp:Math.round(stats[0]*factor),speed:stats[1]*(1+Math.min(.24,floor*.02)),dmg:stats[2]*(1+floor*.09),xp:stats[3],r:type==='boss'?.59:type==='brute'?.42:.30,hit:0,attack:rand()*.9,shoot:1.2+rand(),phase:rand()*TAU,dead:false,aim:0});}
+function spawnEnemy(x,y,type){const stats={bone:[35,1.55,9,12],wraith:[26,1.95,8,15],cultist:[44,1.15,10,18],brute:[100,.87,17,23],boss:[355,1.1,21,90]}[type];const config=window.VesperFloors.get(floor),factor=config.health;
+ enemies.push({x,y,type,hp:Math.round(stats[0]*factor),maxHp:Math.round(stats[0]*factor),speed:stats[1]*(1+Math.min(.24,floor*.02)),dmg:stats[2]*config.damage,xp:stats[3],r:type==='boss'?.59:type==='brute'?.42:.30,hit:0,attack:rand()*.9,shoot:1.2+rand(),phase:rand()*TAU,dead:false,aim:0});}
 function newFloor(){
  reseed();world=makeWorld();enemies=[];bullets=[];particles=[];loots=[];flashes=[];texts=[];traps=[];torches=[];chests=[];visited=new Uint8Array(world.W*world.H);flow=new Int16Array(world.W*world.H);flow.fill(32000);
- player.x=world.start.cx+.5;player.y=world.start.cy+.5;cam.x=player.x;cam.y=player.y;bossDead=floor%3!==0;floorKills=0;
+ player.x=world.start.cx+.5;player.y=world.start.cy+.5;cam.x=player.x;cam.y=player.y;bossDead=false;floorKills=0;finalEncounter=[];encounterStarted=false;clearInput();
  stair={x:world.exit.cx+.5,y:world.exit.cy+.5};
  world.rooms.forEach((r,i)=>{
    const spots=[[r.x+.65,r.y+.65],[r.x+r.w-.55,r.y+.65],[r.x+.65,r.y+r.h-.55],[r.x+r.w-.55,r.y+r.h-.55]];
    for(const [x,y] of spots)if(rand()<.43)torches.push({x,y,phase:rnd(0,TAU)});
-   if(i===0)return;
-   const n=clamp(1+Math.floor(floor/3)+randi(1,2),2,4);
+   if(i===0||r===world.exit)return;
+   const n=world.config.enemies;
    for(let k=0;k<n;k++){
      let x=rnd(r.x+1,r.x+r.w-1),y=rnd(r.y+1,r.y+r.h-1);
      if(dist(x,y,stair.x,stair.y)<1.3){x=r.x+1.5;y=r.y+1.5;}
@@ -190,10 +169,18 @@ function newFloor(){
    if(rand()<.46){let x=r.cx+.5,y=r.cy+.5;if(dist(x,y,stair.x,stair.y)>2)chests.push({x,y,opened:false,glow:rnd(0,TAU)});}
    if(i>1&&rand()<.42)for(let k=0;k<2;k++){let x=randi(r.x+2,r.x+r.w-2)+.5,y=randi(r.y+2,r.y+r.h-2)+.5;if(dist(x,y,stair.x,stair.y)>2)traps.push({x,y,phase:rnd(0,TAU),last:-10});}
  });
- if(floor===1){bossDead=false;spawnEnemy(stair.x-1.4,stair.y-1.4,'boss');const keeper=enemies[enemies.length-1];keeper.hp=keeper.maxHp=165;keeper.dmg=12;keeper.speed=.85;}else if(!bossDead)spawnEnemy(stair.x-1.4,stair.y-1.4,'boss');
+ const config=world.config;
+ const addFinal=(x,y,type,elite=false)=>{
+   spawnEnemy(x,y,type);const e=enemies[enemies.length-1];e.finalGuard=true;
+   if(type==='boss'){e.hp=e.maxHp=config.bossHealth;if(floor===1){e.dmg=12;e.speed=.85;}}
+   if(elite){e.hp=e.maxHp=Math.round(e.maxHp*1.55);e.dmg*=1.2;e.elite=true;}
+   finalEncounter.push(e);
+ };
+ if(config.final==='boss')addFinal(stair.x,stair.y-1.5,'boss');
+ for(let i=0;i<config.guards;i++)addFinal(world.exit.x+2+i*2,world.exit.y+2,'brute',config.final==='elite');
  story.setup(world,floor);
  needed=Math.max(5,Math.ceil(enemies.length*(bossDead?.63:.48)));portalReady=false;portalNear=false;flowCooldown=0;updateFlow();
- updateHUD();showToast(floor===1?'THE FORGOTTEN CRYPT':'CRYPT '+roman(floor),floor===1?'CHAPTER I · THE HOLLOW CROWN':bossDead?'The dead bar your path':'THE BELL WARDEN AWAKENS');
+ updateHUD();showToast(world.config.name.toUpperCase(),floor===1?'CHAPTER I · THE HOLLOW CROWN':world.config.final==='boss'?'THE WARDEN AWAITS':'ELITE GUARDIANS BAR THE EXIT');
 }
 function roman(n){if(n>20)return String(n);return ['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'][n];}
 function startGame(){floor=1;level=1;kills=0;ash=0;player={x:0,y:0,r:.26,hp:115,maxHp:115,xp:0,xpNeeded:48,damage:30,speed:3.9,range:1.7,arc:1.06,attackRate:.36,dashCd:2.2,potions:2,leech:0,crit:0,facing:-Math.PI/2,walk:0};invul=0;attackTimer=0;dashTimer=0;dashTime=0;holdAttack=false;joy.x=joy.y=0;newFloor();setState('playing');story.emit('run-start');sfx('door');}
@@ -205,7 +192,7 @@ function updateFlow(){flow.fill(32000);const q=new Int16Array(world.W*world.H);l
 function burst(x,y,color,count=11,power=2){for(let i=0;i<count;i++){let a=rnd(0,TAU),v=rnd(.4,power);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(.27,.65),max:.65,size:rnd(.035,.115),color});}if(particles.length>240)particles.splice(0,particles.length-240);}
 function flyText(x,y,s,color='#ffcb93',size=14){texts.push({x,y,t:0,txt:s,color,size});}
 function dropLoot(x,y,enemy){let count=enemy.type==='boss'?16:randi(1,3);for(let i=0;i<count;i++)loots.push({x:x+rnd(-.38,.38),y:y+rnd(-.38,.38),kind:'ash',value:enemy.type==='boss'?7:1,phase:rnd(0,TAU)});if(rand()<(enemy.type==='boss'?.9:.045))loots.push({x,y,kind:'potion',phase:0});}
-function killEnemy(e){if(e.dead)return;e.dead=true;floorKills++;kills++;player.xp+=e.xp;dropLoot(e.x,e.y,e);burst(e.x,e.y,e.type==='wraith'?'#81a9b2':'#a54459',e.type==='boss'?44:14,3.2);sfx('kill');screenShake=Math.max(screenShake,e.type==='boss'?.44:.13);if(e.type==='boss'){bossDead=true;story.emit('boss-defeated',{floor,x:e.x,y:e.y});showToast(floor===1?'THE CRYPT KEEPER FALLS':'THE BELL FALLS','Its final echo fades into ash');}if(player.leech&&rand()<player.leech)heal(5,false);if(floorKills>=needed&&bossDead&&!portalReady){portalReady=true;story.emit('seal-open',{floor});showToast('THE SEAL IS BROKEN','Find the glowing stairway');sfx('door');}updateHUD();}
+function killEnemy(e){if(e.dead)return;e.dead=true;floorKills++;kills++;player.xp+=e.xp;dropLoot(e.x,e.y,e);burst(e.x,e.y,e.type==='wraith'?'#81a9b2':'#a54459',e.type==='boss'?44:14,3.2);sfx('kill');screenShake=Math.max(screenShake,e.type==='boss'?.44:.13);if(e.type==='boss'){bossDead=true;story.emit('boss-defeated',{floor,x:e.x,y:e.y});showToast(floor===1?'THE CRYPT KEEPER FALLS':'THE BELL FALLS','Its final echo fades into ash');}if(player.leech&&rand()<player.leech)heal(5,false);if(floorKills>=needed&&finalEncounter.every(enemy=>enemy.dead)&&!portalReady){portalReady=true;story.emit('seal-open',{floor});showToast('THE SEAL IS BROKEN','Find the glowing stairway');sfx('door');}updateHUD();}
 function damageEnemy(e,damage,crit=false){e.hp-=damage;e.hit=.19;burst(e.x,e.y,e.type==='wraith'?'#9ec4cc':'#ae354f',crit?12:7,1.8);flyText(e.x,e.y-.35,(crit?'✦ ':'')+Math.round(damage),crit?'#ffdb8a':'#f2bdb0',crit?18:14);if(e.hp<=0)killEnemy(e);else sfx('hit');}
 function attemptAttack(){if(story.paused||state!=='playing'||attackTimer>0)return;attackTimer=player.attackRate;sfx('strike');let target=null,dd=3.4;
  for(const e of enemies){if(e.dead)continue;let d=dist(e.x,e.y,player.x,player.y);if(d<dd){dd=d;target=e;}}
@@ -237,9 +224,13 @@ function upgrade(){state='upgrade';showOverlay('upgrade');let opts=[];while(opts
 }
 function gainLevel(){if(state!=='playing')return;if(player.xp>=player.xpNeeded){player.xp-=player.xpNeeded;level++;player.xpNeeded=Math.round(player.xpNeeded*1.24+16);upgrade();updateHUD();}}
 function die(){if(state==='dead')return;state='dead';holdAttack=false;const best=Number(store.get('vesperBest')||0);if(kills>best)store.set('vesperBest',String(kills));$('deathstats').innerHTML=`Crypt reached: <b>${roman(floor)}</b><br>Souls reaped: <b>${kills}</b><br>Ash collected: <b>${ash}</b><br>Best run: <b>${Math.max(best,kills)} souls</b>`;const msgs=['Even the strongest candles burn out.','The dead are patient.','The cathedral remembers your name.'];$('deathtag').textContent=msgs[randi(0,msgs.length-1)];setState('dead');story.emit('player-died',{floor});}
-function nextFloor(){if(story.paused||!portalReady||!portalNear||state!=='playing')return;if(!story.canLeave(floor))return;story.emit('floor-left',{floor});floor++;player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.2));player.potions=Math.min(5,player.potions+1);dashTime=0;invul=1;newFloor();sfx('door');}
-function updateHUD(){if(!player)return;$('hpbar').style.width=(100*player.hp/player.maxHp)+'%';$('xpbar').style.width=(100*player.xp/player.xpNeeded)+'%';$('hptext').textContent=Math.ceil(player.hp)+' / '+Math.ceil(player.maxHp);$('cointext').textContent='✦ '+ash+' ASH';$('lvlabel').textContent='LVL '+level;$('floorlabel').textContent='CRYPT '+roman(floor);$('potionlabel').textContent='×'+player.potions;
- if(!portalReady){$('obj').textContent=bossDead?'BREAK THE SEAL • '+Math.max(0,needed-floorKills)+' SOULS':(floor===1?'SLAY THE KEEPER · ':'SLAY THE WARDEN · ')+Math.max(0,needed-floorKills)+' SOULS';}else $('obj').textContent='✧ THE STAIRWAY IS OPEN ✧';}
+function nextFloor(){if(story.paused||!portalReady||!portalNear||state!=='playing')return;if(!story.canLeave(floor))return;story.emit('floor-left',{floor});if(floor===window.VesperFloors.floors.length){clearInput();setState('complete');story.emit('run-complete',{floor,kills});return;}floor++;player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.2));player.potions=Math.min(5,player.potions+1);dashTime=0;invul=1;newFloor();sfx('door');}
+function updateHUD(){if(!player)return;$('hpbar').style.width=(100*player.hp/player.maxHp)+'%';$('xpbar').style.width=(100*player.xp/player.xpNeeded)+'%';$('hptext').textContent=Math.ceil(player.hp)+' / '+Math.ceil(player.maxHp);$('cointext').textContent='✦ '+ash+' ASH';$('lvlabel').textContent='LVL '+level;$('floorlabel').textContent='FLOOR '+floor+' / 5 · '+world.config.name;$('potionlabel').textContent='×'+player.potions;
+ const remaining=finalEncounter.filter(e=>!e.dead).length;
+ if(!portalReady)$('obj').textContent=(remaining?(world.config.final==='elite'?'ELITE GUARDIANS':'CHAMBER GUARDIANS')+' · '+remaining+' REMAIN · ':'')+'SEAL · '+Math.max(0,needed-floorKills)+' SOULS';
+ else $('obj').textContent=floor===5?'✧ THE FINAL SEAL IS OPEN ✧':'✧ THE STAIRWAY IS OPEN ✧';
+ $('descend').textContent=floor===5?'LEAVE THE CATHEDRAL ✧':'DESCEND ↡';}
+
 function updateMinimap(){if(!world||!player)return;const w=mapCanvas.width,h=mapCanvas.height,s=w/world.W;mctx.clearRect(0,0,w,h);mctx.fillStyle='#0c0e17';mctx.fillRect(0,0,w,h);
  for(let y=0;y<world.H;y++)for(let x=0;x<world.W;x++){const i=world.ix(x,y);if(!visited[i])continue;mctx.fillStyle=world.g[i]?'#25202d':'#655e64';mctx.fillRect(x*s,y*s,s+0.2,s+0.2);}
  const px=player.x*s,py=player.y*s;mctx.fillStyle='#e7c79e';mctx.beginPath();mctx.arc(px,py,3.3,0,TAU);mctx.fill();
@@ -262,7 +253,9 @@ function tick(dt){story.update({world,player,floor,state});if(story.paused)retur
  const x=Math.floor(player.x),y=Math.floor(player.y);if(world.walk(x,y)){for(let dy=-7;dy<=7;dy++)for(let dx=-7;dx<=7;dx++){let nx=x+dx,ny=y+dy;if(nx>=0&&ny>=0&&nx<world.W&&ny<world.H&&dx*dx+dy*dy<68)visited[world.ix(nx,ny)]=1;}}
  flowCooldown-=dt;if(flowCooldown<=0){flowCooldown=.3;updateFlow();updateMinimap();}
  for(const e of enemies){if(e.dead)continue;e.hit=Math.max(0,e.hit-dt);e.attack=Math.max(0,e.attack-dt);e.shoot-=dt;e.phase+=dt*(e.type==='wraith'?2.7:1.3);
-  const d=dist(e.x,e.y,player.x,player.y);if(d>12)continue;
+  const d=dist(e.x,e.y,player.x,player.y);
+  if(e.finalGuard){const r=world.exit;if(!encounterStarted&&player.x>=r.x&&player.x<r.x+r.w&&player.y>=r.y&&player.y<r.y+r.h){encounterStarted=true;showToast('THE FINAL CHAMBER',world.config.final==='elite'?'Defeat every elite guardian':'Defeat the warden and its guard');}if(!encounterStarted)continue;}
+  if(d>12)continue;
   if(d<e.r+player.r+.26&&e.attack<=0){hurt(e.dmg,e.x,e.y);e.attack=e.type==='boss'?1.2:1.1;}
   if(e.type==='cultist'||e.type==='boss'){
     if(e.shoot<=0&&d<8&&d>1.2){let a=Math.atan2(player.y-e.y,player.x-e.x);fireBolt(e.x,e.y,a,e.dmg*.85,e.type==='boss'?3.2:3.6,e.type==='boss');if(e.type==='boss'){fireBolt(e.x,e.y,a-.25,e.dmg*.7,2.9,true);fireBolt(e.x,e.y,a+.25,e.dmg*.7,2.9,true);}e.shoot=e.type==='boss'?2.2:2.7+rnd(0,1);}
@@ -391,11 +384,19 @@ function draw(){if(window.castleView?.render({world,player,torches,stair,cam,tim
 function loop(now){if(!last)last=now;const dt=Math.min(.045,(now-last)/1000);last=now;tick(dt);draw();requestAnimationFrame(loop);}requestAnimationFrame(loop);
 // Pointer joystick with capture for reliable iPhone touch input.
 const stick=$('stick'),knob=$('knob');function joyUpdate(e){const b=stick.getBoundingClientRect(),cx=b.left+b.width/2,cy=b.top+b.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=b.width*.33,len=Math.hypot(dx,dy),scale=Math.min(1,max/(len||1));let px=dx*scale,py=dy*scale;knob.style.transform=`translate(${px}px,${py}px)`;joy.x=px/max;joy.y=py/max;}
-stick.addEventListener('pointerdown',e=>{e.preventDefault();joy.id=e.pointerId;stick.setPointerCapture(e.pointerId);joyUpdate(e);});stick.addEventListener('pointermove',e=>{if(e.pointerId===joy.id)joyUpdate(e);});function joyEnd(e){if(e.pointerId===joy.id){joy.id=null;joy.x=joy.y=0;knob.style.transform='translate(0,0)';}}stick.addEventListener('pointerup',joyEnd);stick.addEventListener('pointercancel',joyEnd);
+stick.addEventListener('pointerdown',e=>{e.preventDefault();joy.id=e.pointerId;stick.setPointerCapture(e.pointerId);joyUpdate(e);});stick.addEventListener('pointermove',e=>{if(e.pointerId===joy.id)joyUpdate(e);});function joyEnd(e){if(e.pointerId===joy.id){joy.id=null;joy.x=joy.y=0;knob.style.transform='translate(0,0)';}}stick.addEventListener('pointerup',joyEnd);stick.addEventListener('pointercancel',joyEnd);stick.addEventListener('lostpointercapture',joyEnd);
 const attackBtn=$('attack');attackBtn.addEventListener('pointerdown',e=>{e.preventDefault();attackBtn.setPointerCapture(e.pointerId);holdAttack=true;attackBtn.classList.add('down');attemptAttack();});for(const evt of ['pointerup','pointercancel','lostpointercapture'])attackBtn.addEventListener(evt,()=>{holdAttack=false;attackBtn.classList.remove('down');});
 $('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash();});$('potion').addEventListener('pointerdown',e=>{e.preventDefault();drink();});
 const dirkeys=['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Shift','q','Q','j','J','k','K','e','E'];addEventListener('keydown',e=>{if(story.paused||e.isComposing||e.keyCode===229)return;if(dirkeys.includes(e.key))e.preventDefault();key[e.key]=true;if(e.repeat)return;if(e.key==='Shift'||e.key==='k'||e.key==='K')dash();if(e.key==='q'||e.key==='Q')drink();if(e.key==='e'||e.key==='E')nextFloor();if(e.key==='Escape'||e.key==='p'||e.key==='P')togglePause();if(state==='title'&&e.key==='Enter')story.opening(startGame);});addEventListener('keyup',e=>{key[e.key]=false;});
-canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&state==='playing'){holdAttack=true;attemptAttack();}});window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')holdAttack=false;});window.addEventListener('blur',()=>{for(const k in key)key[k]=false;holdAttack=false;if(state==='playing')togglePause();});
+canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&state==='playing'){holdAttack=true;attemptAttack();}});window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')holdAttack=false;});// Mobile browser chrome and embedded toolbars can blur a visible page on a tap.
+// Clear held input on blur, but pause only when the document actually leaves view.
+window.addEventListener('blur',clearInput);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();if(state==='playing')togglePause();}});
+// Safari can ignore viewport zoom limits. Cancel native game-surface gestures
+// without cancelling the click events used by menus, pause and story buttons.
+const gameSurface=target=>target?.closest?.('#game,#castle-scene,#stick,#attack,#dash,#potion');
+window.addEventListener('touchend',e=>{if(state==='playing'&&!story.paused&&gameSurface(e.target)&&e.cancelable)e.preventDefault();},{passive:false});
+for(const name of ['gesturestart','gesturechange','dblclick'])window.addEventListener(name,e=>{if(state==='playing'&&!story.paused&&e.cancelable)e.preventDefault();},{passive:false});
 function togglePause(){if(story.paused)return;if(state==='playing'){state='paused';showOverlay('paused');$('descend').style.display='none';holdAttack=false;}else if(state==='paused')setState('playing');}
 $('viewmode').addEventListener('click',()=>{if(window.castleView){window.castleView.enabled=!window.castleView.enabled;$('viewmode').textContent=window.castleView.enabled?'3D':'2D';}});
 $('start').addEventListener('click',()=>story.opening(startGame));$('retry').addEventListener('click',startGame);$('resume').addEventListener('click',()=>setState('playing'));$('quit').addEventListener('click',()=>{setState('title');$('best').textContent='BEST RUN · '+(store.get('vesperBest')||0)+' SOULS';});$('pausebtn').addEventListener('click',togglePause);$('descend').addEventListener('click',nextFloor);$('sound').addEventListener('click',()=>{soundOn=!soundOn;$('sound').textContent=soundOn?'♫':'♪̸';});
