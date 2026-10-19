@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const Bosses=require('./boss-system.js'),Enemies=require('./enemy-system.js');
-function arena(floor=1){const size=floor===1?10:floor===3?12:14,room={x:0,y:0,w:size,h:size},p={x:2,y:2,r:.26,hp:115,maxHp:115},boss={type:'boss',x:size/2,y:size/2,hp:floor===1?165:floor===3?440:680,maxHp:floor===1?165:floor===3?440:680,r:.59,phase:0},hits=[],sequences=[],notices=[];let ready=true;
+function arena(floor=1){const size=floor===1?10:floor===3?12:14,room={x:0,y:0,w:size,h:size},p={x:2,y:2,r:.26,hp:115,maxHp:115},boss={type:'boss',x:size/2,y:size/2,hp:require('./floors.js').get(floor).bossHealth,maxHp:require('./floors.js').get(floor).bossHealth,r:.59,phase:0},hits=[],sequences=[],notices=[];let ready=true;
  const combat=Enemies.createRuntime({player:()=>p,enemies:()=>[boss],world:()=>({walk:(x,y)=>x>=0&&y>=0&&x<size&&y<size}),allowed:()=>true,damage(){},flow:()=>[],move(e,x,y){e.x+=x;e.y+=y},hurt(n,x,y,kind){hits.push({n,kind})}});
  const b=Bosses.createRuntime({combat,player:()=>p,ready:()=>ready,clearInput(){},effect(){},notice(...args){notices.push(args)},sequence:s=>sequences.push(s?.kind||'end'),move(e,x,y){e.x+=x;e.y+=y}});b.reset(boss,room,floor);
  const tick=(seconds)=>{for(let n=0;n<Math.ceil(seconds/.02);n++){combat.tick(.02);b.tick(.02)}};

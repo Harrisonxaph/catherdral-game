@@ -6,8 +6,8 @@ eight enemy archetypes, narrative interactions and both renderers remain in use.
 
 ## Finding the encounters
 
-Explore normally. Floors 1, 3 and 5 retain their existing final chambers and health
-values (165, 440 and 680). Defeat their existing chamber guards first; the boss
+Explore normally. Floors 1, 3 and 5 retain their existing final chambers, with increased health
+values (1,000, 2,500 and 4,000). Boss damage is unchanged. Defeat their existing chamber guards first; the boss
 cannot be damaged before activation. Floors 2 and 4 keep their elite exit encounters.
 The exit still requires the floor kill quota and every final encounter member.
 Bosses stay in their chambers. Retreating into the approach prevents boss damage
