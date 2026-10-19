@@ -16,6 +16,8 @@ const ring = new THREE.RingGeometry(.96,1,32);
 const healthMaterial=new THREE.MeshBasicMaterial({color:'#d35a70',depthTest:false,depthWrite:false});
 const shieldMaterial=new THREE.MeshBasicMaterial({color:'#61b7ff',depthTest:false,depthWrite:false});
 const barMaterial=new THREE.MeshBasicMaterial({color:'#100d18',depthTest:false,depthWrite:false});
+const aegisMaterial=new THREE.MeshBasicMaterial({color:'#429dff',transparent:true,opacity:.16,depthWrite:false});
+const aegisHitMaterial=new THREE.MeshBasicMaterial({color:'#b9e5ff',transparent:true,opacity:.4,depthWrite:false});
 const hitMaterial=new THREE.MeshBasicMaterial({color:'#ffe3c2',transparent:true,opacity:.4,wireframe:true});
 const hazardMaterials=new Map();
 function hazardMaterial(color,warning){const key=color+warning;if(!hazardMaterials.has(key))hazardMaterials.set(key,new THREE.MeshBasicMaterial({color,transparent:true,opacity:warning?.18:.5,depthWrite:false,side:THREE.DoubleSide}));return hazardMaterials.get(key);}
@@ -169,6 +171,7 @@ class CastleView {
       if(type==='guardian'){part(bars,plane,barMaterial,0,.13,0,.9,.09,1);group.userData.shield=part(bars,plane,shieldMaterial,0,.13,.01,.86,.055,1);}
       bars.traverse(o=>{if(o.isMesh)o.renderOrder=20;});group.userData.health.renderOrder=21;if(group.userData.shield)group.userData.shield.renderOrder=21;
     }
+    if(!hero){const indicator=new THREE.Group();indicator.position.y=1.8;group.add(indicator);const halo=part(indicator,ring,gold,0,0,0,.23,.23,.23);halo.rotation.x=-Math.PI/2;for(const side of [-1,1])part(indicator,cone,gold,side*.22,.1,0,.06,.16,.06);indicator.visible=false;group.userData.stunIndicator=indicator;}
     return group;
   }
   object(key,make,active) {
@@ -177,7 +180,7 @@ class CastleView {
     return this.dynamic.get(key);
   }
   render(data) {
-    const {world,player,torches,stair,cam,time,equipment,enemies,hazards=[],chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}=data;
+    const {world,player,torches,stair,cam,time,equipment,abilityState,enemies,hazards=[],chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}=data;
     this.renderer.domElement.hidden=!this.enabled;
     if(!this.enabled)return false;
     if(this.world!==world)this.build(world,torches,stair);
@@ -198,6 +201,13 @@ class CastleView {
       u.axe.visible=!!main&&['graveaxe','executioner','ashbringer'].includes(equipment.main.key);
       if(off){u.offhand.material=colorMaterial(E.rarities[off.rarity].color);u.offSword.material=colorMaterial(E.rarities[off.rarity].color);}
     }
+    if(abilityState?.cast){hero.rotation.y=-abilityState.cast.facing-Math.PI/2;hero.userData.sword.rotation.x=-1.7;}else hero.userData.sword.rotation.x=-.5;
+    if(abilityState?.barrier.capacity>0&&abilityState.barrier.remaining>0){
+      const barrier=abilityState.barrier,m=this.object(barrier,()=>{
+        const group=new THREE.Group();group.userData.shell=part(group,sphere,aegisMaterial,0,.75,0,.78,1.05,.78);const halo=part(group,ring,colorMaterial('#69baff'),0,.04,0,.85,.85,.85);halo.rotation.x=-Math.PI/2;return group;
+      },active);
+      m.position.set(player.x,0,player.y);m.userData.shell.material=barrier.hit>0?aegisHitMaterial:aegisMaterial;
+    }
     for(const e of enemies){
       if(e.dead||Math.hypot(e.x-player.x,e.y-player.y)>13)continue;
       const m=this.object(e,()=>this.actor(false,e.type),active);
@@ -205,7 +215,7 @@ class CastleView {
       m.position.set(e.x,e.type==='wraith'?.13+Math.sin(time*3)*.1:attack?.12:0,e.y);
       m.rotation.y=-e.aim-Math.PI/2;m.rotation.z=e.state==='stunned'?Math.sin(time*40)*.09:0;
       if(m.userData.sword)m.userData.sword.rotation.x=prep?-1.6:attack?.8:-.5;
-      if(m.userData.flash)m.userData.flash.visible=e.hit>0;
+      if(m.userData.flash)m.userData.flash.visible=e.hit>0;if(m.userData.stunIndicator){m.userData.stunIndicator.visible=e.state==='stunned';m.userData.stunIndicator.rotation.y=time*3;}
       if(m.userData.bars){
         m.userData.bars.visible=e.hp<e.maxHp||e.shield<e.maxShield||!['idle','patrol'].includes(e.state);
         m.userData.bars.quaternion.copy(m.quaternion).invert().multiply(this.camera.quaternion);
@@ -256,7 +266,7 @@ class CastleView {
       if(l.kind==='ash'){m.scale.setScalar(.12);m.rotation.y=time;}else if(l.kind==='equipment')m.rotation.y=Math.sin(time+l.phase)*.15;
     }
     for(const [items,size,y,color] of [[bullets,.15,.65,'#ed748c'],[particles,.055,.45,null]])for(const a of items){if(Math.hypot(a.x-player.x,a.y-player.y)>13)continue;const m=this.object(a,()=>new THREE.Mesh(sphere,colorMaterial(a.color||color)),active);m.position.set(a.x,y+Math.sin(time*4)*.05,a.y);m.scale.setScalar(size);m.rotation.y=time;}
-    for(const f of flashes){const m=this.object(f,()=>{const mesh=new THREE.Mesh(new THREE.TorusGeometry(f.range*(f.fullCircle?1:.8),.045,4,24,f.fullCircle?Math.PI*2:player.arc*2),colorMaterial(f.color||'#ffe0a5'));mesh.rotation.x=Math.PI/2;return mesh;},active);m.position.set(f.x,.5,f.y);m.rotation.z=f.a-player.arc;m.scale.setScalar(1-f.t/f.duration*.3);}
+    for(const f of flashes){const m=this.object(f,()=>{const mesh=new THREE.Mesh(new THREE.TorusGeometry(f.range*(f.fullCircle?1:.8),.045,4,24,f.fullCircle?Math.PI*2:(f.arc??player.arc)*2),colorMaterial(f.color||'#ffe0a5'));mesh.rotation.x=Math.PI/2;return mesh;},active);m.position.set(f.x,.5,f.y);m.rotation.z=f.a-(f.arc??player.arc);m.scale.setScalar(1-f.t/f.duration*.3);}
     for(const text of texts){const m=this.object(text,()=>this.damageLabel(text),active);m.position.set(text.x,1.7,text.y);m.material.opacity=1-text.t/.75;}
     for(const [key,mesh] of this.dynamic)if(!active.has(key)){this.scene.remove(mesh);if(mesh.geometry?.type==='TorusGeometry')mesh.geometry.dispose();if(mesh.isSprite){mesh.material.map.dispose();mesh.material.dispose();}this.dynamic.delete(key);}
     this.renderer.render(this.scene,this.camera);return true;

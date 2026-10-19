@@ -1,5 +1,5 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v6-equipment-1';
+const CACHE_VERSION = 'vesper-cathedral-v7-abilities-1';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,8 @@ const APP_ASSETS = [
   './floors.js',
   './enemy-system.js',
   './equipment.js',
+  './abilities.js',
+  './abilities.css',
   './inventory-ui.js',
   './inventory.css',
   './story-content.js',
