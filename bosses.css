@@ -1,0 +1,9 @@
+#boss-status{position:fixed;top:145px;left:14px;z-index:15;width:calc(100% - 180px);max-width:280px;text-align:center;white-space:pre-line;color:#edd0a1;background:#160f19df;border:1px solid #967248;padding:7px 12px;font:11px/1.6 Georgia,serif;pointer-events:none}
+#boss-interact{position:fixed;left:14px;bottom:172px;bottom:calc(172px + env(safe-area-inset-bottom));z-index:25;width:calc(100% - 200px);max-width:180px;min-height:44px;padding:12px;color:#ffdc94;background:#251c20;border:1px solid #b18b52;touch-action:none;font:12px Georgia,serif}
+#boss-sequence{position:fixed;inset:0;z-index:70;pointer-events:auto;box-shadow:inset 0 70px #08070be8,inset 0 -85px #08070be8;background:linear-gradient(transparent 65%,#100915b0)}
+#boss-caption{position:absolute;bottom:100px;left:8%;right:8%;color:#efd4a6;font:clamp(16px,4vw,25px) Georgia,serif;text-align:center;text-shadow:0 2px 4px #000}
+#boss-skip{position:absolute;bottom:20px;right:20px;padding:12px 20px;background:#211823;color:#edd0a1;border:1px solid #9b7851;touch-action:manipulation}
+[hidden]{display:none!important}
+@media(max-height:600px){#boss-status{top:94px;font-size:10px;padding:3px 8px}#boss-interact{bottom:calc(151px + env(safe-area-inset-bottom))}}
+
+.boss-encounter #quest-tracker{visibility:hidden}

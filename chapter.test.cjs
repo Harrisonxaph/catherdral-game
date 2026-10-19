@@ -7,9 +7,9 @@ function game(){
   const context2d=new Proxy({}, {get:()=>()=>{}});
   const element=()=>({style:{},classList:{add(){},remove(){},toggle(){}},addEventListener(){},getContext:()=>context2d,querySelectorAll:()=>[],textContent:'',innerHTML:'',width:130,height:130});
   const story={paused:false,objects:[],connect(a){this.adapter=a},setup(){},update(){},emit(name,detail){events.push({name,detail})},canLeave:()=>true};
-  const sandbox={document:{hidden:false,addEventListener(name,fn){handlers[name]=fn},getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)}},localStorage:{getItem(){return null},setItem(){}},innerWidth:393,innerHeight:852,devicePixelRatio:1,addEventListener(name,fn){handlers[name]=fn},requestAnimationFrame(){},VesperStory:story,VesperFloors:require('./floors.js'),VesperEnemies:require('./enemy-system.js'),VesperAbilities:require('./abilities.js'),VesperEquipment:require('./equipment.js'),VesperInventoryUI:{create(adapter){this.adapter=adapter;return {isOpen:false}}}};sandbox.window=sandbox;
+  const sandbox={document:{hidden:false,addEventListener(name,fn){handlers[name]=fn},getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)}},localStorage:{getItem(){return null},setItem(){}},innerWidth:393,innerHeight:852,devicePixelRatio:1,addEventListener(name,fn){handlers[name]=fn},requestAnimationFrame(){},VesperStory:story,VesperFloors:require('./floors.js'),VesperEnemies:require('./enemy-system.js'),VesperAbilities:require('./abilities.js'),VesperBosses:require('./boss-system.js'),VesperEquipment:require('./equipment.js'),VesperInventoryUI:{create(adapter){this.adapter=adapter;return {isOpen:false}}}};sandbox.window=sandbox;
   const script=fs.readFileSync('index.html','utf8').match(/<script>\s*'use strict';([\s\S]*?)<\/script>/)[1];
-  vm.createContext(sandbox);vm.runInContext(script.replace(/\}\)\(\);\s*$/,`window.testGame={activateAbility,abilities,resolveMelee,setState,setAttackTimer(v){attackTimer=v},setInvul(v){invul=v},equipmentStats,reconcileEquipment,checkEncounter,collectEquipment,dropEquipment,openInventory(){window.VesperInventoryUI.adapter.pause()},closeInventory(){window.VesperInventoryUI.adapter.resume()},get gear(){return runEquipment},get loot(){return loots},get fireCooldown(){return fireCooldown},get encounter(){return encounter},setRandom(fn){rand=fn},hurt,spawnEnemy,combat,damageEnemy,fireBolt,get bullets(){return bullets},startGame,tick,attemptAttack,dash,drink,killEnemy,die,nextFloor,get player(){return player},get enemies(){return enemies},get state(){return state},get floor(){return floor},get portalReady(){return portalReady},get attackTimer(){return attackTimer},get dashTime(){return dashTime},get world(){return world},get finalEncounter(){return finalEncounter},get needed(){return needed},hurt,free,moveEntity,setKey(k,v){key[k]=v},atExit(){player.x=stair.x;player.y=stair.y;portalNear=true}};})();`),sandbox);
+  vm.createContext(sandbox);vm.runInContext(script.replace(/\}\)\(\);\s*$/,`window.testGame={bosses,activateAbility,abilities,resolveMelee,setState,setAttackTimer(v){attackTimer=v},setInvul(v){invul=v},equipmentStats,reconcileEquipment,checkEncounter,collectEquipment,dropEquipment,openInventory(){window.VesperInventoryUI.adapter.pause()},closeInventory(){window.VesperInventoryUI.adapter.resume()},get gear(){return runEquipment},get loot(){return loots},get fireCooldown(){return fireCooldown},get encounter(){return encounter},setRandom(fn){rand=fn},hurt,spawnEnemy,combat,damageEnemy,fireBolt,get bullets(){return bullets},startGame,tick,attemptAttack,dash,drink,killEnemy,die,nextFloor,get player(){return player},get enemies(){return enemies},get state(){return state},get floor(){return floor},get portalReady(){return portalReady},get attackTimer(){return attackTimer},get dashTime(){return dashTime},get world(){return world},get finalEncounter(){return finalEncounter},get needed(){return needed},hurt,free,moveEntity,setKey(k,v){key[k]=v},atExit(){player.x=stair.x;player.y=stair.y;portalNear=true}};})();`),sandbox);
   return {g:sandbox.testGame,story,events,handlers,document:sandbox.document};
 }
 test('Movement, combat, dash, potions and safe reading pause',()=>{
@@ -45,7 +45,7 @@ test('All five floors: reachable spawns, increasing difficulty, final guards gat
   for(const e of g.enemies.filter(e=>!e.finalGuard))g.killEnemy(e);
   assert.equal(g.portalReady,false);g.atExit();g.nextFloor();assert.equal(g.floor,floor);
   const guards=g.finalEncounter;for(const e of guards.slice(0,-1))g.killEnemy(e);assert.equal(g.portalReady,false);
-  g.killEnemy(guards.at(-1));assert.equal(g.portalReady,true);
+  g.killEnemy(guards.at(-1));assert.equal(g.portalReady,true);g.bosses.skip();
   g.atExit();g.nextFloor();assert.equal(g.floor,Math.min(5,floor+1));
  }
  assert.equal(g.state,'complete');assert.equal(events.filter(e=>e.name==='run-complete').length,1);g.nextFloor();assert.equal(g.floor,5);
@@ -176,4 +176,15 @@ test('Ability HUD readiness updates immediately across menus without needing ani
  const {g,document}=game();g.startGame();const button=document.getElementById('ability-aegis');assert.equal(button.disabled,false);
  g.openInventory();assert.equal(button.disabled,true);g.closeInventory();assert.equal(button.disabled,false);
  g.setState('paused');assert.equal(button.disabled,true);g.setState('playing');assert.equal(button.disabled,false);assert.equal(g.abilities.cooldowns.aegis,0);
+});
+
+test('Real boss damage uses equipment and Aegis; major attacks resist stun, melee staggers once',()=>{
+ const {g}=game();g.startGame();g.player.xpNeeded=1e9;
+ for(const e of g.enemies.filter(e=>e.type!=='boss'))g.killEnemy(e);
+ g.atExit();g.tick(.01);const boss=g.bosses.boss;assert.equal(g.bosses.active,true);
+ g.player.x=boss.x;g.player.y=boss.y+.65;g.player.facing=-Math.PI/2;g.setRandom(()=>.5);
+ const hp=boss.hp,gear=g.equipmentStats();assert.ok(g.activateAbility('execution'));g.tick(.19);assert.ok(Math.abs(hp-boss.hp-gear.damage*2*1.015)<1e-8);
+ g.setAttackTimer(0);g.bosses.begin('cross');assert.equal(g.combat.stun(boss,2,{source:'ability'}),false);
+ g.bosses.begin('melee');boss.stunLock=0;assert.ok(g.combat.stun(boss,2,{source:'ability'}));assert.equal(boss.stateTime,.75);assert.equal(g.combat.stun(boss,2,{source:'ability'}),false);
+ assert.ok(g.activateAbility('aegis'));const barrier=g.abilities.barrier.capacity,shield=g.player.shield;g.setInvul(0);g.hurt(12,undefined,undefined,'fire');assert.ok(g.abilities.barrier.capacity<barrier);assert.equal(g.player.shield,shield);
 });

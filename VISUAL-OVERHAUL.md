@@ -2,9 +2,10 @@
 
 Development branch: `development/stage-4-visual-overhaul`. Based on completed Stage
 4 (`3b9b40e`, merged PR #6), exactly as requested. The three abilities were verified
-before work. This branch contains the Stage 4 placeholder final encounters, not the
-later Stage 5 custom bosses or their increased health. Those remain on their own
-branch/history; integrating this renderer with Stage 5 requires a separate merge.
+before work. PR #8 now integrates main's completed Stage 5 encounters, retaining
+Snakeling 1,000 HP, Flameghoul 2,500 HP and Undead King 4,000 HP. The upgraded
+regular-character rigs and environment remain alongside the existing bespoke boss
+models, cinematic camera, candles and exact collision-matched boss hazards.
 No production merge is performed.
 
 ## What actually changed
@@ -12,8 +13,8 @@ No production merge is performed.
 The real Three.js game remains the default. The renderer consumes the same world,
 player/enemy objects, hit events, hazards, equipment and simulation time. There is
 no replacement combat engine or static background. `floors.js`, `enemy-system.js`,
-`equipment.js`, `abilities.js` and narrative/progression code are unchanged from
-Stage 4. World-grid hashes in all ten before/after scenes match exactly.
+`equipment.js` and `abilities.js` remain unchanged. Stage 5 simulation and
+narrative changes are preserved from main. World-grid hashes in all ten before/after scenes match exactly.
 
 ### Cathedral architecture and five floor identities
 
@@ -184,5 +185,5 @@ no external character licence or production asset quality is claimed here.
 
 Full vaulted interiors, physically accurate volumetrics and high-resolution
 photogrammetry are also outside this mobile-focused pass. The current alternatives
-are deliberately visible, efficient geometry/material improvements. No custom boss,
-new enemy AI, ability, inventory mechanic or gameplay-balance change is included.
+are deliberately visible, efficient geometry/material improvements. The integration preserves main’s custom bosses and balance; it adds no new
+abilities, inventory mechanics or changes to their gameplay.

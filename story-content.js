@@ -6,7 +6,7 @@ window.VesperChapter = {
     crypt: { text: 'The Forgotten Crypt. Above us, a king’s castle. Below us… no one has returned to say. Three centuries, and still the bells refuse to mark a morning.', choices: [['What happened here?', 'ritual'], ['How do I leave?', 'escape']] },
     ritual: { text: 'Our king would not surrender to the grave. He offered the castle in his place. Now the dead rise, and the living forget which they were.', choices: [['And the crown?', 'crown'], ['I should go.', null]] },
     identity: { text: 'I knew someone with your eyes. They stood beside the throne when the candles went out. Forgive me. Memory is a cruel witness.', choices: [['What throne?', 'ritual'], ['I need a way out.', 'escape']] },
-    escape: { text: 'Break the seal. Silence the Crypt Keeper at the far stair. Take what he guards; the broken crown remembers doors that we have forgotten.', choices: [['Tell me about the crown.', 'crown'], ['Then I will find the stair.', null]] },
+    escape: { text: 'Break the seal. Silence the Snakeling at the far stair. Take what he guards; the broken crown remembers doors that we have forgotten.', choices: [['Tell me about the crown.', 'crown'], ['Then I will find the stair.', null]] },
     crown: { text: 'A sliver is still a crown, to the hand that wore it. If it feels warm, do not tell me. I have so few loyalties left.', choices: [['I will remember your warning.', null]] }
   },
   lore: {
