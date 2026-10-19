@@ -105,7 +105,7 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
 <div class="overlay hidden" id="upgrade"><div class="panel"><p class="eyebrow">THE BLOOD REMEMBERS</p><div class="sigil" style="height:65px;width:65px"><span style="font-size:36px">✥</span></div><h1 style="font-size:33px;letter-spacing:3px">CHOOSE A BLESSING</h1><p class="subtitle">Power has its price.</p><div id="upgrades"></div></div></div>
 <div class="overlay hidden" id="dead"><div class="panel"><p class="eyebrow">THE CATHEDRAL CLAIMS ANOTHER</p><div class="sigil"><span>☩</span></div><h1 style="font-size:43px">YOU HAVE FALLEN</h1><p class="subtitle" id="deathtag">Ashes to ashes.</p><div class="goldline"></div><div class="stats-summary" id="deathstats"></div><button class="primary" id="retry">RISE AGAIN</button><div class="smallnote">New crypt · New enemies · Another chance</div></div></div>
 <div class="overlay hidden" id="complete"><div class="panel"><p class="eyebrow">FIVE FLOORS · FIVE BROKEN SEALS</p><h1 style="font-size:38px">ASHES FALL SILENT</h1><p class="lore">You have survived the Cathedral of Ash.</p><button class="primary" onclick="document.getElementById('retry').click()">BEGIN ANOTHER DESCENT</button></div></div>
-<div class="overlay hidden" id="paused"><div class="panel"><p class="eyebrow">THE WORLD HOLDS ITS BREATH</p><h1 style="font-size:41px">PAUSED</h1><p class="lore">The dead will wait. Briefly.</p><button class="primary" id="resume">RESUME THE DESCENT</button><button class="secondary" id="quit">Return to title</button></div></div>
+<div class="overlay hidden" id="paused"><div class="panel"><p class="eyebrow">THE WORLD HOLDS ITS BREATH</p><h1 style="font-size:41px">PAUSED</h1><p class="lore">The dead will wait. Briefly.</p><label class="graphics-label" for="graphics-quality">GRAPHICS QUALITY <select id="graphics-quality"><option value="low">Low · mobile friendly</option><option value="medium">Medium · balanced</option><option value="high">High · enhanced</option></select></label><button class="primary" id="resume">RESUME THE DESCENT</button><button class="secondary" id="quit">Return to title</button></div></div>
 <div class="install-guide hidden" id="installGuide" role="dialog" aria-modal="true" aria-labelledby="installTitle">
   <div class="install-panel">
     <img src="./icons/apple-touch-icon.png" alt="VESPER gothic app icon" />
@@ -122,6 +122,8 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
 <link rel="stylesheet" href="./inventory.css" />
 <link rel="stylesheet" href="./narrative.css" />
 <link rel="stylesheet" href="./abilities.css" />
+<link rel="stylesheet" href="./visual-ui.css" />
+<script src="./graphics.js"></script>
 <script src="./abilities.js"></script>
 <script src="./equipment.js"></script>
 <script src="./inventory-ui.js"></script>
@@ -189,6 +191,7 @@ function updateAbilityHUD(){
  for(const [id,definition]of Object.entries(abilitySystem.definitions)){
   const button=$('ability-'+id),remaining=abilities.cooldowns[id];const disabled=!abilities.available(id);if(button.disabled!==disabled){button.disabled=disabled;button.classList.toggle('ready',!disabled);}
   const label=remaining>0?Math.ceil(remaining)+'s':definition.key+' · '+labels[id];if($('cooldown-'+id).textContent!==label)$('cooldown-'+id).textContent=label;
+  const gradient=remaining>0?'conic-gradient(#080a11d9 '+Math.round(remaining/definition.cooldown*360)+'deg,transparent 0deg)':'';if(button._vesperGradient!==gradient){button._vesperGradient=gradient;button.style.backgroundImage=gradient;}
   if(!button.title)button.title=definition.name+' · '+definition.cooldown+'s cooldown';
  }
  const aegisLabel=abilities.barrier.remaining>0?'AEGIS '+Math.ceil(abilities.barrier.capacity):'';if($('aegis-status').textContent!==aegisLabel)$('aegis-status').textContent=aegisLabel;
@@ -405,7 +408,7 @@ function renderEnemy(e,x,y){let T=tileSize,s=e.type==='boss'?1.7:e.type==='brute
  }
  ctx.restore();if(e.hp<e.maxHp||e.type==='boss'){let barW=T*(e.type==='boss'?1.7:.75);ctx.fillStyle='#130b12e8';ctx.fillRect(x-barW/2,y-T*(e.type==='boss'?.91:.54),barW,4);ctx.fillStyle=e.type==='boss'?'#dfa86d':'#d26071';ctx.fillRect(x-barW/2,y-T*(e.type==='boss'?.91:.54),barW*clamp(e.hp/e.maxHp,0,1),3);}
 }
-function draw(){if(window.castleView?.render({world,player,torches,stair,cam,time,equipment:runEquipment,abilityState:abilities,enemies,hazards:combat.hazards,chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}))return;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#080910';ctx.fillRect(0,0,width,height);if(!world||!player)return;
+function draw(){if(window.castleView?.render({world,player,torches,stair,cam,time,equipment:runEquipment,abilityState:abilities,enemies,hazards:combat.hazards,chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,dodging:dashTime>0,screenShake,invul,damageOverlay}))return;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#080910';ctx.fillRect(0,0,width,height);if(!world||!player)return;
  ctx.save();const shake=screenShake*tileSize*.18;ctx.translate(rnd(-shake,shake),rnd(-shake,shake));
  const offY=(width<650&&height>width)?1.05:0;
  const minX=clamp(Math.floor(cam.x-width/(2*tileSize))-1,0,world.W-1),maxX=clamp(Math.ceil(cam.x+width/(2*tileSize))+1,0,world.W-1);
