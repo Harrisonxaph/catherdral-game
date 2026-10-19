@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#0a0b12" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -17,7 +17,7 @@
 :root{--ivory:#f2e8d7;--muted:#a99b92;--gold:#dbb37b;--red:#e46e7e;--bg:#090b11;--glass:rgba(11,12,21,.78)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ivory);font-family:Georgia,'Times New Roman',serif;touch-action:none;user-select:none;-webkit-user-select:none}
-button{font:inherit;color:inherit;cursor:pointer;-webkit-appearance:none;appearance:none}
+button{touch-action:manipulation;font:inherit;color:inherit;cursor:pointer;-webkit-appearance:none;appearance:none}
 #game{width:100vw;height:100dvh;display:block;touch-action:none;background:#090b11}
 #vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 49%,transparent 34%,rgba(4,4,11,.24) 74%,rgba(0,0,5,.70) 100%);z-index:2}
 #hud{position:fixed;inset:0 0 auto 0;z-index:5;padding:calc(12px + env(safe-area-inset-top)) 14px 0;pointer-events:none;display:none}
@@ -384,11 +384,19 @@ function draw(){if(window.castleView?.render({world,player,torches,stair,cam,tim
 function loop(now){if(!last)last=now;const dt=Math.min(.045,(now-last)/1000);last=now;tick(dt);draw();requestAnimationFrame(loop);}requestAnimationFrame(loop);
 // Pointer joystick with capture for reliable iPhone touch input.
 const stick=$('stick'),knob=$('knob');function joyUpdate(e){const b=stick.getBoundingClientRect(),cx=b.left+b.width/2,cy=b.top+b.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=b.width*.33,len=Math.hypot(dx,dy),scale=Math.min(1,max/(len||1));let px=dx*scale,py=dy*scale;knob.style.transform=`translate(${px}px,${py}px)`;joy.x=px/max;joy.y=py/max;}
-stick.addEventListener('pointerdown',e=>{e.preventDefault();joy.id=e.pointerId;stick.setPointerCapture(e.pointerId);joyUpdate(e);});stick.addEventListener('pointermove',e=>{if(e.pointerId===joy.id)joyUpdate(e);});function joyEnd(e){if(e.pointerId===joy.id){joy.id=null;joy.x=joy.y=0;knob.style.transform='translate(0,0)';}}stick.addEventListener('pointerup',joyEnd);stick.addEventListener('pointercancel',joyEnd);
+stick.addEventListener('pointerdown',e=>{e.preventDefault();joy.id=e.pointerId;stick.setPointerCapture(e.pointerId);joyUpdate(e);});stick.addEventListener('pointermove',e=>{if(e.pointerId===joy.id)joyUpdate(e);});function joyEnd(e){if(e.pointerId===joy.id){joy.id=null;joy.x=joy.y=0;knob.style.transform='translate(0,0)';}}stick.addEventListener('pointerup',joyEnd);stick.addEventListener('pointercancel',joyEnd);stick.addEventListener('lostpointercapture',joyEnd);
 const attackBtn=$('attack');attackBtn.addEventListener('pointerdown',e=>{e.preventDefault();attackBtn.setPointerCapture(e.pointerId);holdAttack=true;attackBtn.classList.add('down');attemptAttack();});for(const evt of ['pointerup','pointercancel','lostpointercapture'])attackBtn.addEventListener(evt,()=>{holdAttack=false;attackBtn.classList.remove('down');});
 $('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash();});$('potion').addEventListener('pointerdown',e=>{e.preventDefault();drink();});
 const dirkeys=['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Shift','q','Q','j','J','k','K','e','E'];addEventListener('keydown',e=>{if(story.paused||e.isComposing||e.keyCode===229)return;if(dirkeys.includes(e.key))e.preventDefault();key[e.key]=true;if(e.repeat)return;if(e.key==='Shift'||e.key==='k'||e.key==='K')dash();if(e.key==='q'||e.key==='Q')drink();if(e.key==='e'||e.key==='E')nextFloor();if(e.key==='Escape'||e.key==='p'||e.key==='P')togglePause();if(state==='title'&&e.key==='Enter')story.opening(startGame);});addEventListener('keyup',e=>{key[e.key]=false;});
-canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&state==='playing'){holdAttack=true;attemptAttack();}});window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')holdAttack=false;});window.addEventListener('blur',()=>{for(const k in key)key[k]=false;holdAttack=false;if(state==='playing')togglePause();});
+canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&state==='playing'){holdAttack=true;attemptAttack();}});window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')holdAttack=false;});// Mobile browser chrome and embedded toolbars can blur a visible page on a tap.
+// Clear held input on blur, but pause only when the document actually leaves view.
+window.addEventListener('blur',clearInput);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();if(state==='playing')togglePause();}});
+// Safari can ignore viewport zoom limits. Cancel native game-surface gestures
+// without cancelling the click events used by menus, pause and story buttons.
+const gameSurface=target=>target?.closest?.('#game,#castle-scene,#stick,#attack,#dash,#potion');
+window.addEventListener('touchend',e=>{if(state==='playing'&&!story.paused&&gameSurface(e.target)&&e.cancelable)e.preventDefault();},{passive:false});
+for(const name of ['gesturestart','gesturechange','dblclick'])window.addEventListener(name,e=>{if(state==='playing'&&!story.paused&&e.cancelable)e.preventDefault();},{passive:false});
 function togglePause(){if(story.paused)return;if(state==='playing'){state='paused';showOverlay('paused');$('descend').style.display='none';holdAttack=false;}else if(state==='paused')setState('playing');}
 $('viewmode').addEventListener('click',()=>{if(window.castleView){window.castleView.enabled=!window.castleView.enabled;$('viewmode').textContent=window.castleView.enabled?'3D':'2D';}});
 $('start').addEventListener('click',()=>story.opening(startGame));$('retry').addEventListener('click',startGame);$('resume').addEventListener('click',()=>setState('playing'));$('quit').addEventListener('click',()=>{setState('title');$('best').textContent='BEST RUN · '+(store.get('vesperBest')||0)+' SOULS';});$('pausebtn').addEventListener('click',togglePause);$('descend').addEventListener('click',nextFloor);$('sound').addEventListener('click',()=>{soundOn=!soundOn;$('sound').textContent=soundOn?'♫':'♪̸';});

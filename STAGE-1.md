@@ -71,3 +71,16 @@ is made. The original game's missing icon URLs remain a pre-existing install iss
 Layouts have a structured grid silhouette despite randomized room sizes. No new
 boss AI, enemy types, inventory, abilities, story chapters or save-run support were
 added. Existing blessings are retained. Changes are not merged or deployed.
+
+## Mobile input correction
+
+Window blur now clears all held controls without pausing a visible game. Actual
+backgrounding uses `visibilitychange` to pause, retaining explicit resume. Gameplay
+surfaces cancel native touch-end defaults and gameplay cancels Safari gesture and
+double-click zoom events; menu click handlers and story scrolling are preserved.
+The restrictive viewport maximum-scale/user-scalable settings were removed, menu
+buttons use `touch-action: manipulation`, and joystick capture loss clears movement.
+The offline cache version was bumped so refreshed installs receive the fix.
+Regression tests cover visible blur, background pause, touch gesture cancellation,
+real double taps, explicit pause/resume and repeated combat taps. Browser tests accept
+`BASE_URL` to select a local test server. Physical Safari confirmation is still needed.

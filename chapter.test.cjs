@@ -3,14 +3,14 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 function game(){
-  const elements=new Map(),events=[];
+  const elements=new Map(),events=[],handlers={};
   const context2d=new Proxy({}, {get:()=>()=>{}});
   const element=()=>({style:{},classList:{add(){},remove(){},toggle(){}},addEventListener(){},getContext:()=>context2d,querySelectorAll:()=>[],textContent:'',innerHTML:'',width:130,height:130});
   const story={paused:false,objects:[],connect(a){this.adapter=a},setup(){},update(){},emit(name,detail){events.push({name,detail})},canLeave:()=>true};
-  const sandbox={document:{getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)}},localStorage:{getItem(){return null},setItem(){}},innerWidth:393,innerHeight:852,devicePixelRatio:1,addEventListener(){},requestAnimationFrame(){},VesperStory:story,VesperFloors:require('./floors.js')};sandbox.window=sandbox;
+  const sandbox={document:{hidden:false,addEventListener(name,fn){handlers[name]=fn},getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)}},localStorage:{getItem(){return null},setItem(){}},innerWidth:393,innerHeight:852,devicePixelRatio:1,addEventListener(name,fn){handlers[name]=fn},requestAnimationFrame(){},VesperStory:story,VesperFloors:require('./floors.js')};sandbox.window=sandbox;
   const script=fs.readFileSync('index.html','utf8').match(/<script>\s*'use strict';([\s\S]*?)<\/script>/)[1];
   vm.createContext(sandbox);vm.runInContext(script.replace(/\}\)\(\);\s*$/,`window.testGame={startGame,tick,attemptAttack,dash,drink,killEnemy,die,nextFloor,get player(){return player},get enemies(){return enemies},get state(){return state},get floor(){return floor},get portalReady(){return portalReady},get attackTimer(){return attackTimer},get dashTime(){return dashTime},get world(){return world},get finalEncounter(){return finalEncounter},get needed(){return needed},hurt,free,moveEntity,setKey(k,v){key[k]=v},atExit(){player.x=stair.x;player.y=stair.y;portalNear=true}};})();`),sandbox);
-  return {g:sandbox.testGame,story,events};
+  return {g:sandbox.testGame,story,events,handlers,document:sandbox.document};
 }
 test('Movement, combat, dash, potions and safe reading pause',()=>{
   const {g,story}=game();g.startGame();const x=g.player.x;g.setKey('d',true);g.tick(.04);assert.ok(g.player.x>x);g.setKey('d',false);
@@ -59,4 +59,15 @@ test('Procedural floors stay connected across 100 seeds per floor',()=>{
   for(let n=0;n<queue.length;n++){const c=queue[n],x=c%w.W,y=Math.floor(c/w.W);for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])if(w.walk(x+dx,y+dy)){const next=w.ix(x+dx,y+dy);if(!seen.has(next)){seen.add(next);queue.push(next);}}}
   assert.equal(seen.size,w.g.reduce((n,t)=>n+(t===0),0));
  }
+});
+
+test('Visible blur clears input without pausing; backgrounding pauses; game gestures do not zoom',()=>{
+ const {g,story,handlers,document}=game();g.startGame();g.setKey('d',true);
+ handlers.blur();assert.equal(g.state,'playing');const x=g.player.x;g.tick(.04);assert.equal(g.player.x,x);
+ document.hidden=true;handlers.visibilitychange();assert.equal(g.state,'paused');
+ document.hidden=false;handlers.visibilitychange();assert.equal(g.state,'paused');
+ g.startGame();let prevented=0;const event={cancelable:true,target:{closest:()=>true},preventDefault(){prevented++}};
+ handlers.touchend(event);handlers.gesturestart(event);handlers.gesturechange(event);handlers.dblclick(event);assert.equal(prevented,4);
+ handlers.touchend({...event,target:{closest:()=>false}});assert.equal(prevented,4);
+ story.paused=true;handlers.gesturestart(event);handlers.touchend(event);assert.equal(prevented,4);
 });
