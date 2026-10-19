@@ -24,16 +24,29 @@
     if(e.shield>0){const shield=Math.min(e.shield,amount);e.shield=Math.max(0,e.shield-amount);return {health:0,shield};}
     e.hp-=amount;return {health:amount,shield:0};
   }
+  function hazardPolygons(h){
+    const rect=(x,y,w,d)=>[[x-w/2,y-d/2],[x+w/2,y-d/2],[x+w/2,y+d/2],[x-w/2,y+d/2]];
+    if(h.shape==='polygon')return [h.points];
+    if(h.shape==='cross')return [rect(0,0,h.radius*2,h.width),rect(0,0,h.width,h.radius*2)];
+    if(h.shape==='wall'){const left=-h.width/2,right=h.width/2,a=h.gapX-h.gap/2,b=h.gapX+h.gap/2;return [rect((left+a)/2,0,a-left,h.height),rect((b+right)/2,0,right-b,h.height)];}
+    if(h.shape==='rect')return [rect(0,0,h.width,h.height)];
+    return [Array.from({length:48},(_,i)=>[Math.cos(i*Math.PI/24)*h.radius,Math.sin(i*Math.PI/24)*h.radius])];
+  }
+  function containsHazard(h,p){
+    const angle=h.angle||0,dx=p.x-h.x,dy=p.y-h.y,x=dx*Math.cos(angle)+dy*Math.sin(angle),y=-dx*Math.sin(angle)+dy*Math.cos(angle);
+    if(!['polygon','cross','wall','rect'].includes(h.shape))return Math.hypot(dx,dy)<=h.radius;
+    return hazardPolygons(h).some(poly=>{let result=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j],cross=(x-a[0])*(b[1]-a[1])-(y-a[1])*(b[0]-a[0]);if(Math.abs(cross)<1e-8&&x>=Math.min(a[0],b[0])-1e-8&&x<=Math.max(a[0],b[0])+1e-8&&y>=Math.min(a[1],b[1])-1e-8&&y<=Math.max(a[1],b[1])+1e-8)return true;if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])result=!result;}return result;});
+  }
   function createRuntime(api){
     const hazards=[],pool=[],statuses=[];
     let serial=0,clock=0;
     const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
     function visible(a,b){const w=api.world(),n=Math.ceil(distance(a,b)*4);for(let i=1;i<=n;i++){const t=i/(n||1);if(!w.walk(Math.floor(a.x+(b.x-a.x)*t),Math.floor(a.y+(b.y-a.y)*t)))return false;}return true;}
-    function contains(h,p){return h.shape==='rect'?Math.abs(p.x-h.x)<=h.width/2&&Math.abs(p.y-h.y)<=h.height/2:distance(h,p)<=h.radius;}
+    function contains(h,p){return containsHazard(h,p);}
     function addHazard(options){
       if(hazards.length>=limits.hazards)return null;
       const h=pool.pop()||{};
-      Object.assign(h,{id:++serial,x:0,y:0,shape:'circle',radius:1,width:1,height:1,warning:.65,duration:1,damage:8,interval:.8,kind:'poison',color:'#80ba45',age:0,nextTick:0,owner:null,cancelOnStun:false,oneShot:false,poison:0,spent:false},options);
+      Object.assign(h,{id:++serial,x:0,y:0,shape:'circle',radius:1,width:1,height:1,warning:.65,duration:1,damage:8,interval:.8,kind:'poison',color:'#80ba45',age:0,nextTick:0,owner:null,cancelOnStun:false,oneShot:false,poison:0,spent:false,bossOwned:false,angle:0,angularSpeed:0,velocityY:0,gap:0,gapX:0,points:null,axe:false,acidFlight:null,tossFlight:null,interruptible:true},options);
       hazards.push(h);return h;
     }
     function setState(e,state,duration=0){e.state=state;e.stateTime=duration;}
@@ -142,7 +155,7 @@
         if(!['preparing','attacking','stunned'].includes(a.state))api.move(a,dx*push,dy*push);
         if(!['preparing','attacking','stunned'].includes(b.state))api.move(b,-dx*push,-dy*push);
       }
-      for(let i=hazards.length-1;i>=0;i--){const h=hazards[i];h.age+=dt;
+      for(let i=hazards.length-1;i>=0;i--){const h=hazards[i],previousAge=h.age;h.age+=dt;const activeDt=Math.max(0,h.age-Math.max(h.warning,previousAge));h.angle+=h.angularSpeed*activeDt;h.y+=h.velocityY*activeDt;
         if(h.owner&&(h.owner.dead||h.owner.state==='stunned'&&h.interruptible!==false)&&h.age<h.warning&&h.cancelOnStun)h.spent=true;
         if(h.age>=h.warning&&!h.spent&&h.age<h.warning+h.duration){
           if(h.age>=h.nextTick){h.nextTick=h.age+h.interval;
@@ -150,12 +163,12 @@
             if(h.oneShot)h.spent=true;
           }
         }
-        if(h.age>=h.warning+h.duration||(h.spent&&h.age<h.warning)){hazards.splice(i,1);if(pool.length<limits.hazards)pool.push(h);}
+        if(h.age>=h.warning+h.duration||(h.spent&&(h.bossOwned||h.age<h.warning))){hazards.splice(i,1);if(pool.length<limits.hazards)pool.push(h);}
       }
     }
     function reset(){while(hazards.length)pool.push(hazards.pop());statuses.length=0;clock=0;}
     return {tick,reset,hazards,statuses,addHazard,contains,visible,stun,status,targetStatus,cancel,get clock(){return clock}};
   }
-  const api=Object.freeze({definitions,limits,states,create,damage,createRuntime});
+  const api=Object.freeze({definitions,limits,states,create,damage,createRuntime,hazardPolygons,containsHazard});
   if(typeof module!=='undefined')module.exports=api;else window.VesperEnemies=api;
 })();

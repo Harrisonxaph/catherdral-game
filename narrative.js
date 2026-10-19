@@ -32,13 +32,13 @@
   function journal(){
     open('CHAPTER I · JOURNAL',chapter.title,'Escape the Forgotten Crypt.\n'+(has('escape')?'Completed in a previous or current life.':'Recover the crown splinter, break the seal and reach the far stair.'));
     const body=$('story-content');
-    for(const [id,label] of [['knight','Speak with the Forgotten Knight (optional)'],['keeper','Defeat the Crypt Keeper'],['crown','Recover the crown splinter'],['seal','Break the crypt seal'],['escape','Leave through the stairway']])body.append(node('p',(has(id)?'Complete — ':'Unfinished — ')+label,'quest-line'));
+    for(const [id,label] of [['knight','Speak with the Forgotten Knight (optional)'],['keeper','Defeat the Snakeling'],['crown','Recover the crown splinter'],['seal','Break the crypt seal'],['escape','Leave through the stairway']])body.append(node('p',(has(id)?'Complete — ':'Unfinished — ')+label,'quest-line'));
     body.append(node('h3','Discoveries & conversations'));
     for(const entry of [...save.entries].reverse()){const section=document.createElement('section');section.append(node('h3',entry.title),node('p',entry.text,'story-prose'));body.append(section);}
     body.append(node('p',storageAvailable?'Memories are saved on this device. Runs restart on refresh.':'Device storage is unavailable. Memories last only for this session.','story-footnote'));
   }
   tracker.onclick=journal;
-  function updateTracker(){tracker.textContent=has('escape')?'CHAPTER I · COMPLETE · Journal':`ESCAPE THE FORGOTTEN CRYPT\n${!run?.keeper?'Silence the Crypt Keeper':!run?.crown?'Recover the crown splinter':!run?.seal?'Break the seal':'Find the far stair'} · Journal`;}
+  function updateTracker(){tracker.textContent=has('escape')?'CHAPTER I · COMPLETE · Journal':`ESCAPE THE FORGOTTEN CRYPT\n${!run?.keeper?'Silence the Snakeling':!run?.crown?'Recover the crown splinter':!run?.seal?'Break the seal':'Find the far stair'} · Journal`;}
   function use(){if(!nearby||!adapter?.playing()||dialog.open)return;const object=nearby;
     if(object.kind==='knight')talk();
     else if(object.kind==='crown'){object.collected=true;run.crown=true;emit('item-collected',{id:'crown'});open('RELIC RECOVERED','A splinter of the Hollow Crown','It is warm against your skin. For an instant, you remember the weight of something whole.',[['Keep the fragment',close]]);}
@@ -52,7 +52,7 @@
   on('run-start',()=>{record('awakening','Beneath Castle Vesper','I woke without a name. A knight waited nearby. Somewhere above, a bell rang for no one.');updateTracker();});
   on('room-enter',({index,floor})=>{if(floor===1&&index>0)record('room','Beyond the waking chamber','The crypt changes its corridors, but not its hunger. A seal binds the far stair.');});
   on('seal-open',({floor})=>{if(floor!==1)return;run.seal=true;record('seal','The seal breaks','The far stair opens. The crypt has released its breath.');updateTracker();});
-  on('boss-defeated',({floor,x,y})=>{if(floor!==1)return;run.keeper=true;objects.push({kind:'crown',x,y,label:'Take crown splinter'});record('keeper','The Crypt Keeper falls','Inside the empty armor, a sliver of a broken crown catches the light.');updateTracker();});
+  on('boss-defeated',({floor,x,y})=>{if(floor!==1)return;run.keeper=true;objects.push({kind:'crown',x,y,label:'Take crown splinter'});record('keeper','The Snakeling falls','Beneath the fallen serpent, a sliver of a broken crown catches the light.');updateTracker();});
   on('item-collected',({id})=>{if(id==='crown')record('crown','A splinter of the Hollow Crown','Warm metal. A memory of a throne. Why does this broken thing feel like it belongs to me?');});
   on('floor-left',({floor})=>{if(floor!==1)return;record('escape','Chapter I complete','I escaped the Forgotten Crypt with a splinter of the Hollow Crown. The castle beyond remains unexplored.');open('CHAPTER I · COMPLETE','The Forgotten Crypt','Behind you, the crypt falls silent. In your palm, the crown remembers.\n\nChapter I ends here. Four deeper floors await. Further story chapters are not yet written.',[['Continue the descent',close]]);updateTracker();});
   on('player-died',()=>{save.deaths++;const index=Math.min(save.deaths-1,chapter.memories.length-1),memory=chapter.memories[index];record('memory:'+index,'Death memory '+(index+1),memory);persist();$('deathtag').textContent=memory;});
@@ -62,6 +62,6 @@
     opening(start){open('VESPER · THE HOLLOW CROWN','Before the first bell',chapter.opening,[['Start Adventure',()=>{close();start();open('CHAPTER I',chapter.title,'Stone beneath your cheek. Ash on your tongue.\n\nA knight waits near the place where you awoke. Approach him and choose Speak.\n\nYour first task: Escape the Forgotten Crypt.',[['Enter the crypt',close]]);}]]);},
     setup(world,floor){objects=[];nearby=null;run={keeper:false,crown:false,seal:false,room:-1};if(floor!==1)return;const r=world.start;objects=[{kind:'knight',x:r.cx+1.5,y:r.cy+.5,label:'Speak to the Forgotten Knight'},{kind:'letter',x:r.cx-.5,y:r.cy+.5,label:'Read unsent letter'},{kind:'book',x:r.cx+.5,y:r.cy-1.5,label:'Read burial register'},{kind:'inscription',x:world.exit.cx+.5,y:world.exit.cy+1.5,label:'Read the inscription'}];},
     update({world,player,floor,state}){tracker.hidden=state!=='playing';interact.hidden=true;if(state!=='playing'||dialog.open)return;const room=world.rooms.findIndex(r=>player.x>=r.x&&player.x<r.x+r.w&&player.y>=r.y&&player.y<r.y+r.h);if(room>=0&&room!==run.room){run.room=room;emit('room-enter',{index:room,floor});}nearby=objects.filter(o=>!o.collected&&Math.hypot(o.x-player.x,o.y-player.y)<1.65).sort((a,b)=>Math.hypot(a.x-player.x,a.y-player.y)-Math.hypot(b.x-player.x,b.y-player.y))[0];if(nearby){interact.textContent=nearby.label+' · F';interact.hidden=false;}},
-    canLeave(floor){if(floor!==1||run.crown)return true;open('THE FAR STAIR','Something is missing','The crown splinter lies where the Crypt Keeper fell. Return for it before leaving.',[['Return',close]]);return false;}
+    canLeave(floor){if(floor!==1||run.crown)return true;open('THE FAR STAIR','Something is missing','The crown splinter lies where the Snakeling fell. Return for it before leaving.',[['Return',close]]);return false;}
   };
 })();

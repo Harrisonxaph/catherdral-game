@@ -62,7 +62,7 @@ class CastleView {
       this.scene.remove(this.structure);
       this.structure.traverse(o => { if (o.isInstancedMesh) o.dispose(); if(o.geometry?.type==='TorusGeometry')o.geometry.dispose(); });
     }
-    for (const mesh of this.dynamic.values()) {this.scene.remove(mesh);if(mesh.geometry?.type==='TorusGeometry')mesh.geometry.dispose();if(mesh.isSprite){mesh.material.map.dispose();mesh.material.dispose();}}
+    for (const mesh of this.dynamic.values()) {this.scene.remove(mesh);mesh.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose();if(o.userData.ownedMaterial)o.material.dispose();});if(mesh.geometry?.type==='TorusGeometry')mesh.geometry.dispose();if(mesh.isSprite){mesh.material.map.dispose();mesh.material.dispose();}}
     this.dynamic.clear();
     this.world = world; this.structure = new THREE.Group(); this.scene.add(this.structure);
     const batches = new Map();
@@ -132,7 +132,7 @@ class CastleView {
     const texture=new THREE.CanvasTexture(canvas);
     const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,transparent:true}));sprite.scale.set(2,.5,1);sprite.renderOrder=10;return sprite;
   }
-  actor(hero,type) {
+  actor(hero,type,bossId) {
     const group=new THREE.Group();
     const definition=window.VesperEnemies?.definitions[type];
     const mat=hero?steel:definition?colorMaterial(definition.color):crimson;
@@ -146,7 +146,7 @@ class CastleView {
     group.userData.hilt=part(group,box,gold,.34,.53,-.08,.24,.05,.1);
     if(hero){group.userData.offSword=part(group,box,steel,-.34,.85,-.25,.055,.7,.08);group.userData.offSword.rotation.x=-.5;group.userData.offSword.visible=false;group.userData.axe=part(sword,box,steel,0,.32,0,7,.3,1.5);group.userData.axe.visible=false;}
     if(type==='boss'||type==='brute')group.scale.setScalar(type==='boss'?1.8:1.35);
-    if(!hero&&type!=='boss'){
+    if(!hero){
       if(type==='guardian'){
         part(group,box,colorMaterial('#497fb6'),-.38,.66,-.2,.4,.65,.14);
         part(group,box,steel,0,.8,0,.58,.43,.34);
@@ -171,6 +171,19 @@ class CastleView {
       if(type==='guardian'){part(bars,plane,barMaterial,0,.13,0,.9,.09,1);group.userData.shield=part(bars,plane,shieldMaterial,0,.13,.01,.86,.055,1);}
       bars.traverse(o=>{if(o.isMesh)o.renderOrder=20;});group.userData.health.renderOrder=21;if(group.userData.shield)group.userData.shield.renderOrder=21;
     }
+    if(type==='boss'){
+      const u=group.userData;u.offhand.visible=false;
+      if(bossId==='snakeling'){
+        u.sword.visible=false;u.hilt.visible=false;for(const i of [0,1,4,5])group.children[i].visible=false;group.children[2].material=colorMaterial('#708d49');part(group,cylinder,colorMaterial('#708d49'),0,.55,0,.2,.7,.2);part(group,sphere,colorMaterial('#708d49'),0,.14,.16,.55,.13,.4);
+        for(const side of [-1,1]){const coil=part(group,ring,colorMaterial('#7b9b50'),side*.18,.12,.12,.48,.48,.48);coil.rotation.x=-Math.PI/2;part(group,cone,colorMaterial('#e1ed9f'),side*.12,.94,-.35,.05,.25,.05);}
+        part(group,sphere,colorMaterial('#708d49'),0,.85,-.23,.3,.19,.35);group.scale.set(1.8,1.35,1.8);
+      }else{
+        part(u.sword,box,bossId==='flameghoul'?colorMaterial('#ff9450'):steel,0,.26,0,7,.3,1.3);
+        for(const side of [-1,1]){const horn=part(group,cone,bossId==='flameghoul'?colorMaterial('#ff9c46'):gold,side*.24,1.38,0,.09,.4,.09);horn.rotation.z=-side*.5;}
+        if(bossId==='flameghoul')for(const side of [-1,1])part(group,cone,colorMaterial('#ff7f36'),side*.29,1.04,.05,.12,.45,.12);
+        if(bossId==='king'){part(group,cylinder,gold,0,1.29,0,.24,.12,.24);for(let i=-1;i<=1;i++)part(group,cone,gold,i*.16,1.43,0,.065,.26,.065);}
+      }
+    }
     if(!hero){const indicator=new THREE.Group();indicator.position.y=1.8;group.add(indicator);const halo=part(indicator,ring,gold,0,0,0,.23,.23,.23);halo.rotation.x=-Math.PI/2;for(const side of [-1,1])part(indicator,cone,gold,side*.22,.1,0,.06,.16,.06);indicator.visible=false;group.userData.stunIndicator=indicator;}
     return group;
   }
@@ -180,13 +193,13 @@ class CastleView {
     return this.dynamic.get(key);
   }
   render(data) {
-    const {world,player,torches,stair,cam,time,equipment,abilityState,enemies,hazards=[],chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}=data;
+    const {world,player,torches,stair,cam,time,equipment,abilityState,bossState,enemies,hazards=[],chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}=data;
     this.renderer.domElement.hidden=!this.enabled;
     if(!this.enabled)return false;
     if(this.world!==world)this.build(world,torches,stair);
     const w=innerWidth,h=innerHeight;
     if(w!==this.width||h!==this.height){this.width=w;this.height=h;this.renderer.setSize(w,h,false);const span=w<650?10.8:19;this.camera.left=-span/2;this.camera.right=span/2;this.camera.top=span*h/w/2;this.camera.bottom=-span*h/w/2;this.camera.updateProjectionMatrix();}
-    this.camera.position.set(cam.x,17,cam.y+12);this.camera.lookAt(cam.x,0,cam.y-.6);
+    if(bossState?.sequence){const e=bossState.boss,t=bossState.sequence.elapsed;this.camera.position.set(e.x+Math.sin(t*.5)*3,13,e.y+10);this.camera.lookAt(e.x,.7,e.y);}else{this.camera.position.set(cam.x,17,cam.y+12);this.camera.lookAt(cam.x,0,cam.y-.6);}
     this.heroLight.position.set(player.x,2.5,player.y);
     this.renderer.domElement.style.filter=damageOverlay>.1?'sepia(.25) saturate(1.4)':'none';
     for(const f of this.flames)f.mesh.scale.y=.42*(1+Math.sin(time*12+f.phase)*.17);
@@ -209,11 +222,12 @@ class CastleView {
       m.position.set(player.x,0,player.y);m.userData.shell.material=barrier.hit>0?aegisHitMaterial:aegisMaterial;
     }
     for(const e of enemies){
-      if(e.dead||Math.hypot(e.x-player.x,e.y-player.y)>13)continue;
-      const m=this.object(e,()=>this.actor(false,e.type),active);
+      if(e.dead&&!(bossState?.sequence?.kind==='victory'&&e===bossState.boss)||Math.hypot(e.x-player.x,e.y-player.y)>13&&!bossState?.sequence)continue;
+      const m=this.object(e,()=>this.actor(false,e.type,e.bossId),active);
       const prep=e.state==='preparing',attack=e.state==='attacking';
+      if(e.dead&&bossState?.sequence)m.scale.y=Math.max(.03,1.8*(1-bossState.sequence.elapsed/bossState.sequence.duration));
       m.position.set(e.x,e.type==='wraith'?.13+Math.sin(time*3)*.1:attack?.12:0,e.y);
-      m.rotation.y=-e.aim-Math.PI/2;m.rotation.z=e.state==='stunned'?Math.sin(time*40)*.09:0;
+      m.rotation.y=e.bossId==='king'&&e.action==='whirlwind'&&e.state==='attacking'?time*8:-e.aim-Math.PI/2;m.rotation.z=e.state==='stunned'?Math.sin(time*40)*.09:0;
       if(m.userData.sword)m.userData.sword.rotation.x=prep?-1.6:attack?.8:-.5;
       if(m.userData.flash)m.userData.flash.visible=e.hit>0;if(m.userData.stunIndicator){m.userData.stunIndicator.visible=e.state==='stunned';m.userData.stunIndicator.rotation.y=time*3;}
       if(m.userData.bars){
@@ -231,19 +245,32 @@ class CastleView {
       if(e.elite&&!m.userData.elite){part(m,cone,gold,0,1.5,0,.16,.22,.16);m.userData.elite=true;}
     }
     for(const h of hazards){
-      if(Math.hypot(h.x-player.x,h.y-player.y)>15)continue;
-      const warning=h.age<h.warning;
+      if(h.spent||Math.hypot(h.x-player.x,h.y-player.y)>24)continue;
+      const warning=h.age<h.warning,complex=['cross','wall','polygon'].includes(h.shape);
       const m=this.object('hazard:'+h.id,()=>{
-        const group=new THREE.Group(),rect=h.shape==='rect';
-        const fill=part(group,rect?plane:disk,hazardMaterial(h.color,true),0,.025,0,1,1,1);fill.rotation.x=-Math.PI/2;
-        if(rect){for(const [x,z,sx,sz] of [[-.5,0,.025,1],[.5,0,.025,1],[0,-.5,1,.025],[0,.5,1,.025]])part(group,box,colorMaterial(h.color),x,.035,z,sx,.01,sz);}else{const edge=part(group,ring,colorMaterial(h.color),0,.035,0,1,1,1);edge.rotation.x=-Math.PI/2;}
-        group.userData.fill=fill;return group;
+        const group=new THREE.Group();group.userData.fills=[];
+        if(complex){
+          for(const poly of window.VesperEnemies.hazardPolygons(h)){
+            const shape=new THREE.Shape();poly.forEach(([x,y],i)=>i?shape.lineTo(x,y):shape.moveTo(x,y));shape.closePath();
+            const geometry=new THREE.ShapeGeometry(shape);const mesh=part(group,geometry,hazardMaterial(h.color,true),0,.025,0,1,1,1);mesh.rotation.x=Math.PI/2;mesh.userData.ownedGeometry=true;group.userData.fills.push(mesh);
+            const positions=poly.concat([poly[0]]).map(([x,y])=>new THREE.Vector3(x,.045,y));const lineGeometry=new THREE.BufferGeometry().setFromPoints(positions);const line=new THREE.Line(lineGeometry,new THREE.LineBasicMaterial({color:h.color,transparent:true,opacity:.95}));line.userData.ownedGeometry=true;line.userData.ownedMaterial=true;group.add(line);
+          }
+        }else{
+          const rect=h.shape==='rect',fill=part(group,rect?plane:disk,hazardMaterial(h.color,true),0,.025,0,1,1,1);fill.rotation.x=-Math.PI/2;group.userData.fills.push(fill);
+          if(rect){for(const [x,z,sx,sz] of [[-.5,0,.025,1],[.5,0,.025,1],[0,-.5,1,.025],[0,.5,1,.025]])part(group,box,colorMaterial(h.color),x,.035,z,sx,.01,sz);}else{const edge=part(group,ring,colorMaterial(h.color),0,.035,0,1,1,1);edge.rotation.x=-Math.PI/2;}
+        }
+        if(h.axe){const axe=new THREE.Group();part(axe,box,steel,0,.28,0,.1,.08,1.5);part(axe,box,gold,0,.28,-.5,.75,.12,.45);group.add(axe);group.userData.axe=axe;}
+        if(h.shape==='wall'){const flames=new THREE.Group();for(let x=-h.width/2+.25;x<h.width/2;x+=.65){if(Math.abs(x-h.gapX)<h.gap/2+.1)continue;part(flames,cone,colorMaterial('#ff9c42'),x,.3,0,.17,.6,.14);}group.add(flames);group.userData.flames=flames;}
+        group.userData.fill=group.userData.fills[0];return group;
       },active);
-      m.position.set(h.x,0,h.y);m.scale.set(h.shape==='rect'?h.width:h.radius,1,h.shape==='rect'?h.height:h.radius);
-      m.userData.fill.material=hazardMaterial(h.color,warning);
-      // The ring is always the full damage radius; the flashing fill signals timing.
-      m.userData.fill.visible=!warning||Math.sin(time*12)>-.3;
+      m.position.set(h.x,0,h.y);m.rotation.y=-(h.angle||0);m.scale.set(complex?1:h.shape==='rect'?h.width:h.radius,1,complex?1:h.shape==='rect'?h.height:h.radius);
+      for(const fill of m.userData.fills){fill.material=hazardMaterial(h.color,warning);fill.visible=!warning||Math.sin(time*12)>-.3;}
+      if(m.userData.flames){m.userData.flames.visible=!warning;m.userData.flames.scale.y=1+Math.sin(time*15)*.12;}
+      if(m.userData.axe){m.userData.axe.visible=!warning;m.userData.axe.rotation.y=time*5;}
+      if(h.tossFlight&&warning){const flight=this.object('toss:'+h.id,()=>{const g=new THREE.Group();part(g,box,steel,0,0,0,.08,.06,.8);part(g,box,gold,0,0,-.28,.45,.1,.2);return g;},active),t=Math.min(1,h.age/h.warning);flight.position.set(h.tossFlight.x+(h.x-h.tossFlight.x)*t,.8+Math.sin(t*Math.PI)*2.3,h.tossFlight.y+(h.y-h.tossFlight.y)*t);flight.rotation.y=time*8;}
+      if(h.acidFlight&&warning){const flight=this.object('acid:'+h.id,()=>new THREE.Mesh(sphere,colorMaterial('#b8e76d')),active),t=Math.min(1,h.age/h.warning);flight.position.set(h.acidFlight.x+(h.x-h.acidFlight.x)*t,.5+Math.sin(t*Math.PI)*2.3,h.acidFlight.y+(h.y-h.acidFlight.y)*t);flight.scale.setScalar(.18);}
     }
+    for(const c of bossState?.candles||[]){const m=this.object(c,()=>{const g=new THREE.Group();part(g,cylinder,gold,0,.14,0,.28,.25,.28);part(g,cylinder,trim,0,.48,0,.1,.55,.1);g.userData.flame=part(g,cone,colorMaterial('#ffd07b'),0,.86,0,.12,.3,.12);return g;},active);m.position.set(c.x,0,c.y);m.userData.flame.visible=c.lit;}
     for(const o of window.VesperStory?.objects||[]){if(Math.hypot(o.x-player.x,o.y-player.y)>12)continue;const m=this.object(o,()=>{if(o.kind==='knight')return this.actor(true);const g=new THREE.Group();if(o.kind==='crown'){part(g,cone,gold,0,.5,0,.22,.42,.22);}else{part(g,box,trim,0,.24,0,.55,.48,.4);part(g,box,o.kind==='book'?crimson:gold,0,.51,0,.45,.08,.32);}return g;},active);m.position.set(o.x,0,o.y);if(o.kind==='knight')m.rotation.y=Math.atan2(player.x-o.x,player.y-o.y);}
     for(const c of chests){if(Math.hypot(c.x-player.x,c.y-player.y)>13)continue;const m=this.object(c,()=>{const g=new THREE.Group();part(g,box,gold,0,.3,0,.65,.5,.45);part(g,box,dark,0,.32,-.24,.16,.25,.03);return g;},active);m.position.set(c.x,0,c.y);m.scale.y=c.opened?.4:1;}
     for(const t of traps){if(Math.hypot(t.x-player.x,t.y-player.y)>13)continue;const m=this.object(t,()=>{const g=new THREE.Group();part(g,box,dark,0,.025,0,.65,.05,.65);for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)part(g,cone,steel,x*.2,.15,z*.2,.07,.3,.07);return g;},active);m.position.set(t.x,0,t.y);m.scale.y=Math.sin(time*2.4+t.phase)>.12?1:.15;}
@@ -268,7 +295,7 @@ class CastleView {
     for(const [items,size,y,color] of [[bullets,.15,.65,'#ed748c'],[particles,.055,.45,null]])for(const a of items){if(Math.hypot(a.x-player.x,a.y-player.y)>13)continue;const m=this.object(a,()=>new THREE.Mesh(sphere,colorMaterial(a.color||color)),active);m.position.set(a.x,y+Math.sin(time*4)*.05,a.y);m.scale.setScalar(size);m.rotation.y=time;}
     for(const f of flashes){const m=this.object(f,()=>{const mesh=new THREE.Mesh(new THREE.TorusGeometry(f.range*(f.fullCircle?1:.8),.045,4,24,f.fullCircle?Math.PI*2:(f.arc??player.arc)*2),colorMaterial(f.color||'#ffe0a5'));mesh.rotation.x=Math.PI/2;return mesh;},active);m.position.set(f.x,.5,f.y);m.rotation.z=f.a-(f.arc??player.arc);m.scale.setScalar(1-f.t/f.duration*.3);}
     for(const text of texts){const m=this.object(text,()=>this.damageLabel(text),active);m.position.set(text.x,1.7,text.y);m.material.opacity=1-text.t/.75;}
-    for(const [key,mesh] of this.dynamic)if(!active.has(key)){this.scene.remove(mesh);if(mesh.geometry?.type==='TorusGeometry')mesh.geometry.dispose();if(mesh.isSprite){mesh.material.map.dispose();mesh.material.dispose();}this.dynamic.delete(key);}
+    for(const [key,mesh] of this.dynamic)if(!active.has(key)){this.scene.remove(mesh);mesh.traverse(o=>{if(o.userData.ownedGeometry)o.geometry.dispose();if(o.userData.ownedMaterial)o.material.dispose();});if(mesh.geometry?.type==='TorusGeometry')mesh.geometry.dispose();if(mesh.isSprite){mesh.material.map.dispose();mesh.material.dispose();}this.dynamic.delete(key);}
     this.renderer.render(this.scene,this.camera);return true;
   }
 }
