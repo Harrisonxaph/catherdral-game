@@ -37,8 +37,15 @@
       hazards.push(h);return h;
     }
     function setState(e,state,duration=0){e.state=state;e.stateTime=duration;}
-    function cancel(e){for(const h of hazards)if(h.owner===e&&h.age<h.warning)h.spent=true;e.telegraph=null;}
-    function stun(e,duration=.22){if(e.dead||e.type==='boss'||e.shield>0||e.stunLock>0)return false;cancel(e);e.stunLock=.9;e.cooldown=Math.max(e.cooldown,.65);setState(e,'stunned',duration);return true;}
+    // Stage 5 can protect an action and its warnings without changing any player ability.
+    function cancel(e,reason='death'){for(const h of hazards)if(h.owner===e&&h.age<h.warning&&(reason!=='stun'||h.interruptible!==false))h.spent=true;e.telegraph=null;}
+    function stun(e,duration=.22,options={}){
+      const strong=options.source==='ability',boss=e.type==='boss'||e.isBoss;
+      const policy={immune:false,durationCap:boss?.75:Infinity,shieldMultiplier:.5,postRecoveryImmunity:strong?1.5:.68,...e.controlResistance};
+      if(e.dead||policy.immune||e.state==='stunned'||e.stunLock>0||e.attackInterruptible===false||e.majorMechanicActive||!strong&&(boss||e.shield>0))return false;
+      duration=Math.min(duration,policy.durationCap);if(strong&&e.shield>0)duration*=policy.shieldMultiplier;if(duration<=0)return false;
+      cancel(e,'stun');e.combo=false;e.followup=false;e.stunLock=duration+policy.postRecoveryImmunity;e.cooldown=Math.max(e.cooldown||0,.65);setState(e,'stunned',duration);return true;
+    }
     function status(kind,duration,damage,interval=1){const old=statuses.find(s=>s.kind===kind);if(old){old.remaining=Math.max(old.remaining,duration);old.damage=Math.max(old.damage,damage);return;}statuses.push({kind,remaining:duration,damage,interval,next:interval});}
     function targetStatus(e,kind,duration,damage,interval=1){const old=e.statuses.find(s=>s.kind===kind);if(old){old.remaining=Math.max(old.remaining,duration);return;}e.statuses.push({kind,remaining:duration,damage,interval,next:interval});}
     function advanceStatuses(list,dt,hit){for(let i=list.length-1;i>=0;i--){const s=list[i],elapsed=Math.min(dt,s.remaining);s.remaining-=dt;s.next-=elapsed;if(s.next<=0){hit(s.damage,s.kind);s.next+=s.interval;}if(s.remaining<=0)list.splice(i,1);}}
@@ -96,15 +103,20 @@
     function tick(dt){
       clock+=dt;const p=api.player(),all=api.enemies();
       advanceStatuses(statuses,dt,(amount,kind)=>api.hurt(amount,undefined,undefined,kind));
-      for(const e of all){if(e.dead){e.state='dead';continue;}if(e.type!=='boss')advanceStatuses(e.statuses,dt,(amount)=>api.damage(e,amount));}
-      const active=all.filter(e=>!e.dead&&e.type!=='boss'&&distance(e,p)<12&&api.allowed(e)).sort((a,b)=>distance(a,p)-distance(b,p)).slice(0,limits.active);
+      for(const e of all){
+        if(e.dead){e.state='dead';continue;}
+        e.stunLock=Math.max(0,(e.stunLock||0)-dt);
+        if(e.state==='stunned'){e.stateTime-=dt;if(e.stateTime<=0)setState(e,e.type==='boss'||e.isBoss?'chasing':'recovering',.25);}
+        if(e.type!=='boss')advanceStatuses(e.statuses||[],dt,(amount)=>api.damage(e,amount));
+      }
+      const active=all.filter(e=>!e.dead&&e.type!=='boss'&&!e.isBoss&&distance(e,p)<12&&api.allowed(e)).sort((a,b)=>distance(a,p)-distance(b,p)).slice(0,limits.active);
       let attackers=active.filter(e=>['preparing','attacking'].includes(e.state)).length;
       // Finish nearby attacks first; distant windups are cancelled instead of stored for later.
-      for(const e of all)if(e.type!=='boss'&&!e.dead&&!active.includes(e)&&['preparing','attacking'].includes(e.state)){cancel(e);setState(e,'recovering',.5);}
+      for(const e of all)if(e.type!=='boss'&&!e.isBoss&&!e.dead&&!active.includes(e)&&['preparing','attacking'].includes(e.state)){cancel(e);setState(e,'recovering',.5);}
       for(const e of active){
-        const d=definitions[e.type];e.hit=Math.max(0,e.hit-dt);e.stunLock=Math.max(0,e.stunLock-dt);e.cooldown=Math.max(0,e.cooldown-dt);e.abilityCooldown-=dt;e.poolCooldown-=dt;e.phase+=dt*2;e.stateTime-=dt;
+        const d=definitions[e.type];e.hit=Math.max(0,e.hit-dt);e.cooldown=Math.max(0,e.cooldown-dt);e.abilityCooldown-=dt;e.poolCooldown-=dt;e.phase+=dt*2;if(e.state!=='stunned')e.stateTime-=dt;
         const range=distance(e,p),sight=visible(e,p);
-        if(e.state==='stunned'){if(e.stateTime<=0)setState(e,'chasing');continue;}
+        if(e.state==='stunned')continue;
         if(e.state==='preparing'){if(e.stateTime<=0)execute(e);continue;}
         if(e.state==='attacking'){if(e.stateTime<=0)setState(e,'recovering',e.combo?.15:.4);continue;}
         if(e.state==='recovering'){if(e.stateTime<=0)setState(e,'chasing');continue;}
@@ -127,11 +139,11 @@
       for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
         const a=active[i],b=active[j],length=distance(a,b),gap=a.r+b.r+.12;if(length>=gap)continue;
         const dx=(a.x-b.x)/(length||1)||1,dy=(a.y-b.y)/(length||1),push=Math.min(.035,(gap-length)*.3);
-        if(!['preparing','attacking'].includes(a.state))api.move(a,dx*push,dy*push);
-        if(!['preparing','attacking'].includes(b.state))api.move(b,-dx*push,-dy*push);
+        if(!['preparing','attacking','stunned'].includes(a.state))api.move(a,dx*push,dy*push);
+        if(!['preparing','attacking','stunned'].includes(b.state))api.move(b,-dx*push,-dy*push);
       }
       for(let i=hazards.length-1;i>=0;i--){const h=hazards[i];h.age+=dt;
-        if(h.owner&&(h.owner.dead||h.owner.state==='stunned')&&h.age<h.warning&&h.cancelOnStun)h.spent=true;
+        if(h.owner&&(h.owner.dead||h.owner.state==='stunned'&&h.interruptible!==false)&&h.age<h.warning&&h.cancelOnStun)h.spent=true;
         if(h.age>=h.warning&&!h.spent&&h.age<h.warning+h.duration){
           if(h.age>=h.nextTick){h.nextTick=h.age+h.interval;
             if(h.damage>0&&contains(h,p)&&(!h.owner||visible(h,p))){api.hurt(h.damage,undefined,undefined,h.kind);if(h.poison)status('poison',2.5,h.poison,1);}
