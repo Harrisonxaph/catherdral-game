@@ -95,7 +95,7 @@
     }
     function tick(dt){
       clock+=dt;const p=api.player(),all=api.enemies();
-      advanceStatuses(statuses,dt,(amount)=>api.hurt(amount));
+      advanceStatuses(statuses,dt,(amount,kind)=>api.hurt(amount,undefined,undefined,kind));
       for(const e of all){if(e.dead){e.state='dead';continue;}if(e.type!=='boss')advanceStatuses(e.statuses,dt,(amount)=>api.damage(e,amount));}
       const active=all.filter(e=>!e.dead&&e.type!=='boss'&&distance(e,p)<12&&api.allowed(e)).sort((a,b)=>distance(a,p)-distance(b,p)).slice(0,limits.active);
       let attackers=active.filter(e=>['preparing','attacking'].includes(e.state)).length;
@@ -134,7 +134,7 @@
         if(h.owner&&(h.owner.dead||h.owner.state==='stunned')&&h.age<h.warning&&h.cancelOnStun)h.spent=true;
         if(h.age>=h.warning&&!h.spent&&h.age<h.warning+h.duration){
           if(h.age>=h.nextTick){h.nextTick=h.age+h.interval;
-            if(h.damage>0&&contains(h,p)&&(!h.owner||visible(h,p))){api.hurt(h.damage);if(h.poison)status('poison',2.5,h.poison,1);}
+            if(h.damage>0&&contains(h,p)&&(!h.owner||visible(h,p))){api.hurt(h.damage,undefined,undefined,h.kind);if(h.poison)status('poison',2.5,h.poison,1);}
             if(h.oneShot)h.spent=true;
           }
         }

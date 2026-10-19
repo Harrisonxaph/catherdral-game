@@ -7,9 +7,9 @@ function game(){
   const context2d=new Proxy({}, {get:()=>()=>{}});
   const element=()=>({style:{},classList:{add(){},remove(){},toggle(){}},addEventListener(){},getContext:()=>context2d,querySelectorAll:()=>[],textContent:'',innerHTML:'',width:130,height:130});
   const story={paused:false,objects:[],connect(a){this.adapter=a},setup(){},update(){},emit(name,detail){events.push({name,detail})},canLeave:()=>true};
-  const sandbox={document:{hidden:false,addEventListener(name,fn){handlers[name]=fn},getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)}},localStorage:{getItem(){return null},setItem(){}},innerWidth:393,innerHeight:852,devicePixelRatio:1,addEventListener(name,fn){handlers[name]=fn},requestAnimationFrame(){},VesperStory:story,VesperFloors:require('./floors.js'),VesperEnemies:require('./enemy-system.js')};sandbox.window=sandbox;
+  const sandbox={document:{hidden:false,addEventListener(name,fn){handlers[name]=fn},getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)}},localStorage:{getItem(){return null},setItem(){}},innerWidth:393,innerHeight:852,devicePixelRatio:1,addEventListener(name,fn){handlers[name]=fn},requestAnimationFrame(){},VesperStory:story,VesperFloors:require('./floors.js'),VesperEnemies:require('./enemy-system.js'),VesperEquipment:require('./equipment.js'),VesperInventoryUI:{create(adapter){this.adapter=adapter;return {isOpen:false}}}};sandbox.window=sandbox;
   const script=fs.readFileSync('index.html','utf8').match(/<script>\s*'use strict';([\s\S]*?)<\/script>/)[1];
-  vm.createContext(sandbox);vm.runInContext(script.replace(/\}\)\(\);\s*$/,`window.testGame={spawnEnemy,combat,damageEnemy,fireBolt,get bullets(){return bullets},startGame,tick,attemptAttack,dash,drink,killEnemy,die,nextFloor,get player(){return player},get enemies(){return enemies},get state(){return state},get floor(){return floor},get portalReady(){return portalReady},get attackTimer(){return attackTimer},get dashTime(){return dashTime},get world(){return world},get finalEncounter(){return finalEncounter},get needed(){return needed},hurt,free,moveEntity,setKey(k,v){key[k]=v},atExit(){player.x=stair.x;player.y=stair.y;portalNear=true}};})();`),sandbox);
+  vm.createContext(sandbox);vm.runInContext(script.replace(/\}\)\(\);\s*$/,`window.testGame={equipmentStats,reconcileEquipment,checkEncounter,collectEquipment,dropEquipment,openInventory(){window.VesperInventoryUI.adapter.pause()},closeInventory(){window.VesperInventoryUI.adapter.resume()},get gear(){return runEquipment},get loot(){return loots},get fireCooldown(){return fireCooldown},get encounter(){return encounter},setRandom(fn){rand=fn},hurt,spawnEnemy,combat,damageEnemy,fireBolt,get bullets(){return bullets},startGame,tick,attemptAttack,dash,drink,killEnemy,die,nextFloor,get player(){return player},get enemies(){return enemies},get state(){return state},get floor(){return floor},get portalReady(){return portalReady},get attackTimer(){return attackTimer},get dashTime(){return dashTime},get world(){return world},get finalEncounter(){return finalEncounter},get needed(){return needed},hurt,free,moveEntity,setKey(k,v){key[k]=v},atExit(){player.x=stair.x;player.y=stair.y;portalNear=true}};})();`),sandbox);
   return {g:sandbox.testGame,story,events,handlers,document:sandbox.document};
 }
 test('Movement, combat, dash, potions and safe reading pause',()=>{
@@ -80,4 +80,47 @@ test('Projectile cap, expiry, summon rewards and floor-reset cleanup use game ho
  const xp=g.player.xp;g.killEnemy(m);assert.equal(g.player.xp,xp);
  g.combat.addHazard({x:g.player.x,y:g.player.y,duration:100});g.combat.status('poison',10,2);
  for(const e of g.enemies)g.killEnemy(e);g.atExit();g.nextFloor();assert.equal(g.floor,2);assert.equal(g.combat.hazards.length,0);assert.equal(g.combat.statuses.length,0);
+});
+
+test('Equipment remains across floors, resets on retry, and inventory cannot refresh combat timers or shield',()=>{
+ const E=require('./equipment.js'),{g}=game();g.startGame();g.player.xpNeeded=1e9;
+ E.collect(g.gear,E.item('ashbringer'));assert.equal(E.equip(g.gear,0,'main').ok,true);g.reconcileEquipment();
+ const carried=JSON.stringify(g.gear);g.attemptAttack();const attack=g.attackTimer;
+ g.openInventory();g.tick(10);g.attemptAttack();g.drink();assert.equal(g.attackTimer,attack);assert.equal(JSON.stringify(g.gear),carried);g.closeInventory();
+ for(const enemy of g.enemies)g.killEnemy(enemy);g.atExit();g.nextFloor();assert.equal(g.floor,2);assert.equal(g.gear.main.key,'ashbringer');assert.equal(g.gear.bag.length,6);
+ g.die();g.startGame();assert.equal(g.gear.main.key,'rustbound');assert.equal(g.gear.bag.filter(Boolean).length,0);assert.equal(g.player.potions,2);
+});
+test('Boss encounter rewards are generic and once-only, independent of kill order',()=>{
+ const {g}=game();g.startGame();g.player.xpNeeded=1e9;g.setRandom(()=>.5);
+ const ordinary=g.enemies.filter(e=>!e.finalGuard);for(const e of ordinary)g.killEnemy(e);
+ assert.equal(g.loot.filter(l=>l.kind==='equipment').length,0);
+ const boss=g.finalEncounter.find(e=>e.type==='boss');g.killEnemy(boss);assert.equal(g.loot.filter(l=>l.kind==='equipment').length,0);
+ for(const e of g.finalEncounter)g.killEnemy(e);const count=g.loot.filter(l=>l.kind==='equipment').length;assert.equal(count,1);
+ g.checkEncounter();g.killEnemy(boss);assert.equal(g.loot.filter(l=>l.kind==='equipment').length,count);
+});
+test('Full backpack and repeated pickups cannot delete or duplicate a ground item',()=>{
+ const E=require('./equipment.js'),{g}=game();g.startGame();for(let i=0;i<6;i++)E.collect(g.gear,E.item('rustbound'));
+ const item=E.item('bloodforged');g.dropEquipment(item,g.player.x,g.player.y);g.tick(.5);g.collectEquipment();assert.equal(g.loot.find(l=>l.item===item).gone,undefined);
+ E.drop(g.gear,0);g.collectEquipment();g.collectEquipment();assert.equal(g.gear.bag.filter(i=>i?.id===item.id).length,1);assert.equal(g.loot.find(l=>l.item===item).gone,true);
+});
+test('Three-potion capacity, defence, shield depletion and simulation-only recovery',()=>{
+ const E=require('./equipment.js'),a=game().g,b=game().g;a.startGame();b.startGame();
+ E.unequip(b.gear,'off');b.reconcileEquipment();a.hurt(20);b.hurt(20);assert.ok(a.player.hp>b.player.hp);assert.equal(a.player.shield,0);
+ a.openInventory();a.tick(10);assert.equal(a.player.shield,0);a.closeInventory();
+ a.player.potions=100;assert.equal(a.player.potions,3);a.player.hp=50;a.drink();assert.equal(a.player.potions,2);assert.ok(a.player.hp<=a.player.maxHp);
+ a.player.hp=a.player.maxHp;const count=a.player.potions;a.drink();assert.equal(a.player.potions,count);
+});
+test('Equipment healing is health-hit-only and once per attack; fire has a persistent cooldown',()=>{
+ const E=require('./equipment.js');
+ const critical=game().g;critical.startGame();E.collect(critical.gear,E.item('bloodforged'));E.equip(critical.gear,0,'main');critical.reconcileEquipment();critical.player.hp=50;critical.player.crit=.5;critical.setRandom(()=>0);
+ const guard=critical.spawnEnemy(critical.player.x+.8,critical.player.y,'guardian');critical.attemptAttack();assert.equal(critical.player.hp,50);assert.equal(guard.shield,0);
+ const life=game().g;life.startGame();E.collect(life.gear,E.item('kingsmercy'));E.equip(life.gear,0,'main');life.reconcileEquipment();life.player.hp=50;life.setRandom(()=>.5);
+ for(const dy of [-.2,.2]){const e=life.spawnEnemy(life.player.x+.8,life.player.y+dy,'brute');e.hp=e.maxHp=1000;}life.attemptAttack();assert.equal(life.player.hp,51.2);
+ const fire=game().g;fire.startGame();E.collect(fire.gear,E.item('ashbringer'));E.equip(fire.gear,0,'main');fire.reconcileEquipment();fire.setRandom(()=>.5);
+ const a=fire.spawnEnemy(fire.player.x+1.2,fire.player.y,'brute'),b=fire.spawnEnemy(fire.player.x+2.2,fire.player.y+.1,'brute');a.hp=a.maxHp=b.hp=b.maxHp=1000;
+ fire.attemptAttack();assert.ok(b.hp<1000);assert.equal(fire.fireCooldown,3);fire.openInventory();fire.tick(10);fire.closeInventory();assert.equal(fire.fireCooldown,3);
+});
+test('Potions remain on the ground at capacity and collect exactly once after consumption',()=>{
+ const {g}=game();g.startGame();g.player.potions=3;g.player.hp=20;const potion={x:g.player.x,y:g.player.y,kind:'potion',phase:0};g.loot.push(potion);
+ g.tick(.04);assert.equal(g.player.potions,3);assert.ok(g.loot.includes(potion));g.drink();assert.equal(g.player.potions,2);g.tick(.04);assert.equal(g.player.potions,3);assert.ok(!g.loot.includes(potion));g.tick(.04);assert.equal(g.player.potions,3);
 });
