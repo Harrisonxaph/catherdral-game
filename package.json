@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "python3 -m http.server 3000",
-    "test": "node --test chapter.test.cjs enemy-system.test.cjs",
-    "test:browser": "node tests/browser.cjs"
+    "test": "node --test chapter.test.cjs enemy-system.test.cjs equipment.test.cjs",
+    "test:browser": "node tests/browser.cjs",
+    "test:inventory-browser": "node tests/inventory-browser.cjs"
   },
   "packageManager": "npm@10.8.2",
   "dependencies": {

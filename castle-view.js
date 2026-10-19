@@ -139,9 +139,10 @@ class CastleView {
     part(group,sphere,hero?steel:mat,0,1.08,0,.21,.25,.21);
     part(group,box,dark,0,1.1,-.2,.27,.055,.035);
     for(const side of [-1,1])part(group,box,dark,side*.13,.16,0,.13,.32,.17);
-    part(group,box,hero?gold:dark,-.31,.63,-.05,.14,.46,.32);
+    group.userData.offhand=part(group,box,hero?gold:dark,-.31,.63,-.05,.14,.46,.32);
     const sword=part(group,box,steel,.34,.85,-.25,.055,.7,.08);sword.rotation.x=-.5;group.userData.sword=sword;
-    part(group,box,gold,.34,.53,-.08,.24,.05,.1);
+    group.userData.hilt=part(group,box,gold,.34,.53,-.08,.24,.05,.1);
+    if(hero){group.userData.offSword=part(group,box,steel,-.34,.85,-.25,.055,.7,.08);group.userData.offSword.rotation.x=-.5;group.userData.offSword.visible=false;group.userData.axe=part(sword,box,steel,0,.32,0,7,.3,1.5);group.userData.axe.visible=false;}
     if(type==='boss'||type==='brute')group.scale.setScalar(type==='boss'?1.8:1.35);
     if(!hero&&type!=='boss'){
       if(type==='guardian'){
@@ -176,7 +177,7 @@ class CastleView {
     return this.dynamic.get(key);
   }
   render(data) {
-    const {world,player,torches,stair,cam,time,enemies,hazards=[],chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}=data;
+    const {world,player,torches,stair,cam,time,equipment,enemies,hazards=[],chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}=data;
     this.renderer.domElement.hidden=!this.enabled;
     if(!this.enabled)return false;
     if(this.world!==world)this.build(world,torches,stair);
@@ -189,6 +190,14 @@ class CastleView {
     this.portalRing.material=portalReady?colorMaterial('#efc878'):dark;
     const active=new Set();
     const hero=this.object(player,()=>this.actor(true),active);hero.position.set(player.x,0,player.y);hero.rotation.y=-player.facing-Math.PI/2+(attackTimer>0?Math.sin(attackTimer*20)*.6:0);hero.visible=invul<=0||Math.floor(time*16)%2===0;
+    if(equipment&&window.VesperEquipment){
+      const E=window.VesperEquipment,main=E.definition(equipment.main),off=E.definition(equipment.off),u=hero.userData;
+      u.sword.visible=!!main;u.hilt.visible=!!main;u.offhand.visible=off?.kind==='shield';u.offSword.visible=off?.kind==='weapon';
+      u.sword.scale.set(main?.hands===2?.085:.055,main?.hands===2?1.05:.7,.08);
+      u.sword.material=main?colorMaterial(E.rarities[main.rarity].color):steel;
+      u.axe.visible=!!main&&['graveaxe','executioner','ashbringer'].includes(equipment.main.key);
+      if(off){u.offhand.material=colorMaterial(E.rarities[off.rarity].color);u.offSword.material=colorMaterial(E.rarities[off.rarity].color);}
+    }
     for(const e of enemies){
       if(e.dead||Math.hypot(e.x-player.x,e.y-player.y)>13)continue;
       const m=this.object(e,()=>this.actor(false,e.type),active);
@@ -228,8 +237,26 @@ class CastleView {
     for(const o of window.VesperStory?.objects||[]){if(Math.hypot(o.x-player.x,o.y-player.y)>12)continue;const m=this.object(o,()=>{if(o.kind==='knight')return this.actor(true);const g=new THREE.Group();if(o.kind==='crown'){part(g,cone,gold,0,.5,0,.22,.42,.22);}else{part(g,box,trim,0,.24,0,.55,.48,.4);part(g,box,o.kind==='book'?crimson:gold,0,.51,0,.45,.08,.32);}return g;},active);m.position.set(o.x,0,o.y);if(o.kind==='knight')m.rotation.y=Math.atan2(player.x-o.x,player.y-o.y);}
     for(const c of chests){if(Math.hypot(c.x-player.x,c.y-player.y)>13)continue;const m=this.object(c,()=>{const g=new THREE.Group();part(g,box,gold,0,.3,0,.65,.5,.45);part(g,box,dark,0,.32,-.24,.16,.25,.03);return g;},active);m.position.set(c.x,0,c.y);m.scale.y=c.opened?.4:1;}
     for(const t of traps){if(Math.hypot(t.x-player.x,t.y-player.y)>13)continue;const m=this.object(t,()=>{const g=new THREE.Group();part(g,box,dark,0,.025,0,.65,.05,.65);for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)part(g,cone,steel,x*.2,.15,z*.2,.07,.3,.07);return g;},active);m.position.set(t.x,0,t.y);m.scale.y=Math.sin(time*2.4+t.phase)>.12?1:.15;}
-    for(const [items,size,y,color] of [[loots,.12,.3,'#ecc575'],[bullets,.15,.65,'#ed748c'],[particles,.055,.45,null]])for(const a of items){if(Math.hypot(a.x-player.x,a.y-player.y)>13)continue;const m=this.object(a,()=>new THREE.Mesh(sphere,colorMaterial(a.color||color)),active);m.position.set(a.x,y+Math.sin(time*4)*.05,a.y);m.scale.setScalar(size);m.rotation.y=time;}
-    for(const f of flashes){const m=this.object(f,()=>{const mesh=new THREE.Mesh(new THREE.TorusGeometry(f.range*.8,.045,4,24,player.arc*2),colorMaterial('#ffe0a5'));mesh.rotation.x=Math.PI/2;return mesh;},active);m.position.set(f.x,.5,f.y);m.rotation.z=f.a-player.arc;m.scale.setScalar(1-f.t/f.duration*.3);}
+    for(const l of loots){
+      if(l.gone||Math.hypot(l.x-player.x,l.y-player.y)>13)continue;
+      const m=this.object(l,()=>{
+        if(l.kind==='ash')return new THREE.Mesh(sphere,colorMaterial('#ecc575'));
+        const group=new THREE.Group();
+        if(l.kind==='potion'){part(group,cylinder,colorMaterial('#db5769'),0,.17,0,.12,.26,.12);part(group,cylinder,gold,0,.34,0,.05,.09,.05);}
+        else{
+          const E=window.VesperEquipment,spec=E.definition(l.item),mat=colorMaterial(l.color);
+          part(group,cylinder,mat,0,.015,0,.4,.025,.4);
+          if(spec.kind==='shield'){const shield=part(group,cylinder,steel,0,.2,0,.23,.08,.23);shield.rotation.x=.6;}
+          else{const blade=part(group,box,steel,0,.22,0,.07,.65,.07);blade.rotation.z=-.65;part(group,box,gold,-.15,.07,0,.25,.05,.1);}
+          if(spec.rarity==='legendary')for(const side of [-1,1])part(group,cone,mat,side*.32,.25,0,.05,.12,.05);
+        }
+        return group;
+      },active);
+      m.position.set(l.x,l.kind==='ash'?.3+Math.sin(time*3+l.phase)*.05:0,l.y);
+      if(l.kind==='ash'){m.scale.setScalar(.12);m.rotation.y=time;}else if(l.kind==='equipment')m.rotation.y=Math.sin(time+l.phase)*.15;
+    }
+    for(const [items,size,y,color] of [[bullets,.15,.65,'#ed748c'],[particles,.055,.45,null]])for(const a of items){if(Math.hypot(a.x-player.x,a.y-player.y)>13)continue;const m=this.object(a,()=>new THREE.Mesh(sphere,colorMaterial(a.color||color)),active);m.position.set(a.x,y+Math.sin(time*4)*.05,a.y);m.scale.setScalar(size);m.rotation.y=time;}
+    for(const f of flashes){const m=this.object(f,()=>{const mesh=new THREE.Mesh(new THREE.TorusGeometry(f.range*(f.fullCircle?1:.8),.045,4,24,f.fullCircle?Math.PI*2:player.arc*2),colorMaterial(f.color||'#ffe0a5'));mesh.rotation.x=Math.PI/2;return mesh;},active);m.position.set(f.x,.5,f.y);m.rotation.z=f.a-player.arc;m.scale.setScalar(1-f.t/f.duration*.3);}
     for(const text of texts){const m=this.object(text,()=>this.damageLabel(text),active);m.position.set(text.x,1.7,text.y);m.material.opacity=1-text.t/.75;}
     for(const [key,mesh] of this.dynamic)if(!active.has(key)){this.scene.remove(mesh);if(mesh.geometry?.type==='TorusGeometry')mesh.geometry.dispose();if(mesh.isSprite){mesh.material.map.dispose();mesh.material.dispose();}this.dynamic.delete(key);}
     this.renderer.render(this.scene,this.camera);return true;
