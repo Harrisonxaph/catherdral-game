@@ -1,5 +1,5 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v10-boss-art-1';
+const CACHE_VERSION = 'vesper-cathedral-v10-bag-boss-health-1';
 const APP_ASSETS = [
   './',
   './index.html',

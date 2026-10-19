@@ -13,7 +13,7 @@ for(const viewport of [{width:320,height:568},{width:844,height:390}]){const con
   await page.locator('#boss-skip').tap();if(!await page.evaluate(()=>bossQA.bosses.active&&bossQA.state==='playing'))throw Error('Skip did not activate King');
  }
  const report=await page.evaluate(f=>{
-  const q=bossQA,b=q.bosses.boss;if(b.maxHp!==({1:1000,3:2500,5:4000})[f])throw Error('Boss health configuration mismatch');q.player.hp=q.player.maxHp=10000;
+  const q=bossQA,b=q.bosses.boss;if(b.maxHp!==({1:2500,3:2500,5:4000})[f])throw Error('Boss health configuration mismatch');q.player.hp=q.player.maxHp=10000;
   const names=f===1?['acid','cross']:f===3?['wall','half','melee']:['whirlwind','axe','extinguish'];
   for(const name of names){q.bosses.begin(name);q.draw();const h=q.bosses.action?.h;if(h){const mesh=castleView.dynamic.get('hazard:'+h.id);if(!mesh)throw Error('Missing 3D hazard '+name);if(['wall','cross','polygon'].includes(h.shape)&&mesh.userData.fills.length!==VesperEnemies.hazardPolygons(h).length)throw Error('Polygon visual mismatch');}q.tick(.04);castleView.enabled=false;q.draw();castleView.enabled=true;q.draw();}
   b.hp=b.maxHp*.49;q.tick(.02);if(!b.enraged)throw Error('Threshold not applied');
