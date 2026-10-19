@@ -4,14 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "python3 -m http.server 3000",
-    "test": "node --test chapter.test.cjs enemy-system.test.cjs equipment.test.cjs abilities.test.cjs graphics.test.cjs boss-system.test.cjs",
+    "test": "node --test chapter.test.cjs enemy-system.test.cjs equipment.test.cjs abilities.test.cjs graphics.test.cjs boss-system.test.cjs boss-presentation.test.cjs",
     "test:browser": "node tests/browser.cjs",
     "test:inventory-browser": "node tests/inventory-browser.cjs",
     "test:abilities-browser": "node tests/abilities-browser.cjs",
     "test:graphics-browser": "node tests/graphics-browser.cjs",
     "capture:visuals": "node tests/visual-capture.cjs",
     "test:offline-browser": "node tests/offline-browser.cjs",
-    "test:bosses-browser": "node tests/bosses-browser.cjs"
+    "test:bosses-browser": "node tests/bosses-browser.cjs",
+    "test:boss-art-browser": "node tests/boss-art-browser.cjs",
+    "capture:bosses": "node tests/capture-bosses.cjs"
   },
   "packageManager": "npm@10.8.2",
   "dependencies": {
