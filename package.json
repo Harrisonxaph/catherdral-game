@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "python3 -m http.server 3000",
-    "test": "node --test chapter.test.cjs",
+    "test": "node --test chapter.test.cjs enemy-system.test.cjs",
     "test:browser": "node tests/browser.cjs"
   },
   "packageManager": "npm@10.8.2",

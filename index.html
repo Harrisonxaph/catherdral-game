@@ -118,6 +118,7 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
 </div>
 <link rel="stylesheet" href="./narrative.css" />
 <script src="./floors.js"></script>
+<script src="./enemy-system.js"></script>
 <script src="./story-content.js"></script>
 <script src="./narrative.js"></script>
 <script type="module" src="./castle-view.js"></script>
@@ -149,10 +150,15 @@ function setState(s){state=s;if(s==='playing'){hideOverlays();uiPlaying(true);}e
 function makeWorld(){return window.VesperFloors.generate(window.VesperFloors.get(floor),rand);}
 function free(x,y,r=.28){return world.walk(Math.floor(x-r),Math.floor(y-r))&&world.walk(Math.floor(x+r),Math.floor(y-r))&&world.walk(Math.floor(x-r),Math.floor(y+r))&&world.walk(Math.floor(x+r),Math.floor(y+r));}
 function moveEntity(a,dx,dy){if(free(a.x+dx,a.y,a.r)){a.x+=dx;a.y+=dy;return;}if(free(a.x+dx,a.y,a.r))a.x+=dx;if(free(a.x,a.y+dy,a.r))a.y+=dy;}
-function spawnEnemy(x,y,type){const stats={bone:[35,1.55,9,12],wraith:[26,1.95,8,15],cultist:[44,1.15,10,18],brute:[100,.87,17,23],boss:[355,1.1,21,90]}[type];const config=window.VesperFloors.get(floor),factor=config.health;
- enemies.push({x,y,type,hp:Math.round(stats[0]*factor),maxHp:Math.round(stats[0]*factor),speed:stats[1]*(1+Math.min(.24,floor*.02)),dmg:stats[2]*config.damage,xp:stats[3],r:type==='boss'?.59:type==='brute'?.42:.30,hit:0,attack:rand()*.9,shoot:1.2+rand(),phase:rand()*TAU,dead:false,aim:0});}
+const enemySystem=window.VesperEnemies;
+const combat=enemySystem.createRuntime({world:()=>world,player:()=>player,enemies:()=>enemies,flow:()=>flow,free,move:moveEntity,random:()=>rand(),spawn:spawnEnemy,damage:damageEnemy,hurt,bolt:fireBolt,effect:burst,allowed:e=>!e.finalGuard||encounterStarted});
+function spawnEnemy(x,y,type){
+ if(type!=='boss'){const e=enemySystem.create(type,x,y,world.config,rand);enemies.push(e);return e;}
+ // Existing Stage 1 boss placeholder stats and behaviour are deliberately retained.
+ const config=world.config;const e={x,y,type,hp:Math.round(355*config.health),maxHp:Math.round(355*config.health),speed:1.1*(1+Math.min(.24,floor*.02)),dmg:21*config.damage,xp:90,r:.59,hit:0,attack:rand()*.9,shoot:1.2+rand(),phase:rand()*TAU,dead:false,aim:0};enemies.push(e);return e;
+}
 function newFloor(){
- reseed();world=makeWorld();enemies=[];bullets=[];particles=[];loots=[];flashes=[];texts=[];traps=[];torches=[];chests=[];visited=new Uint8Array(world.W*world.H);flow=new Int16Array(world.W*world.H);flow.fill(32000);
+ combat.reset();reseed();world=makeWorld();enemies=[];bullets=[];particles=[];loots=[];flashes=[];texts=[];traps=[];torches=[];chests=[];visited=new Uint8Array(world.W*world.H);flow=new Int16Array(world.W*world.H);flow.fill(32000);
  player.x=world.start.cx+.5;player.y=world.start.cy+.5;cam.x=player.x;cam.y=player.y;bossDead=false;floorKills=0;finalEncounter=[];encounterStarted=false;clearInput();
  stair={x:world.exit.cx+.5,y:world.exit.cy+.5};
  world.rooms.forEach((r,i)=>{
@@ -163,7 +169,7 @@ function newFloor(){
    for(let k=0;k<n;k++){
      let x=rnd(r.x+1,r.x+r.w-1),y=rnd(r.y+1,r.y+r.h-1);
      if(dist(x,y,stair.x,stair.y)<1.3){x=r.x+1.5;y=r.y+1.5;}
-     let type=floor>=2&&rand()<.17?'brute':rand()<.33?'cultist':rand()<.54?'wraith':'bone';
+     const roster=world.config.roster;const type=roster[((i-1)*n+k)%roster.length];
      spawnEnemy(x,y,type);
    }
    if(rand()<.46){let x=r.cx+.5,y=r.cy+.5;if(dist(x,y,stair.x,stair.y)>2)chests.push({x,y,opened:false,glow:rnd(0,TAU)});}
@@ -177,7 +183,7 @@ function newFloor(){
    finalEncounter.push(e);
  };
  if(config.final==='boss')addFinal(stair.x,stair.y-1.5,'boss');
- for(let i=0;i<config.guards;i++)addFinal(world.exit.x+2+i*2,world.exit.y+2,'brute',config.final==='elite');
+ for(let i=0;i<config.guards;i++)addFinal(world.exit.x+2+i*2,world.exit.y+2,floor===1||floor===2?'guardian':'brute',config.final==='elite');
  story.setup(world,floor);
  needed=Math.max(5,Math.ceil(enemies.length*(bossDead?.63:.48)));portalReady=false;portalNear=false;flowCooldown=0;updateFlow();
  updateHUD();showToast(world.config.name.toUpperCase(),floor===1?'CHAPTER I · THE HOLLOW CROWN':world.config.final==='boss'?'THE WARDEN AWAITS':'ELITE GUARDIANS BAR THE EXIT');
@@ -192,8 +198,8 @@ function updateFlow(){flow.fill(32000);const q=new Int16Array(world.W*world.H);l
 function burst(x,y,color,count=11,power=2){for(let i=0;i<count;i++){let a=rnd(0,TAU),v=rnd(.4,power);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(.27,.65),max:.65,size:rnd(.035,.115),color});}if(particles.length>240)particles.splice(0,particles.length-240);}
 function flyText(x,y,s,color='#ffcb93',size=14){texts.push({x,y,t:0,txt:s,color,size});}
 function dropLoot(x,y,enemy){let count=enemy.type==='boss'?16:randi(1,3);for(let i=0;i<count;i++)loots.push({x:x+rnd(-.38,.38),y:y+rnd(-.38,.38),kind:'ash',value:enemy.type==='boss'?7:1,phase:rnd(0,TAU)});if(rand()<(enemy.type==='boss'?.9:.045))loots.push({x,y,kind:'potion',phase:0});}
-function killEnemy(e){if(e.dead)return;e.dead=true;floorKills++;kills++;player.xp+=e.xp;dropLoot(e.x,e.y,e);burst(e.x,e.y,e.type==='wraith'?'#81a9b2':'#a54459',e.type==='boss'?44:14,3.2);sfx('kill');screenShake=Math.max(screenShake,e.type==='boss'?.44:.13);if(e.type==='boss'){bossDead=true;story.emit('boss-defeated',{floor,x:e.x,y:e.y});showToast(floor===1?'THE CRYPT KEEPER FALLS':'THE BELL FALLS','Its final echo fades into ash');}if(player.leech&&rand()<player.leech)heal(5,false);if(floorKills>=needed&&finalEncounter.every(enemy=>enemy.dead)&&!portalReady){portalReady=true;story.emit('seal-open',{floor});showToast('THE SEAL IS BROKEN','Find the glowing stairway');sfx('door');}updateHUD();}
-function damageEnemy(e,damage,crit=false){e.hp-=damage;e.hit=.19;burst(e.x,e.y,e.type==='wraith'?'#9ec4cc':'#ae354f',crit?12:7,1.8);flyText(e.x,e.y-.35,(crit?'✦ ':'')+Math.round(damage),crit?'#ffdb8a':'#f2bdb0',crit?18:14);if(e.hp<=0)killEnemy(e);else sfx('hit');}
+function killEnemy(e){if(e.dead)return;e.dead=true;e.state='dead';combat.cancel(e);e.deadAt=time;if(!e.minion){floorKills++;kills++;player.xp+=e.xp;dropLoot(e.x,e.y,e);}burst(e.x,e.y,e.type==='wraith'?'#81a9b2':'#a54459',e.type==='boss'?44:14,3.2);sfx('kill');screenShake=Math.max(screenShake,e.type==='boss'?.44:.13);if(e.type==='boss'){bossDead=true;story.emit('boss-defeated',{floor,x:e.x,y:e.y});showToast(floor===1?'THE CRYPT KEEPER FALLS':'THE BELL FALLS','Its final echo fades into ash');}if(!e.minion&&player.leech&&rand()<player.leech)heal(5,false);if(floorKills>=needed&&finalEncounter.every(enemy=>enemy.dead)&&!portalReady){portalReady=true;story.emit('seal-open',{floor});showToast('THE SEAL IS BROKEN','Find the glowing stairway');sfx('door');}updateHUD();}
+function damageEnemy(e,damage,crit=false){if(e.dead)return;const result=enemySystem.damage(e,damage);e.hit=.19;if(result.health>0)combat.stun(e);else if(e.shield===0)combat.stun(e,.4);burst(e.x,e.y,e.type==='wraith'?'#9ec4cc':'#ae354f',crit?12:7,1.8);flyText(e.x,e.y-.35,(result.shield?'SHIELD ':crit?'✦ ':'')+Math.round(result.shield||result.health),result.shield?'#69b5ff':crit?'#ffdb8a':'#f2bdb0',crit?18:14);if(e.hp<=0)killEnemy(e);else sfx('hit');}
 function attemptAttack(){if(story.paused||state!=='playing'||attackTimer>0)return;attackTimer=player.attackRate;sfx('strike');let target=null,dd=3.4;
  for(const e of enemies){if(e.dead)continue;let d=dist(e.x,e.y,player.x,player.y);if(d<dd){dd=d;target=e;}}
  if(target)player.facing=Math.atan2(target.y-player.y,target.x-player.x);
@@ -225,7 +231,7 @@ function upgrade(){state='upgrade';showOverlay('upgrade');let opts=[];while(opts
 function gainLevel(){if(state!=='playing')return;if(player.xp>=player.xpNeeded){player.xp-=player.xpNeeded;level++;player.xpNeeded=Math.round(player.xpNeeded*1.24+16);upgrade();updateHUD();}}
 function die(){if(state==='dead')return;state='dead';holdAttack=false;const best=Number(store.get('vesperBest')||0);if(kills>best)store.set('vesperBest',String(kills));$('deathstats').innerHTML=`Crypt reached: <b>${roman(floor)}</b><br>Souls reaped: <b>${kills}</b><br>Ash collected: <b>${ash}</b><br>Best run: <b>${Math.max(best,kills)} souls</b>`;const msgs=['Even the strongest candles burn out.','The dead are patient.','The cathedral remembers your name.'];$('deathtag').textContent=msgs[randi(0,msgs.length-1)];setState('dead');story.emit('player-died',{floor});}
 function nextFloor(){if(story.paused||!portalReady||!portalNear||state!=='playing')return;if(!story.canLeave(floor))return;story.emit('floor-left',{floor});if(floor===window.VesperFloors.floors.length){clearInput();setState('complete');story.emit('run-complete',{floor,kills});return;}floor++;player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.2));player.potions=Math.min(5,player.potions+1);dashTime=0;invul=1;newFloor();sfx('door');}
-function updateHUD(){if(!player)return;$('hpbar').style.width=(100*player.hp/player.maxHp)+'%';$('xpbar').style.width=(100*player.xp/player.xpNeeded)+'%';$('hptext').textContent=Math.ceil(player.hp)+' / '+Math.ceil(player.maxHp);$('cointext').textContent='✦ '+ash+' ASH';$('lvlabel').textContent='LVL '+level;$('floorlabel').textContent='FLOOR '+floor+' / 5 · '+world.config.name;$('potionlabel').textContent='×'+player.potions;
+function updateHUD(){if(!player)return;$('hpbar').style.width=(100*player.hp/player.maxHp)+'%';$('xpbar').style.width=(100*player.xp/player.xpNeeded)+'%';$('hptext').textContent=Math.ceil(player.hp)+' / '+Math.ceil(player.maxHp)+(combat.statuses.some(s=>s.kind==='poison')?' · POISON':'');$('cointext').textContent='✦ '+ash+' ASH';$('lvlabel').textContent='LVL '+level;$('floorlabel').textContent='FLOOR '+floor+' / 5 · '+world.config.name;$('potionlabel').textContent='×'+player.potions;
  const remaining=finalEncounter.filter(e=>!e.dead).length;
  if(!portalReady)$('obj').textContent=(remaining?(world.config.final==='elite'?'ELITE GUARDIANS':'CHAMBER GUARDIANS')+' · '+remaining+' REMAIN · ':'')+'SEAL · '+Math.max(0,needed-floorKills)+' SOULS';
  else $('obj').textContent=floor===5?'✧ THE FINAL SEAL IS OPEN ✧':'✧ THE STAIRWAY IS OPEN ✧';
@@ -237,7 +243,7 @@ function updateMinimap(){if(!world||!player)return;const w=mapCanvas.width,h=map
  if((portalReady||visited[world.ix(Math.floor(stair.x),Math.floor(stair.y))])){mctx.fillStyle=portalReady?'#e6ba77':'#9b867b';mctx.fillRect((stair.x-.9)*s,(stair.y-.9)*s,2*s,2*s);}
  for(const e of enemies){if(!e.dead&&dist(e.x,e.y,player.x,player.y)<7){mctx.fillStyle=e.type==='boss'?'#fdc678':'#c65772';mctx.fillRect(e.x*s-1,e.y*s-1,2.2,2.2);}}
 }
-function fireBolt(x,y,ang,dmg,sp=3.5,boss=false){bullets.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,ttl:3.6,r:boss?.17:.12,damage:dmg,phase:rnd(0,TAU)});sfx('shoot');}
+function fireBolt(x,y,ang,dmg,sp=3.5,boss=false){if(bullets.length>=enemySystem.limits.projectiles)return;bullets.push({x,y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,ttl:3.6,r:boss?.17:.12,damage:dmg,phase:rnd(0,TAU),color:boss?'#ed748c':'#b583ed'});sfx('shoot');}
 function tick(dt){story.update({world,player,floor,state});if(story.paused)return;time+=dt;if(messageTimeout>0){messageTimeout-=dt;if(messageTimeout<=0)$('toast').classList.remove('visible');}
  if(!player||!world)return;
  for(const f of flashes)f.t+=dt;flashes=flashes.filter(f=>f.t<f.duration);
@@ -251,8 +257,12 @@ function tick(dt){story.update({world,player,floor,state});if(story.paused)retur
  if(dashTime>0){dashTime-=dt;moveEntity(player,player.dashX*player.speed*3.9*dt,player.dashY*player.speed*3.9*dt);if(rand()<.85)burst(player.x,player.y,'#9e7c9c',1,.65);}else{moveEntity(player,mx*player.speed*dt,my*player.speed*dt);if(ml>.1){player.walk+=dt*12;player.facing=Math.atan2(my,mx);} }
  if(holdAttack||key[' ']||key.j||key.J)attemptAttack();
  const x=Math.floor(player.x),y=Math.floor(player.y);if(world.walk(x,y)){for(let dy=-7;dy<=7;dy++)for(let dx=-7;dx<=7;dx++){let nx=x+dx,ny=y+dy;if(nx>=0&&ny>=0&&nx<world.W&&ny<world.H&&dx*dx+dy*dy<68)visited[world.ix(nx,ny)]=1;}}
- flowCooldown-=dt;if(flowCooldown<=0){flowCooldown=.3;updateFlow();updateMinimap();}
- for(const e of enemies){if(e.dead)continue;e.hit=Math.max(0,e.hit-dt);e.attack=Math.max(0,e.attack-dt);e.shoot-=dt;e.phase+=dt*(e.type==='wraith'?2.7:1.3);
+ flowCooldown-=dt;if(flowCooldown<=0){flowCooldown=.3;updateFlow();updateMinimap();updateHUD();}
+ const r=world.exit;
+ if(!encounterStarted&&player.x>=r.x&&player.x<r.x+r.w&&player.y>=r.y&&player.y<r.y+r.h){encounterStarted=true;showToast('THE FINAL CHAMBER','Defeat every guardian to break the seal');}
+ combat.tick(dt);
+ enemies=enemies.filter(e=>!e.minion||!e.dead||time-e.deadAt<.6);
+ for(const e of enemies){if(e.dead||e.type!=='boss')continue;e.hit=Math.max(0,e.hit-dt);e.attack=Math.max(0,e.attack-dt);e.shoot-=dt;e.phase+=dt*1.3;
   const d=dist(e.x,e.y,player.x,player.y);
   if(e.finalGuard){const r=world.exit;if(!encounterStarted&&player.x>=r.x&&player.x<r.x+r.w&&player.y>=r.y&&player.y<r.y+r.h){encounterStarted=true;showToast('THE FINAL CHAMBER',world.config.final==='elite'?'Defeat every elite guardian':'Defeat the warden and its guard');}if(!encounterStarted)continue;}
   if(d>12)continue;
@@ -333,7 +343,7 @@ function renderEnemy(e,x,y){let T=tileSize,s=e.type==='boss'?1.7:e.type==='brute
  }
  ctx.restore();if(e.hp<e.maxHp||e.type==='boss'){let barW=T*(e.type==='boss'?1.7:.75);ctx.fillStyle='#130b12e8';ctx.fillRect(x-barW/2,y-T*(e.type==='boss'?.91:.54),barW,4);ctx.fillStyle=e.type==='boss'?'#dfa86d':'#d26071';ctx.fillRect(x-barW/2,y-T*(e.type==='boss'?.91:.54),barW*clamp(e.hp/e.maxHp,0,1),3);}
 }
-function draw(){if(window.castleView?.render({world,player,torches,stair,cam,time,enemies,chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}))return;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#080910';ctx.fillRect(0,0,width,height);if(!world||!player)return;
+function draw(){if(window.castleView?.render({world,player,torches,stair,cam,time,enemies,hazards:combat.hazards,chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}))return;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#080910';ctx.fillRect(0,0,width,height);if(!world||!player)return;
  ctx.save();const shake=screenShake*tileSize*.18;ctx.translate(rnd(-shake,shake),rnd(-shake,shake));
  const offY=(width<650&&height>width)?1.05:0;
  const minX=clamp(Math.floor(cam.x-width/(2*tileSize))-1,0,world.W-1),maxX=clamp(Math.ceil(cam.x+width/(2*tileSize))+1,0,world.W-1);
@@ -352,6 +362,7 @@ function draw(){if(window.castleView?.render({world,player,torches,stair,cam,tim
   ctx.fillStyle='#201e26';ctx.fillRect(p.x-tileSize*.32,p.y-tileSize*.32,tileSize*.64,tileSize*.64);ctx.strokeStyle='#806768';ctx.strokeRect(p.x-tileSize*.30,p.y-tileSize*.30,tileSize*.60,tileSize*.60);
   for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){ctx.fillStyle=active?'#b86a72':'#65636e';ctx.beginPath();ctx.moveTo(p.x+i*tileSize*.16,p.y+j*tileSize*.16-(active?tileSize*.10:tileSize*.035));ctx.lineTo(p.x+i*tileSize*.16-tileSize*.048,p.y+j*tileSize*.16+tileSize*.045);ctx.lineTo(p.x+i*tileSize*.16+tileSize*.048,p.y+j*tileSize*.16+tileSize*.045);ctx.fill();}
  }
+ for(const h of combat.hazards){const p=screenPos(h.x,h.y),warning=h.age<h.warning;ctx.save();ctx.fillStyle=h.color;ctx.globalAlpha=warning?.16:.4;ctx.strokeStyle=h.color;ctx.lineWidth=2;if(h.shape==='rect'){ctx.fillRect(p.x-h.width*tileSize/2,p.y-h.height*tileSize/2,h.width*tileSize,h.height*tileSize);ctx.strokeRect(p.x-h.width*tileSize/2,p.y-h.height*tileSize/2,h.width*tileSize,h.height*tileSize);}else{ctx.beginPath();ctx.arc(p.x,p.y,h.radius*tileSize,0,TAU);ctx.fill();ctx.globalAlpha=.9;ctx.stroke();}ctx.restore();}
  // torches, floor fire and warm atmospheric light
  for(const torch of torches){let p=screenPos(torch.x,torch.y);if(p.x<-180||p.y<-180||p.x>width+180||p.y>height+180)continue;const flick=.82+.18*Math.sin(time*13+torch.phase);litDot(torch.x,torch.y,2.45*flick,'rgba(212,109,46,.19)');ctx.fillStyle='#302a2c';ctx.fillRect(p.x-3,p.y-3,6,12);ctx.fillStyle='#ffd29a';ctx.shadowColor='#ed9d51';ctx.shadowBlur=15;ctx.beginPath();ctx.ellipse(p.x,p.y-8-2*Math.sin(time*12+torch.phase),3.5,7,0,0,TAU);ctx.fill();ctx.shadowBlur=0;}
  // Portal / sealed runes
@@ -359,7 +370,7 @@ function draw(){if(window.castleView?.render({world,player,torches,stair,cam,tim
  for(const c of chests){const p=screenPos(c.x,c.y);if(c.opened){ctx.fillStyle='#2b2024';ctx.fillRect(p.x-12,p.y-4,24,14);continue;}ctx.fillStyle='#573b30';ctx.fillRect(p.x-15,p.y-10,30,23);ctx.fillStyle='#a27c57';ctx.fillRect(p.x-16,p.y-12,32,7);ctx.fillStyle='#e2b76e';ctx.fillRect(p.x-2,p.y-5,4,8);ctx.strokeStyle='#b49470';ctx.strokeRect(p.x-15,p.y-10,30,23);}
  for(const l of loots){const p=screenPos(l.x,l.y+Math.sin(time*3+l.phase)*.08);ctx.save();ctx.translate(p.x,p.y);ctx.rotate(time+l.phase);ctx.shadowColor=l.kind==='ash'?'#ffc785':'#a5f1ba';ctx.shadowBlur=12;ctx.fillStyle=l.kind==='ash'?'#ebbc73':'#a1ebba';ctx.beginPath();let r=tileSize*(l.kind==='ash'?.082:.16);ctx.moveTo(0,-r*1.25);ctx.lineTo(r,0);ctx.lineTo(0,r*1.25);ctx.lineTo(-r,0);ctx.closePath();ctx.fill();ctx.restore();}
  // Enemies farther back render first
- for(const e of enemies){if(!e.dead){let p=screenPos(e.x,e.y);if(p.x>-100&&p.x<width+100&&p.y>-100&&p.y<height+100)renderEnemy(e,p.x,p.y);}}
+ for(const e of enemies){if(!e.dead){let p=screenPos(e.x,e.y);if(p.x>-100&&p.x<width+100&&p.y>-100&&p.y<height+100){renderEnemy(e,p.x,p.y);const d=enemySystem.definitions[e.type];if(d){ctx.fillStyle=e.elite?'#ffd18a':d.color;ctx.textAlign='center';ctx.font='10px system-ui';ctx.fillText((e.minion?'MINION':d.name)+(e.state==='preparing'?' !':''),p.x,p.y-tileSize*.9);if(e.maxShield){ctx.fillStyle='#13233b';ctx.fillRect(p.x-18,p.y-tileSize*.65,36,4);ctx.fillStyle='#69b5ff';ctx.fillRect(p.x-18,p.y-tileSize*.65,36*e.shield/e.maxShield,4);}}}}}
  for(const o of story.objects){if(dist(o.x,o.y,player.x,player.y)>8)continue;const p=screenPos(o.x,o.y);ctx.fillStyle='#d9bf88';if(o.kind==='knight'){renderEnemy({type:'bone',phase:0,hit:0,hp:1,maxHp:1},p.x,p.y);}else{ctx.fillRect(p.x-7,p.y-9,14,18);}ctx.font='11px system-ui';ctx.textAlign='center';ctx.fillText(o.kind==='knight'?'Knight':o.kind==='crown'?'Crown':o.kind,p.x,p.y-24);}
  // Main character
  {let p=screenPos(player.x,player.y);litDot(player.x,player.y,2.4,'rgba(155,163,203,.07)');renderHero(p.x,p.y);}

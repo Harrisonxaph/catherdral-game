@@ -1,12 +1,12 @@
 /* Data and layout only: the existing simulation and both renderers consume this world. */
 (() => {
   const floors = [
-    {name:'The Forgotten Crypt', columns:3, rows:4, roomSize:10, loops:1, enemies:2, health:1, damage:1.09, final:'boss', guards:1, bossHealth:165},
-    {name:'The Ashen Cloister', columns:4, rows:4, roomSize:11, loops:2, enemies:3, health:1.22, damage:1.2, final:'elite', guards:2},
-    {name:'The Bell Sanctum', columns:4, rows:5, roomSize:12, loops:3, enemies:3, health:1.48, damage:1.34, final:'boss', guards:2, bossHealth:440},
-    {name:'The Cinder Vault', columns:5, rows:5, roomSize:13, loops:4, enemies:4, health:1.78, damage:1.5, final:'elite', guards:3},
-    {name:'Cathedral of Ash', columns:5, rows:6, roomSize:14, loops:5, enemies:4, health:2.12, damage:1.7, final:'boss', guards:3, bossHealth:680}
-  ].map((f,i)=>Object.freeze({...f,number:i+1}));
+    {name:'The Forgotten Crypt', roster:['bone','guardian'], columns:3, rows:4, roomSize:10, loops:1, enemies:2, health:1, damage:1.09, final:'boss', guards:1, bossHealth:165},
+    {name:'Plague Halls', roster:['ghoul','plague','guardian'], columns:4, rows:4, roomSize:11, loops:2, enemies:3, health:1.22, damage:1.2, final:'elite', guards:2},
+    {name:'Crimson Chapel', roster:['brute','summoner','cultist'], columns:4, rows:5, roomSize:12, loops:3, enemies:3, health:1.48, damage:1.34, final:'boss', guards:2, bossHealth:440},
+    {name:'Hollow Sanctum', roster:['wraith','brute','guardian','cultist','plague','summoner'], columns:5, rows:5, roomSize:13, loops:4, enemies:4, health:1.78, damage:1.5, final:'elite', guards:3},
+    {name:'Throne of Ash', roster:['bone','guardian','ghoul','plague','brute','summoner','cultist','wraith'], columns:5, rows:6, roomSize:14, loops:5, enemies:4, health:2.12, damage:1.7, final:'boss', guards:3, bossHealth:680}
+  ].map((f,i)=>Object.freeze({...f,roster:Object.freeze(f.roster),number:i+1}));
   function get(number) {
     if(!Number.isInteger(number)||number<1||number>floors.length)throw new RangeError('Unknown floor');
     return floors[number-1];
