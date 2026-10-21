@@ -142,10 +142,15 @@ records persist in localStorage; this is not full run-save persistence.
   procedural-art limitations and external-asset handoff.
 - PR #10 replaced the square inventory glyph with the backpack SVG and raised
   Snakeling HP from 1,000 to **2,500**, matching Flameghoul. No other gameplay change
-  was requested for that patch. `STAGE-5.md` and `BOSS-PRESENTATION.md` still contain
+  was requested for that patch. `docs/history/STAGE-5.md` and `docs/history/BOSS-PRESENTATION.md` still contain
   historical 1,000 HP figures; current `floors.js` and tests take precedence.
 - This handoff adds only `AGENTS.md` and `PROJECT.md`. It authorizes no new gameplay
   stage, asset purchase or production deployment.
+- Repository tidy (owner-requested): historical stage/visual/boss reports and the
+  legacy Netlify install notes moved to `docs/history/`; the redundant npm `three`
+  dependency was removed (runtime always used `vendor/`); the knight portrait was
+  downscaled from 1024² to 384² (shown at 92×112 CSS px), with `CACHE_VERSION`
+  bumped; README, `.gitignore`, MIT licence and CI were added. Gameplay unchanged.
 
 ## Validation record and known uncertainties
 
@@ -169,10 +174,12 @@ are not specified in package.json. Current scripts assume a Chromium executable
 unless `CHROMIUM_PATH` overrides it.
 
 The project has used GitHub-linked Vercel previews/production in prior sessions.
-No Vercel project config or CI workflow is checked into this repository; current
+No Vercel project config is checked into this repository. A GitHub Actions
+workflow runs the Node unit tests (`npm test`) on pull requests and pushes to
+`main`; browser suites are not run in CI; current
 account access, deployment protection, dashboard settings and live production
 status must be inspected rather than assumed. `_headers` alone does not prove
-which rules the hosting platform applies. README-INSTALL.txt's Netlify upload
+which rules the hosting platform applies. `docs/history/README-INSTALL.txt`'s Netlify upload
 instructions are legacy installation guidance.
 
 ## Outstanding work and next steps

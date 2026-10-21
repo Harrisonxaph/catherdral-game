@@ -18,9 +18,9 @@ VESPER is a playable gothic action RPG/dungeon crawler for iPhone, Android and
 desktop browsers. Preserve its real isometric 3D gameplay and mobile controls.
 It is a static client application: HTML, CSS and vanilla JavaScript, with a
 Three.js WebGL renderer and Canvas 2D fallback. No bundler/build command or
-backend is present. Three.js `0.180.0` is the only declared npm dependency;
-`packageManager` specifies npm `10.8.2`. Runtime Three.js imports use checked-in
-`vendor/` modules. PWA support uses a manifest and service worker.
+backend is present. Three.js `0.180.0` is vendored in `vendor/` and is the single source
+for runtime imports; there are no npm runtime dependencies. `packageManager`
+specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 
 ## File map
 
@@ -43,11 +43,11 @@ backend is present. Three.js `0.180.0` is the only declared npm dependency;
 | `docs/visual-comparison/`, `docs/boss-presentation/` | Actual before/after screenshots and software-renderer metrics; not loaded by gameplay |
 | `assets/bosses/ASSET-REQUIREMENTS.md` | External model, rig, animation and licence handoff; no external boss models bundled |
 
-`STAGE-1.md` through `STAGE-5.md`, `VISUAL-OVERHAUL.md` and
-`BOSS-PRESENTATION.md` are historical implementation reports. They may describe
+`docs/history/` holds `STAGE-1.md` through `STAGE-5.md`, `VISUAL-OVERHAUL.md` and
+`BOSS-PRESENTATION.md`: historical implementation reports. They may describe
 old branch state or balance. Use current source/tests and PROJECT.md to establish
 present behaviour; do not restore old exclusions such as “bosses not implemented.”
-`README-INSTALL.txt` describes an older Netlify ZIP workflow, not verified current
+`docs/history/README-INSTALL.txt` describes an older Netlify ZIP workflow, not verified current
 Vercel configuration.
 
 ## Code conventions and integration rules
