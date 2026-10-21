@@ -4,7 +4,7 @@ A gothic action RPG and dungeon crawler that runs in the browser on iPhone, Andr
 
 ## Play locally
 
-The game is static HTML, CSS and JavaScript with no build step. Serve the folder over HTTP (opening `index.html` directly won't work):
+The game is static HTML, CSS and JavaScript; local play needs no bundler. Serve the folder over HTTP (opening `index.html` directly won't work):
 
 ```sh
 npm run dev
@@ -35,3 +35,11 @@ This runs the Node unit tests for floors, enemies, equipment, abilities, graphic
 ## Licence
 
 The code is released under the [MIT Licence](LICENSE). It does not cover the artwork in `images/`, which is all rights reserved and may not be reused without permission. Three.js in `vendor/` is MIT-licensed by its authors.
+
+## v0 preview, Vercel packaging and offline installation
+
+- The current 3D/2D game stays as static files. `npm run dev` remains the local Python web server.
+- Embedded or v0 preview pages do not register a service worker and direct installation to the published HTTPS site; the published app still supports offline installation.
+- Run `npm run build` to copy all root runtime HTML/JS/CSS, the PWA manifest, artwork, icons and vendored Three.js into `dist/`. The build fails when HTML, service-worker or manifest assets are missing. Vercel uses this output directory as configured in `vercel.json`.
+- PR #11 contained the five missing PWA icon files. Their binary blobs were reused unchanged. Existing boss, 3D, story, ability, inventory and save behaviour stays on `main`.
+- Before approving deployment, inspect the Vercel preview; exercise the title screen, 2D/3D switching, new enemies, bosses, inventory and installation. Then test install/offline launch on a real phone. Github browser tests provide emulated coverage, not physical-device guarantees.

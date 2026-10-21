@@ -1,5 +1,5 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v10-bag-boss-health-2';
+const CACHE_VERSION = 'vesper-cathedral-v11-preview-offline';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -26,6 +26,11 @@ const APP_ASSETS = [
   './narrative.js',
   './narrative.css',
   './images/forgotten-knight.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-64.png',
   './vendor/three.module.min.js',
   './vendor/three.core.min.js'
 ];
