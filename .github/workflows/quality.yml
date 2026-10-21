@@ -34,6 +34,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
+      - name: Build deployable static game
+        run: npm run build
       - name: Provision existing browser-test tooling separately
         run: |
           npm install --prefix "$RUNNER_TEMP/vesper-browser-tools" --no-save --package-lock=false playwright@1.62.1
@@ -45,7 +47,7 @@ jobs:
         env:
           BASE_URL: http://127.0.0.1:3000
         run: |
-          python3 -m http.server 3000 > "$RUNNER_TEMP/vesper-http.log" 2>&1 &
+          python3 -m http.server 3000 --directory dist > "$RUNNER_TEMP/vesper-http.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid"' EXIT
           for attempt in $(seq 1 30); do
