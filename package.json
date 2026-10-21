@@ -15,8 +15,5 @@
     "test:boss-art-browser": "node tests/boss-art-browser.cjs",
     "capture:bosses": "node tests/capture-bosses.cjs"
   },
-  "packageManager": "npm@10.8.2",
-  "dependencies": {
-    "three": "0.180.0"
-  }
+  "packageManager": "npm@10.8.2"
 }

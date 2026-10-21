@@ -62,7 +62,7 @@ No matching rigged boss models exist in the supplied repository. Arbitrary model
 from asset sites were not bundled without verifying both their licence and actual
 rig/animation suitability. The precise external asset requirements, clip names,
 web redistribution rights and integration steps are in
-[assets/bosses/ASSET-REQUIREMENTS.md](assets/bosses/ASSET-REQUIREMENTS.md).
+[assets/bosses/ASSET-REQUIREMENTS.md](../../assets/bosses/ASSET-REQUIREMENTS.md).
 
 ## Performance, cleanup and offline support
 

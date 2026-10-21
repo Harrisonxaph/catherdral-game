@@ -1,0 +1,9 @@
+node_modules/
+.env*
+!.env.example
+.DS_Store
+.vercel
+.netlify
+test-results/
+playwright-report/
+*.zip
