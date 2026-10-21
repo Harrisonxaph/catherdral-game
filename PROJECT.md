@@ -195,3 +195,16 @@ Recommended follow-ups **pending owner prioritization**:
 3. Decide whether to commission external character art, develop later narrative
    chapters, or make browser-test provisioning reproducible. These are options,
    not an agreed implementation schedule.
+
+## Shared assistant workflow update — 2026-10-21
+
+Re-audited main `31932ec` (PR #12 merged). Existing game architecture, features,
+limits and health values above remain the project record. Added thin assistant
+adapters and the handover guide; AGENTS.md is authoritative. TASKS.md tracks
+current work and open-PR overlap; DECISIONS.md records new workflow decisions
+without duplicating the existing design history. The new PR-only quality workflow
+uses existing unit/browser scripts and isolated browser tooling; no production
+application code or deployment setting is changed. Confirm actual hosted checks
+and installed assistant context loading after review. The earlier statement that
+no CI workflow is checked in describes the pre-change baseline, superseded by
+this workflow PR once merged.
