@@ -13,7 +13,8 @@
     "test:offline-browser": "node tests/offline-browser.cjs",
     "test:bosses-browser": "node tests/bosses-browser.cjs",
     "test:boss-art-browser": "node tests/boss-art-browser.cjs",
-    "capture:bosses": "node tests/capture-bosses.cjs"
+    "capture:bosses": "node tests/capture-bosses.cjs",
+    "build": "node scripts/build.mjs"
   },
   "packageManager": "npm@10.8.2"
 }
