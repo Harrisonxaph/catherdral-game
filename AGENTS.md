@@ -1,4 +1,4 @@
-# Codex handoff — VESPER: Cathedral of Ash
+# Shared coding-agent instructions — VESPER: Cathedral of Ash
 
 ## Start here
 
@@ -155,3 +155,14 @@ check source accuracy, links and the diff; do not claim gameplay was retested.
 Browser emulation/software WebGL does not establish physical iPhone/Android
 performance, thermal behaviour or Safari compatibility. Keep that uncertainty
 explicit until device testing is recorded.
+
+## Shared assistant handover
+
+This is the authoritative instruction source for Codex, Claude Code, Copilot and
+Gemini CLI. Read [TASKS.md](TASKS.md), [DECISIONS.md](DECISIONS.md) and
+[docs/AGENT-WORKFLOW.md](docs/AGENT-WORKFLOW.md) alongside PROJECT.md. Check open
+PRs before starting and do not overwrite unmerged work (including older preview
+branches). The workflow guide defines start/development/completion steps and the
+required handover summary. Record the exact pushed commit and PR URL; local-only
+changes are not available to another assistant. Keep API credentials, private
+information and assistant authentication out of source and CI logs.

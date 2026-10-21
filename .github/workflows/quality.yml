@@ -1,0 +1,61 @@
+name: PR quality
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unit-and-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: python3 .github/scripts/check_agent_docs.py
+      - run: python3 -m unittest discover -s .github/scripts -p "test_*.py"
+      - run: npm test
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Provision existing browser-test tooling separately
+        run: |
+          npm install --prefix "$RUNNER_TEMP/vesper-browser-tools" --no-save --package-lock=false playwright@1.62.1
+          "$RUNNER_TEMP/vesper-browser-tools/node_modules/.bin/playwright" install --with-deps chromium
+          echo "NODE_PATH=$RUNNER_TEMP/vesper-browser-tools/node_modules" >> "$GITHUB_ENV"
+          browser_path=$(NODE_PATH="$RUNNER_TEMP/vesper-browser-tools/node_modules" node -p 'require("playwright").chromium.executablePath()')
+          echo "CHROMIUM_PATH=$browser_path" >> "$GITHUB_ENV"
+      - name: Run existing browser suites
+        env:
+          BASE_URL: http://127.0.0.1:3000
+        run: |
+          python3 -m http.server 3000 > "$RUNNER_TEMP/vesper-http.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS "$BASE_URL/index.html" > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS "$BASE_URL/index.html" > /dev/null
+          npm run test:browser
+          npm run test:inventory-browser
+          npm run test:abilities-browser
+          npm run test:bosses-browser
+          npm run test:graphics-browser
+          npm run test:boss-art-browser
+          npm run test:offline-browser
