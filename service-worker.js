@@ -1,11 +1,27 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v4-five-floors-2-touch';
+const CACHE_VERSION = 'vesper-cathedral-v10-bag-boss-health-2';
 const APP_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './castle-view.js',
+  './graphics.js',
+  './art-materials.js',
+  './environment-art.js',
+  './character-art.js',
+  './visual-ui.css',
   './floors.js',
+  './enemy-system.js',
+  './equipment.js',
+  './abilities.js',
+  './boss-system.js',
+  './boss-presentation.js',
+  './boss-art.js',
+  './boss-effects.js',
+  './bosses.css',
+  './abilities.css',
+  './inventory-ui.js',
+  './inventory.css',
   './story-content.js',
   './narrative.js',
   './narrative.css',

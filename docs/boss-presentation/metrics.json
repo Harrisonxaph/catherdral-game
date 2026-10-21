@@ -1,0 +1,66 @@
+{
+  "renderer": "Chromium software WebGL; not physical-device FPS",
+  "baseline": "3bf7fb5",
+  "scenes": [
+    {
+      "phase": "before",
+      "floor": 1,
+      "drawCalls": 95,
+      "triangles": 32116,
+      "p50Ms": 1.3,
+      "p95Ms": 5.2,
+      "geometries": 25,
+      "textures": 4
+    },
+    {
+      "phase": "before",
+      "floor": 3,
+      "drawCalls": 93,
+      "triangles": 34552,
+      "p50Ms": 1.3,
+      "p95Ms": 2.3,
+      "geometries": 25,
+      "textures": 5
+    },
+    {
+      "phase": "before",
+      "floor": 5,
+      "drawCalls": 107,
+      "triangles": 39846,
+      "p50Ms": 1.3,
+      "p95Ms": 5,
+      "geometries": 26,
+      "textures": 5
+    },
+    {
+      "phase": "after",
+      "floor": 1,
+      "drawCalls": 94,
+      "triangles": 35612,
+      "p50Ms": 3.4,
+      "p95Ms": 8.4,
+      "geometries": 29,
+      "textures": 6
+    },
+    {
+      "phase": "after",
+      "floor": 3,
+      "drawCalls": 115,
+      "triangles": 42884,
+      "p50Ms": 2.9,
+      "p95Ms": 8.4,
+      "geometries": 39,
+      "textures": 7
+    },
+    {
+      "phase": "after",
+      "floor": 5,
+      "drawCalls": 127,
+      "triangles": 48638,
+      "p50Ms": 2.9,
+      "p95Ms": 32.5,
+      "geometries": 42,
+      "textures": 7
+    }
+  ]
+}

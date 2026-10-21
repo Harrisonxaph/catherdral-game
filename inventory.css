@@ -1,0 +1,17 @@
+#inventory-dialog{width:min(620px,calc(100% - 20px));max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:16px;color:#e7dccb;background:#11121c;border:1px solid #a1835c;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;box-shadow:0 20px 80px #000c}
+#inventory-dialog::backdrop{background:#060810c9;backdrop-filter:blur(3px)}
+html:has(#inventory-dialog[open]),body:has(#inventory-dialog[open]){touch-action:pan-y}
+#inventory-dialog *{touch-action:pan-y}#inventory-dialog button{touch-action:manipulation;min-height:44px;background:#221d28;border:1px solid #776049;color:#ede1d0;padding:10px;font:13px/1.35 system-ui,sans-serif}
+#inventory-dialog header{position:sticky;top:-16px;z-index:2;background:#11121cf5;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #584638}
+#inventory-dialog h2{margin:0;font:24px Georgia,serif;color:#dabb88}#inventory-dialog h3{margin:12px 0 8px;font:14px system-ui,sans-serif;letter-spacing:1px}
+#inventory-summary,#inventory-potions,#inventory-info,.item-comparison{font:12px/1.6 system-ui,sans-serif;color:#d1c1aa;overflow-wrap:anywhere}
+#inventory-info{padding:10px;background:#0b0d15;border-left:2px solid #a1835c;min-height:52px;white-space:normal}.item-comparison{margin:8px 0 0;color:#b8c6d5}
+#equipped-slots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#backpack-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+#inventory-dialog .inventory-slot{min-height:92px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:8px;overflow-wrap:anywhere}.inventory-slot b{font-size:9px;letter-spacing:1px;color:#b8a894}.inventory-slot small{font-size:10px}.item-icon{font-size:19px}
+#inventory-dialog .rarity-common{border-color:#9f9e9a;color:#deddd8}#inventory-dialog .rarity-rare{border-color:#588cc0;color:#8cc9ff;background:#172234}#inventory-dialog .rarity-legendary{border-color:#cba153;color:#f2cd85;background:#30281c;box-shadow:inset 0 0 14px #dbaa3628}
+#inventory-dialog .selected,#inventory-dialog button:focus-visible{outline:2px solid #e6c484;outline-offset:2px}#inventory-actions{display:flex;flex-wrap:wrap;gap:8px}#inventory-actions button:disabled{opacity:.45}#inventory-message{min-height:22px;font:12px/1.5 system-ui,sans-serif;color:#edc88e}
+#pickup-loot{position:fixed;bottom:calc(166px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:9;max-width:calc(100% - 32px);min-height:44px;padding:10px 14px;background:#161922ed;color:#e8d4b2;border:1px solid #a08760;font:12px/1.4 system-ui,sans-serif;touch-action:manipulation}#pickup-loot[hidden]{display:none}
+@media(max-width:360px){#inventory-dialog{padding:12px}#inventory-dialog .inventory-slot{font-size:11px;padding:6px}#inventory-dialog h2{font-size:21px}}
+
+#topbuttons{width:93px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-height:600px){#pickup-loot{bottom:calc(210px + env(safe-area-inset-bottom))}}
