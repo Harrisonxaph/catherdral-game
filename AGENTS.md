@@ -17,8 +17,9 @@ promote/deploy to production. Deliver a reviewable change and describe validatio
 VESPER is a playable gothic action RPG/dungeon crawler for iPhone, Android and
 desktop browsers. Preserve its real isometric 3D gameplay and mobile controls.
 It is a static client application: HTML, CSS and vanilla JavaScript, with a
-Three.js WebGL renderer and Canvas 2D fallback. No bundler/build command or
-backend is present. Three.js `0.180.0` is vendored in `vendor/` and is the single source
+Three.js WebGL renderer and Canvas 2D fallback. There is no bundler, transpiler
+or backend. `npm run build` (`scripts/build.mjs`) only copies the unchanged static
+files into `dist/` for Vercel and fails if a declared runtime file is missing. Three.js `0.180.0` is vendored in `vendor/` and is the single source
 for runtime imports; there are no npm runtime dependencies. `packageManager`
 specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 
@@ -38,7 +39,8 @@ specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 | `art-materials.js`, `environment-art.js`, `character-art.js` | Shared procedural materials/geometry, dungeon scenery and articulated regular characters |
 | `boss-art.js`, `boss-presentation.js`, `boss-effects.js` | Procedural boss models, pure presentation clocks/budgets, signature VFX and visual collapse |
 | `story-content.js`, `narrative.js`, `narrative.css` | Narrative content, journal/interactions, reading pause and first-floor story gating |
-| `service-worker.js`, `manifest.webmanifest`, `_headers` | Offline asset cache, install metadata and hosting header rules |
+| `service-worker.js`, `manifest.webmanifest`, `_headers`, `icons/` | Offline asset cache, install metadata, PWA/home-screen icons and hosting header rules |
+| `scripts/build.mjs`, `vercel.json` | Static deploy packaging into `dist/` (no bundling) and Vercel build/output/header configuration |
 | `*.test.cjs`, `tests/*.cjs` | Node tests, Playwright browser tests and capture scripts |
 | `docs/visual-comparison/`, `docs/boss-presentation/` | Actual before/after screenshots and software-renderer metrics; not loaded by gameplay |
 | `assets/bosses/ASSET-REQUIREMENTS.md` | External model, rig, animation and licence handoff; no external boss models bundled |
@@ -95,7 +97,12 @@ npm run dev
 # Open http://127.0.0.1:3000/
 ```
 
-There is no build step. Use Node.js with the built-in `node:test` runner for
+Local play needs no build. For deployment, `npm run build` copies root HTML/JS/CSS,
+the manifest, `_headers`, `assets/`, `icons/`, `images/` and `vendor/` into
+`dist/` without transforming them, then checks every file referenced by
+`index.html`, the manifest and the service worker's `APP_ASSETS` is present.
+When adding a runtime file outside those locations, update `scripts/build.mjs`.
+Use Node.js with the built-in `node:test` runner for
 unit tests; the repository does not declare a supported Node engine range.
 
 ## Tests and tooling
