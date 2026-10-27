@@ -42,3 +42,78 @@ test('Seeded weighted distribution follows configured probabilities; ordinary/ch
 test('Unique passives are capped; ownership IDs prevent double collection',()=>{
  const r=E.createRun(),i=withItem(r,'kingsmercy'),same=r.bag[i];assert.equal(E.collect(r,same).ok,false);E.equip(r,i,'main');E.equip(r,withItem(r,'kingsmercy'),'off');assert.equal(E.stats(base,r).onHit,2);
 });
+// Rolled bonus modifiers. All randomness below is injected or seeded.
+const seeded=start=>{let value=start>>>0;return ()=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296;};};
+const sequence=values=>{let i=0;return ()=>values[i++%values.length];};
+test('All twelve original item definitions and effects are unchanged',()=>{
+ assert.deepEqual(JSON.parse(JSON.stringify(E.definitions)),{
+  rustbound:{name:'Rustbound Sword',kind:'weapon',hands:1,rarity:'common',damage:2},
+  graveaxe:{name:'Gravedigger Axe',kind:'weapon',hands:1,rarity:'common',damage:5,speed:-.05},
+  cryptshield:{name:'Crypt Guardian Shield',kind:'shield',rarity:'common',defence:4,shield:12},
+  mournblade:{name:'Mourner’s Greatsword',kind:'weapon',hands:2,rarity:'common',damage:15},
+  bloodforged:{name:'Bloodforged Blade',kind:'weapon',hands:1,rarity:'rare',damage:8,critHeal:2,effect:'Restore 2 health on a critical strike.'},
+  bulwark:{name:'Bulwark of the Dead',kind:'shield',rarity:'rare',defence:8,shield:24},
+  duskdagger:{name:'Dusk Dagger',kind:'weapon',hands:1,rarity:'rare',damage:5,speed:.12,effect:'12% increased attack speed.'},
+  executioner:{name:'Executioner’s Axe',kind:'weapon',hands:2,rarity:'rare',damage:23,critDamage:.25,effect:'Critical strikes deal an additional 25% damage.'},
+  ashbringer:{name:'Ashbringer',kind:'weapon',hands:2,rarity:'legendary',damage:29,fire:.2,effect:'On a health hit: a small fire burst for 20% strike damage, once every 3 seconds.'},
+  kingsmercy:{name:'King’s Mercy',kind:'weapon',hands:1,rarity:'legendary',damage:13,onHit:1.2,effect:'Restore 1.2 health per successful strike, once per attack.'},
+  oathguard:{name:'Oathguard',kind:'shield',rarity:'legendary',defence:11,shield:32,poisonReduction:.3,effect:'Take 30% less poison damage before ordinary defence.'},
+  twinmoon:{name:'Twin Moon',kind:'weapon',hands:1,rarity:'legendary',damage:12,crit:.08,critDamage:.35,effect:'Moon’s Edge: +8% critical chance and +35% critical damage.'}
+ });
+ const r=E.createRun();assert.deepEqual(E.modifiers(r.main),[]);assert.deepEqual(E.modifiers(r.off),[]);assert.deepEqual(E.modifiers(E.item('duskdagger')),[]);
+ assert.equal(E.stats(base,r).damage,32);
+});
+test('Modifier eligibility: weapons only, never legendary, never shields; invalid instances are rejected',()=>{
+ for(const key of ['rustbound','graveaxe','mournblade','bloodforged','duskdagger','executioner'])assert.deepEqual(E.eligibleModifiers(key),['damage','speed','crit']);
+ for(const key of ['cryptshield','bulwark','oathguard','ashbringer','kingsmercy','twinmoon']){assert.deepEqual(E.eligibleModifiers(key),[]);assert.deepEqual(E.rollModifiers(key,()=>0),[]);}
+ assert.equal(E.rollModifiers('rustbound',()=>.35).length,0);assert.equal(E.rollModifiers('rustbound',()=>0).length,1);
+ // Rare: chance passes, extra roll passes → two distinct stats.
+ const two=E.rollModifiers('duskdagger',sequence([0,0,0,0,0,0]));assert.deepEqual(two.map(m=>m.stat),['damage','speed']);assert.deepEqual(two.map(m=>m.value),[2,.04]);
+ const top=E.rollModifiers('bloodforged',sequence([0,0,.999,.999,.999,.999]));assert.deepEqual(top,[{stat:'crit',value:.05},{stat:'speed',value:.08}]);
+ assert.equal(E.rollModifiers('rustbound',sequence([0,0,0,.999])).length,1);
+ for(const [key,mods]of [['rustbound',[{stat:'damage',value:4}]],['rustbound',[{stat:'defence',value:1}]],['rustbound',[{stat:'damage',value:1},{stat:'crit',value:.02}]],['duskdagger',[{stat:'damage',value:2},{stat:'damage',value:3}]],['cryptshield',[{stat:'crit',value:.02}]],['twinmoon',[{stat:'crit',value:.02}]],['rustbound',[{stat:'damage',value:NaN}]],['rustbound',{}]])assert.throws(()=>E.item(key,mods),RangeError);
+ const r=E.createRun(),forged=Object.freeze({id:999999,key:'rustbound',mods:[{stat:'damage',value:40}]});assert.equal(E.collect(r,forged).ok,false);assert.deepEqual(r.bag,Array(6).fill(null));
+});
+test('Rolled modifiers stack once per equipped item with the off-hand damage rule',()=>{
+ const r=E.createRun(),main=E.item('duskdagger',[{stat:'damage',value:3},{stat:'crit',value:.04}]),off=E.item('rustbound',[{stat:'speed',value:.05}]);
+ assert.ok(E.collect(r,main).ok);assert.ok(E.collect(r,off).ok);
+ assert.ok(E.equip(r,r.bag.indexOf(main),'main').ok);assert.ok(E.equip(r,r.bag.indexOf(off),'off').ok);
+ const s=E.stats(base,r);assert.equal(s.configuration,'Dual wield');assert.equal(s.damage,30+5+3+2*.4);assert.equal(s.crit,.04);
+ assert.ok(Math.abs(s.attackRate-base.attackRate/((1+.12+.05)*1.2))<1e-12);
+ // Off-hand rolled damage is scaled by the same 40% as base off-hand damage.
+ const r2=E.createRun(),heavy=E.item('rustbound',[{stat:'damage',value:3}]);E.collect(r2,heavy);E.equip(r2,r2.bag.indexOf(heavy),'off');assert.ok(Math.abs(E.stats(base,r2).damage-(30+2+(2+3)*.4))<1e-9);
+ // Swapping back and forth never accumulates bonuses; bag items contribute nothing.
+ const expected=E.stats(base,r);for(let n=0;n<40;n++){assert.ok(E.unequip(r,'off').ok);assert.ok(E.equip(r,r.bag.indexOf(off),'off').ok);}assert.deepEqual(E.stats(base,r),expected);
+ assert.ok(E.unequip(r,'off').ok);assert.equal(E.stats(base,r).crit,.04);assert.equal(E.stats(base,r).attackRate,base.attackRate/1.12);
+});
+test('Modified loadouts stay within existing offensive and defensive caps',()=>{
+ const maxed=key=>E.item(key,E.eligibleModifiers(key).slice(0,E.affixes.maxCount[E.definition({key}).rarity]).map(stat=>({stat,value:E.affixes.pool[stat].ranges[E.definition({key}).rarity][1]})));
+ const r=E.createRun(),a=E.item('duskdagger',[{stat:'speed',value:.08},{stat:'crit',value:.05}]),b=E.item('bloodforged',[{stat:'speed',value:.08},{stat:'crit',value:.05}]);E.collect(r,a);E.collect(r,b);E.equip(r,r.bag.indexOf(a),'main');E.equip(r,r.bag.indexOf(b),'off');
+ const high=E.stats({damage:30,attackRate:.36,crit:.7},r);assert.equal(high.crit,.75);
+ assert.ok(E.stats({damage:30,attackRate:.1,crit:0},r).attackRate>=.13);
+ const s=E.stats(base,r);assert.ok(1/s.attackRate<=1.7*E.balance.dualSpeed/base.attackRate);assert.equal(s.shield,0);assert.equal(s.reduction,0);
+ // Defensive values are unaffected by offensive modifiers.
+ const g=E.createRun(),blade=maxed('rustbound');E.collect(g,blade);E.equip(g,g.bag.indexOf(blade),'main');const plain=E.stats(base,E.createRun()),mod=E.stats(base,g);
+ assert.equal(mod.defence,plain.defence);assert.equal(mod.reduction,plain.reduction);assert.equal(mod.shield,plain.shield);assert.ok(mod.reduction<=E.balance.maxReduction&&mod.shield<=E.balance.maxShield);
+ const diff=E.difference(plain,mod);assert.equal(diff.damage,3);assert.equal(diff.crit,0);assert.equal(diff.attacksPerSecond,0);assert.equal(diff.shield,0);assert.equal(diff.defence,0);
+});
+test('Inventory transactions keep each instance and its rolled modifiers intact',()=>{
+ const r=E.createRun(),great=E.item('mournblade',[{stat:'damage',value:3}]),dagger=E.item('duskdagger',[{stat:'speed',value:.06}]);
+ E.collect(r,great);E.collect(r,dagger);for(let i=0;i<4;i++)E.collect(r,E.item('graveaxe'));
+ // Two-hand swap needs room for both displaced items; the bag is full, so it must fail atomically.
+ const before=JSON.stringify(r);assert.equal(E.equip(r,r.bag.indexOf(great),'main').ok,false);assert.equal(JSON.stringify(r),before);
+ const dropped=E.drop(r,5);assert.ok(E.equip(r,r.bag.indexOf(great),'main').ok);assert.equal(r.main,great);assert.deepEqual(E.modifiers(r.main),[{stat:'damage',value:3}]);assert.equal(E.stats(base,r).damage,30+15+3);
+ assert.ok(E.equip(r,r.bag.indexOf(dagger),'main').ok);assert.equal(r.main,dagger);assert.ok(r.bag.includes(great));assert.equal(E.modifiers(great)[0].value,3);
+ assert.equal(E.collect(r,dropped).ok,false);assert.ok(E.valid(r));
+ assert.ok(Object.isFrozen(great)&&Object.isFrozen(great.mods)&&Object.isFrozen(great.mods[0]));assert.throws(()=>{great.mods.push({stat:'crit',value:.05});});
+ const preview=E.preview(base,r,r.bag.indexOf(great),'main');assert.ok(preview.ok);assert.equal(preview.stats.damage,48);assert.equal(r.main,dagger);
+});
+test('Seeded drops are repeatable, legendary drops never roll, and roll frequency follows configuration',()=>{
+ const run=seed=>{const random=seeded(seed),out=[];for(let i=0;i<300;i++){const it=E.roll('chest',3,random);out.push(it&&[it.key,it.mods]);}return JSON.stringify(out);};
+ assert.equal(run(77),run(77));assert.notEqual(run(77),run(78));
+ const random=seeded(5);let commons=0,modded=0;
+ for(let i=0;i<20000;i++){const it=E.roll('boss',5,random),d=E.definition(it);assert.ok(E.validModifiers(it.key,E.modifiers(it)));if(d.rarity==='legendary'||d.kind==='shield')assert.equal(E.modifiers(it).length,0);}
+ for(let i=0;i<20000;i++){const it=E.roll('ordinary',1,()=>0)&&E.item('rustbound',E.rollModifiers('rustbound',random));commons++;if(E.modifiers(it).length)modded++;}
+ assert.ok(Math.abs(modded/commons-E.affixes.chance.common)<.02);
+ const encounter={kind:'boss',members:[{dead:true}]},reward=E.encounterReward(encounter,5,seeded(9));assert.ok(reward);assert.equal(E.encounterReward(encounter,5,seeded(9)),null);
+});

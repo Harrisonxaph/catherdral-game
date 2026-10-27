@@ -30,7 +30,7 @@ specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 | `index.html` | HUD, controls, game state, requestAnimationFrame loop, simulation adapters, melee/player damage, loot/floor transitions, Canvas rendering and PWA registration |
 | `floors.js` | Five immutable floor configurations, rosters, scaling, boss HP and connected procedural layouts |
 | `enemy-system.js` | Eight archetypes, state machine, navigation/separation, shields/statuses, hazard/projectile/summon budgets and exact hazard geometry |
-| `equipment.js` | Pure equipment definitions, loadout/stat calculations, atomic inventory transactions and weighted loot |
+| `equipment.js` | Pure equipment definitions, rolled bonus modifiers, loadout/stat calculations, atomic inventory transactions and weighted loot |
 | `inventory-ui.js`, `inventory.css` | Tap-based inventory UI and pause integration |
 | `abilities.js`, `abilities.css` | Three simulation-time player abilities, cooldowns, temporary Aegis and targeting helpers |
 | `boss-system.js`, `bosses.css` | Boss encounter state machines, candles, protected actions, sequence lifecycle and boss UI |
