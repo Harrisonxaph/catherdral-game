@@ -57,6 +57,7 @@ const path=require('node:path');
   await page.locator('#inventory-button').tap();await page.locator('#inventory-close').tap();
   await page.locator('#dash').tap();await page.locator('#attack').tap();
   if(!await page.evaluate(()=>inventoryQA.state==='playing'&&!document.getElementById('controls').inert))throw Error('Controls remain disabled');
+  if(!await page.evaluate(()=>{const i=[inventoryQA.run.main,inventoryQA.run.off,...inventoryQA.run.bag].find(i=>i?.key==='graveaxe');return i?.mods?.length===1&&i.mods[0].stat==='crit'&&i.mods[0].value===.03}))throw Error('Rolled instance changed during inventory operations');
   if(errors.length)throw Error(JSON.stringify(errors));console.log(JSON.stringify({viewport,inventory:true,modifiers:true,loadouts:true,dropAndCollect:true,pauseSafe:true,renderers:true,errors}));await context.close();
  }
  await browser.close();

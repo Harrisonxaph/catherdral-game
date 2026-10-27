@@ -16,6 +16,9 @@ Dates of earlier choices are not inferred from stage numbers.
   `index.html`, `service-worker.js` cache version, tests.
 - Not taken: defensive/shield modifiers, item-name prefixes/suffixes, floor-scaled
   values and a fourth "magic" rarity. These remain options for owner prioritisation.
+- Overlap resolution (owner, 2026-10-27): PR #18 built the same feature with
+  `modifiers:[{key,value}]` and one guaranteed bonus. Keep this PR's `mods` schema
+  and balance model only; adapt #18's integration/offline tests; do not merge both.
 - Consequence: more random draws per drop change later seeded outcomes within a
   run versus main (no fixed-seed gameplay contract exists). Balance is unplaytested.
 

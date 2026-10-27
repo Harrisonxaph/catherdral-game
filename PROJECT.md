@@ -71,6 +71,10 @@ contribution; totals remain inside the existing speed (0.65–1.7), attack-inter
 (≥0.13s) and crit (≤75%) clamps. These values are untested balance assumptions,
 not playtested tuning. The inventory lists rolled bonuses and Δ damage/attack
 rate/crit/shield/defence per target slot; pickup prompt and toast show them too.
+This is the single modifier schema and balance model. Competing PR #18 (one
+guaranteed bonus stored as `modifiers:[{key,value}]`, different names/ranges) is
+superseded by owner decision on 2026-10-27; its five-floor persistence,
+Execution/crit-heal and offline regression tests were adapted to this schema.
 
 Potions have a carried maximum of three and use the existing heal control. New
 runs begin with two potions, Rustbound Sword and Crypt Guardian Shield. Equipment,
@@ -168,7 +172,7 @@ records persist in localStorage; this is not full run-save persistence.
 
 ## Validation record and known uncertainties
 
-The source contains 61 named Node cases (67 on `development/loot-modifiers`) across seven root `*.test.cjs` files and
+The source contains 61 named Node cases (69 on `development/loot-modifiers`) across seven root `*.test.cjs` files and
 seven browser suites: gameplay, inventory, abilities, bosses, graphics, boss art
 and offline. See AGENTS.md for runnable commands/tool prerequisites. Earlier
 implementation sessions recorded successful suites and preview smoke tests;

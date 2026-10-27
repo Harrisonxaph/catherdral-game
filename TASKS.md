@@ -21,6 +21,11 @@ differences; existing rarity tables, boss once-only rewards, atomic swaps, loado
 rules, pause, touch and offline behaviour preserved; seeded unit tests.
 Outstanding: physical-device check and balance playtesting.
 
+Overlap: PR #18 (`development/experimental-loot-modifiers`) implemented the same
+feature with an incompatible schema. Owner decision 2026-10-27: keep PR #17 as the
+development PR; #18's integration tests were adapted into it. #18 should be closed
+unmerged by the owner; it must not be merged alongside #17.
+
 The earlier shared assistant workflow task (`development/shared-agent-workflow`)
 has been merged.
 

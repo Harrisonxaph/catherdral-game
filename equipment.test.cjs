@@ -111,9 +111,19 @@ test('Inventory transactions keep each instance and its rolled modifiers intact'
 test('Seeded drops are repeatable, legendary drops never roll, and roll frequency follows configuration',()=>{
  const run=seed=>{const random=seeded(seed),out=[];for(let i=0;i<300;i++){const it=E.roll('chest',3,random);out.push(it&&[it.key,it.mods]);}return JSON.stringify(out);};
  assert.equal(run(77),run(77));assert.notEqual(run(77),run(78));
- const random=seeded(5);let commons=0,modded=0;
+ const random=seeded(5);
  for(let i=0;i<20000;i++){const it=E.roll('boss',5,random),d=E.definition(it);assert.ok(E.validModifiers(it.key,E.modifiers(it)));if(d.rarity==='legendary'||d.kind==='shield')assert.equal(E.modifiers(it).length,0);}
- for(let i=0;i<20000;i++){const it=E.roll('ordinary',1,()=>0)&&E.item('rustbound',E.rollModifiers('rustbound',random));commons++;if(E.modifiers(it).length)modded++;}
- assert.ok(Math.abs(modded/commons-E.affixes.chance.common)<.02);
+ // Measure real roll() drops: rarity shares stay on the configured table and modifier rates follow affixes.
+ const share=rarity=>{const keys=Object.keys(E.definitions).filter(k=>E.definitions[k].rarity===rarity);return keys.filter(k=>E.eligibleModifiers(k).length).length/keys.length;};
+ const drops=seeded(11),count={common:0,rare:0,legendary:0},modded={common:0,rare:0},doubles={rare:0};let total=0;
+ for(let i=0;i<200000;i++){
+  const it=E.roll('chest',2,drops);if(!it)continue;total++;const rarity=E.definition(it).rarity,n=E.modifiers(it).length;count[rarity]++;
+  if(n)modded[rarity]++;if(n===2)doubles[rarity]++;if(rarity==='common')assert.ok(n<=1);
+ }
+ assert.ok(Math.abs(total/200000-E.tables.chestChance)<.01);
+ for(const [rarity,weight]of E.tables.chest)assert.ok(Math.abs(count[rarity]/total-weight/100)<.01,rarity);
+ for(const rarity of ['common','rare'])assert.ok(Math.abs(modded[rarity]/count[rarity]-E.affixes.chance[rarity]*share(rarity))<.02,rarity);
+ assert.ok(Math.abs(doubles.rare/modded.rare-E.affixes.extraChance.rare)<.03);
+ const ordinary=seeded(12);for(let i=0;i<5000;i++){const it=E.roll('ordinary',4,ordinary);if(it)assert.equal(E.definition(it).rarity,'common');}
  const encounter={kind:'boss',members:[{dead:true}]},reward=E.encounterReward(encounter,5,seeded(9));assert.ok(reward);assert.equal(E.encounterReward(encounter,5,seeded(9)),null);
 });
