@@ -215,3 +215,28 @@ application code or deployment setting is changed. Confirm actual hosted checks
 and installed assistant context loading after review. The earlier statement that
 no CI workflow is checked in describes the pre-change baseline, superseded by
 this workflow PR once merged.
+
+## Experimental loot modifiers — 2026-10-27
+
+Owner-authorised experiment based on main `d391208`, implemented on
+`development/experimental-loot-modifiers` pending review; no merge/deployment.
+All 12 base definitions, effects and rarity/drop tables remain intact. New
+Common/Rare weapon drops receive one original VESPER damage, attack-speed or
+critical-chance roll. Shields, Legendary items, legacy instances and starter gear
+remain unrolled. Optional instance metadata and the shared stat resolver preserve
+existing inventory/transaction contracts and combat caps. Inventory descriptions
+show the roll and explicit speed/crit comparison deltas. Offline cache is bumped
+because existing cached runtime modules change; no new runtime assets are added.
+
+[Design, balance table and device checklist](docs/LOOT-MODIFIERS.md). Initial
+ranges are experimental engineering choices, not measured final balance. More RNG
+draws alter later shared world-stream outcomes, while equal seeds reproduce drop
+contents. Further modifier families/scaling are suggestions requiring approval.
+Current source and this dated update supersede earlier task-scope exclusions;
+historical validation above is not a substitute for the new PR's test record.
+
+Experiment validation: local npm test **68/68**, static build, all seven browser
+suites and shared documentation checks passed. Offline test additionally validates
+rolled equipment from the actual cached module. Browser runs use Chromium/
+software WebGL, not physical iPhone/Android; the device checklist and extended
+balance playtesting remain unverified. See feature guide and PR for exact scope.

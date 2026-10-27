@@ -20,6 +20,36 @@
  let serial=0;
  const item=key=>{if(!definitions[key])throw new RangeError('Unknown item '+key);return Object.freeze({id:++serial,key});};
  const definition=instance=>instance?definitions[instance.key]:null;
+ // Original VESPER rolls: one bonus per newly generated Common/Rare weapon.
+ const modifiers=Object.freeze({
+  damage:Object.freeze({label:'Ash-honed',common:Object.freeze([1,3]),rare:Object.freeze([2,5]),step:1}),
+  speed:Object.freeze({label:'Quickened',common:Object.freeze([.02,.04]),rare:Object.freeze([.03,.06]),step:.01}),
+  crit:Object.freeze({label:'Watchful',common:Object.freeze([.01,.02]),rare:Object.freeze([.02,.03]),step:.01})
+ });
+ const eligible=spec=>spec?.kind==='weapon'&&['common','rare'].includes(spec.rarity);
+ const unit=random=>{const value=random();return Number.isFinite(value)?Math.max(0,Math.min(.999999,value)):0;};
+ function rolledModifiers(instance){
+  const spec=definition(instance);if(!eligible(spec)||!Array.isArray(instance.modifiers))return [];
+  // Only one valid bonus may contribute, including deserialized legacy objects.
+  for(const bonus of instance.modifiers){
+   const config=bonus&&Object.prototype.hasOwnProperty.call(modifiers,bonus.key)?modifiers[bonus.key]:null;
+   if(!config||!Number.isFinite(bonus.value)||bonus.value<=0)continue;
+   const [min,max]=config[spec.rarity];
+   return [{key:bonus.key,value:Math.max(min,Math.min(max,bonus.value))}];
+  }
+  return [];
+ }
+ function itemStats(instance){
+  const spec=definition(instance),bonuses=rolledModifiers(instance);if(!bonuses.length)return spec;
+  const result={...spec};for(const bonus of bonuses)result[bonus.key]=(result[bonus.key]||0)+bonus.value;return result;
+ }
+ function generate(key,random=Math.random){
+  const instance=item(key),spec=definition(instance);if(!eligible(spec))return instance;
+  const keys=Object.keys(modifiers),bonusKey=keys[Math.floor(unit(random)*keys.length)],config=modifiers[bonusKey],[min,max]=config[spec.rarity];
+  const steps=Math.round((max-min)/config.step)+1,value=Number((min+Math.floor(unit(random)*steps)*config.step).toFixed(2));
+  return Object.freeze({...instance,modifiers:Object.freeze([Object.freeze({key:bonusKey,value})])});
+ }
+
  function createRun(){return {main:item('rustbound'),off:item('cryptshield'),bag:Array(balance.capacity).fill(null),potions:2};}
  function valid(run){
   if(!Array.isArray(run.bag)||run.bag.length!==balance.capacity)return false;
@@ -56,7 +86,7 @@
  }
  function drop(run,index){if(!Number.isInteger(index)||!run.bag[index])return null;const equipment=run.bag[index];run.bag[index]=null;return equipment;}
  function stats(base,run){
-  const main=definition(run.main),off=definition(run.off),dual=main?.hands===1&&off?.kind==='weapon';
+  const main=itemStats(run.main),off=itemStats(run.off),dual=main?.hands===1&&off?.kind==='weapon';
   const gear=[main,off].filter(Boolean),sum=key=>gear.reduce((n,s)=>n+(s[key]||0),0);
   const damage=base.damage+(main?.damage||0)+(off?.kind==='weapon'?off.damage*balance.offDamage:0);
   const speed=Math.max(.65,Math.min(1.7,1+sum('speed')))*(dual?balance.dualSpeed:1);
@@ -69,11 +99,11 @@
  function roll(source,floor,random=Math.random){
   if(source==='ordinary'&&random()>=tables.ordinaryChance||source==='chest'&&random()>=tables.chestChance)return null;
   const weights=source==='boss'?tables.boss[floor]:source==='ordinary'?[['common',1]]:tables.chest;
-  if(!weights)return null;const rarity=weighted(weights,random),keys=Object.keys(definitions).filter(k=>definitions[k].rarity===rarity);return item(keys[Math.min(keys.length-1,Math.floor(random()*keys.length))]);
+  if(!weights)return null;const rarity=weighted(weights,random),keys=Object.keys(definitions).filter(k=>definitions[k].rarity===rarity);return generate(keys[Math.min(keys.length-1,Math.floor(random()*keys.length))],random);
  }
  function encounterReward(encounter,floor,random=Math.random){if(encounter.rewarded||encounter.kind!=='boss'||!encounter.members.length||!encounter.members.every(e=>e.dead))return null;encounter.rewarded=true;return roll('boss',floor,random);}
  function addPotion(run){if(run.potions>=balance.potions)return false;run.potions++;return true;}
  function usePotion(run,hp,maxHp){if(run.potions<=0||hp>=maxHp)return 0;run.potions--;return Math.min(maxHp-hp,Math.round(maxHp*.42));}
- const api=Object.freeze({balance,rarities,definitions,item,definition,createRun,valid,collect,equip,unequip,drop,stats,preview,weighted,tables,roll,encounterReward,addPotion,usePotion});
+ const api=Object.freeze({balance,rarities,definitions,item,definition,modifiers,rolledModifiers,itemStats,generate,createRun,valid,collect,equip,unequip,drop,stats,preview,weighted,tables,roll,encounterReward,addPotion,usePotion});
  if(typeof module!=='undefined')module.exports=api;else window.VesperEquipment=api;
 })();

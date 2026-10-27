@@ -100,8 +100,8 @@ test('Boss encounter rewards are generic and once-only, independent of kill orde
 });
 test('Full backpack and repeated pickups cannot delete or duplicate a ground item',()=>{
  const E=require('./equipment.js'),{g}=game();g.startGame();for(let i=0;i<6;i++)E.collect(g.gear,E.item('rustbound'));
- const item=E.item('bloodforged');g.dropEquipment(item,g.player.x,g.player.y);g.tick(.5);g.collectEquipment();assert.equal(g.loot.find(l=>l.item===item).gone,undefined);
- E.drop(g.gear,0);g.collectEquipment();g.collectEquipment();assert.equal(g.gear.bag.filter(i=>i?.id===item.id).length,1);assert.equal(g.loot.find(l=>l.item===item).gone,true);
+ const item=E.generate('bloodforged',()=>.8);g.dropEquipment(item,g.player.x,g.player.y);g.tick(.5);g.collectEquipment();assert.equal(g.loot.find(l=>l.item===item).gone,undefined);
+ E.drop(g.gear,0);g.collectEquipment();g.collectEquipment();assert.equal(g.gear.bag.filter(i=>i?.id===item.id).length,1);assert.equal(g.loot.find(l=>l.item===item).gone,true);assert.equal(item.modifiers[0].value,.03);
 });
 test('Three-potion capacity, defence, shield depletion and simulation-only recovery',()=>{
  const E=require('./equipment.js'),a=game().g,b=game().g;a.startGame();b.startGame();
@@ -187,4 +187,29 @@ test('Real boss damage uses equipment and Aegis; major attacks resist stun, mele
  g.setAttackTimer(0);g.bosses.begin('cross');assert.equal(g.combat.stun(boss,2,{source:'ability'}),false);
  g.bosses.begin('melee');boss.stunLock=0;assert.ok(g.combat.stun(boss,2,{source:'ability'}));assert.equal(boss.stateTime,.75);assert.equal(g.combat.stun(boss,2,{source:'ability'}),false);
  assert.ok(g.activateAbility('aegis'));const barrier=g.abilities.barrier.capacity,shield=g.player.shield;g.setInvul(0);g.hurt(12,undefined,undefined,'fire');assert.ok(g.abilities.barrier.capacity<barrier);assert.equal(g.player.shield,shield);
+});
+
+test('Rolled weapons persist through all five floors and pause, and retry restores unrolled starters',()=>{
+ const E=require('./equipment.js'),{g}=game();g.startGame();g.player.xpNeeded=1e9;
+ const rolled=E.generate('bloodforged',()=>.8);assert.ok(E.collect(g.gear,rolled).ok);assert.ok(E.equip(g.gear,0,'main').ok);
+ const serialized=JSON.stringify(rolled),stats=g.equipmentStats();
+ for(let floor=1;floor<=5;floor++){
+  assert.equal(g.floor,floor);assert.equal(g.gear.main,rolled);assert.equal(JSON.stringify(g.gear.main),serialized);assert.deepEqual(g.equipmentStats(),stats);
+  g.openInventory();g.tick(10);g.closeInventory();assert.equal(JSON.stringify(g.gear.main),serialized);
+  for(const e of g.enemies)g.killEnemy(e);g.bosses.skip();g.atExit();g.nextFloor();
+ }
+ assert.equal(g.state,'complete');g.startGame();assert.equal(g.gear.main.key,'rustbound');assert.equal(g.gear.main.modifiers,undefined);
+});
+test('Rolled critical chance powers Execution through enemy shields with the original once-per-strike healing',()=>{
+ const E=require('./equipment.js'),{g}=game();g.startGame();g.player.xpNeeded=1e9;g.player.facing=0;
+ E.collect(g.gear,E.generate('bloodforged',()=>.8));E.equip(g.gear,0,'main');g.reconcileEquipment();g.player.hp=50;
+ g.setRandom(()=>.01); // Below the rolled 3% crit chance, above the unrolled 0%.
+ const guard=g.spawnEnemy(g.player.x+1,g.player.y,'guardian');guard.hp=guard.maxHp=1000;guard.shield=10;
+ const gear=g.equipmentStats();assert.equal(gear.crit,.03);assert.equal(gear.critHeal,2);
+ assert.ok(g.activateAbility('execution'));g.tick(.18);
+ const strike=gear.damage*2*gear.critMultiplier*(.91+.01*(1.12-.91));
+ assert.equal(guard.shield,0);assert.equal(guard.hp,1000);assert.equal(g.player.hp,50); // Breaking shield absorbs the whole hit, as before.
+ g.abilities.tick(8);g.setAttackTimer(0);assert.ok(g.activateAbility('execution'));g.tick(.18);
+ assert.ok(Math.abs(guard.hp-(1000-strike))<1e-8);assert.equal(g.player.hp,52);
+ const hp=guard.hp;g.tick(.04);assert.equal(guard.hp,hp);assert.equal(g.player.hp,52);
 });

@@ -42,3 +42,69 @@ test('Seeded weighted distribution follows configured probabilities; ordinary/ch
 test('Unique passives are capped; ownership IDs prevent double collection',()=>{
  const r=E.createRun(),i=withItem(r,'kingsmercy'),same=r.bag[i];assert.equal(E.collect(r,same).ok,false);E.equip(r,i,'main');E.equip(r,withItem(r,'kingsmercy'),'off');assert.equal(E.stats(base,r).onHit,2);
 });
+
+function seeded(seed){return ()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};}
+test('New weapon rolls are eligible, bounded and immutable; legacy starters and legendaries stay unchanged',()=>{
+ const snapshot=JSON.stringify(E.definitions),run=E.createRun();
+ assert.equal(run.main.modifiers,undefined);assert.equal(run.off.modifiers,undefined);
+ for(const key of Object.keys(E.definitions))for(const value of [0,.4,.8,.999999]){
+  const instance=E.generate(key,()=>value),d=E.definition(instance),mods=instance.modifiers||[];
+  if(d.kind==='weapon'&&d.rarity!=='legendary'){
+   assert.equal(mods.length,1);const config=E.modifiers[mods[0].key],range=config[d.rarity];
+   assert.ok(mods[0].value>=range[0]&&mods[0].value<=range[1]);
+   assert.ok(Object.isFrozen(instance)&&Object.isFrozen(mods)&&Object.isFrozen(mods[0]));
+  }else assert.equal(mods.length,0);
+  assert.equal(d,E.definitions[key]);
+ }
+ for(const key of ['rustbound','duskdagger'])for(const [index,bonusKey] of Object.keys(E.modifiers).entries())for(const end of [0,1]){
+  const draws=[(index+.1)/3,end],rolled=E.generate(key,()=>draws.shift()),range=E.modifiers[bonusKey][E.definition(rolled).rarity];
+  assert.deepEqual(rolled.modifiers,[{key:bonusKey,value:range[end]}]);
+ }
+ for(const key of ['cryptshield','bulwark','ashbringer'])assert.equal(E.generate(key,()=>{throw Error('Ineligible item consumed modifier RNG');}).modifiers,undefined);
+ assert.equal(JSON.stringify(E.definitions),snapshot);assert.equal(Object.keys(E.definitions).length,12);
+});
+test('Rolled damage is weighted once in dual wield and never rerolled by transactions',()=>{
+ const r=E.createRun(),main=E.generate('rustbound',()=>0),off=E.generate('rustbound',()=>0);
+ for(const i of [main,off])assert.ok(E.collect(r,i).ok);
+ assert.ok(E.equip(r,0,'main').ok);assert.ok(E.equip(r,1,'off').ok);
+ assert.equal(E.stats(base,r).damage,34.2); // 30 + (2+1) + (2+1)*0.4
+ const expected=E.stats(base,r),snapshot=JSON.stringify(r);
+ E.preview(base,r,0,'main');assert.equal(JSON.stringify(r),snapshot);
+ for(let n=0;n<20;n++){assert.ok(E.unequip(r,'off').ok);const index=r.bag.findIndex(i=>i?.id===off.id);assert.ok(E.equip(r,index,'off').ok);assert.deepEqual(E.stats(base,r),expected);}
+ const index=r.bag.findIndex(i=>i?.key==='cryptshield'),dropped=E.drop(r,index);
+ assert.ok(E.collect(r,dropped).ok);assert.deepEqual(E.stats(base,r),expected);
+});
+test('Rolled speed and critical chance add to base gear bonuses within existing caps',()=>{
+ const fast=E.generate('duskdagger',()=>.4),critical=E.generate('rustbound',()=>.8);
+ const r={...E.createRun(),main:fast,off:critical};
+ assert.ok(Math.abs(E.stats(base,r).attackRate-.36/(1+.12+.04)/1.2)<1e-12);
+ assert.equal(E.stats(base,r).crit,.02);
+ assert.equal(E.stats({...base,crit:.75},r).crit,.75);
+ const both={...r,main:E.generate('rustbound',()=>.8)};assert.ok(Math.abs(E.stats({...base,crit:.1},both).crit-.14)<1e-12);
+ assert.equal(E.stats({...base,attackRate:.01},r).attackRate,.13);
+ const forged={id:999,key:'rustbound',modifiers:[{key:'speed',value:999},{key:'damage',value:999}]};
+ assert.equal(E.itemStats(forged).speed,.04);assert.equal(E.itemStats(forged).damage,2);
+ assert.equal(E.itemStats({id:995,key:'rustbound',modifiers:[{key:'toString',value:3}]}).damage,2);
+ for(const bad of [NaN,Infinity,-10])assert.equal(E.itemStats({id:998,key:'rustbound',modifiers:[{key:'damage',value:bad}]}).damage,2);
+ assert.equal(E.itemStats({id:997,key:'cryptshield',modifiers:[{key:'damage',value:3}]}).damage,undefined);
+ assert.equal(E.itemStats({id:996,key:'ashbringer',modifiers:[{key:'damage',value:3}]}).damage,29);
+ const defence=E.stats(base,{...r,off:E.item('oathguard')});assert.ok(defence.reduction<=E.balance.maxReduction);assert.ok(defence.shield<=E.balance.maxShield);
+});
+test('Rolled two-hand displacement fails atomically when full and survives successful drop/recollect',()=>{
+ const r=E.createRun(),two=E.generate('mournblade',()=>0);E.collect(r,two);
+ for(let i=1;i<6;i++)E.collect(r,E.generate('duskdagger',()=>.8));
+ const before=JSON.stringify(r);assert.equal(E.equip(r,0,'main').ok,false);assert.equal(JSON.stringify(r),before);
+ E.drop(r,5);assert.ok(E.equip(r,0,'main').ok);assert.equal(r.main,two);assert.equal(r.off,null);
+ assert.equal(E.stats(base,r).damage,46);assert.ok(E.valid(r));
+ assert.equal(E.collect(r,two).ok,false);E.drop(r,4);assert.ok(E.unequip(r,'main').ok);
+ const index=r.bag.findIndex(i=>i?.id===two.id),drop=E.drop(r,index);assert.equal(drop,two);assert.ok(E.collect(r,drop).ok);
+ assert.deepEqual(drop.modifiers,two.modifiers);
+});
+test('Same seeds repeat drop keys and modifiers with unique ownership IDs and once-only boss rewards',()=>{
+ const sequence=()=>{const random=seeded(842);return Array.from({length:100},()=>E.roll('chest',3,random));};
+ const a=sequence(),b=sequence(),strip=i=>i?{key:i.key,modifiers:i.modifiers}:null;
+ assert.deepEqual(a.map(strip),b.map(strip));assert.ok(a.some(i=>i?.modifiers?.length));
+ for(let i=0;i<a.length;i++)if(a[i])assert.notEqual(a[i].id,b[i].id);
+ const encounter={kind:'boss',members:[{dead:true}]};const reward=E.encounterReward(encounter,1,()=>0);
+ assert.equal(reward.modifiers.length,1);assert.equal(E.encounterReward(encounter,1,()=>0),null);
+});

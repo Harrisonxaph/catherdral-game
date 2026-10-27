@@ -24,3 +24,18 @@ Dates of earlier choices are not inferred from stage numbers.
 - Affected: `.github/workflows/quality.yml`, `.github/scripts/check_agent_docs.py`.
 - Alternative not taken: changing application dependencies for a workflow-only task.
 - Hosted Actions success remains unverified until the PR check run finishes.
+
+## 2026-10-27 — instance-local experimental weapon rolls
+
+- Decision: keep all base definitions and `definition()` unchanged; add optional
+  immutable roll metadata only through loot generation and resolve it in `stats()`.
+- Reason: owner requested drop variation without breaking existing item effects,
+  weighted tables, atomic swaps or run-inventory contracts. Mutating definitions
+  would leak one item's roll to others; a new inventory format is unnecessary.
+- Engineering balance choice: one equal-weight damage/speed/crit bonus on Common
+  and Rare weapons; shields, Legendary and starter gear excluded. Exact ranges,
+  caps and RNG-stream tradeoff: [feature guide](docs/LOOT-MODIFIERS.md).
+- Affected: equipment.js, inventory-ui.js, existing tests and service-worker cache.
+  Existing index.html adapters consume resolved stats without changes.
+- Alternatives deferred: multi-affix/tier systems and independent loot RNG. These
+  require additional balance/design work and are not approved by this experiment.

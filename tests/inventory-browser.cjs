@@ -9,7 +9,7 @@ const path=require('node:path');
   await page.goto((process.env.BASE_URL||'http://127.0.0.1:3000')+'/index.html');await page.waitForFunction(()=>window.inventoryQA&&window.castleView).catch(e=>{throw Error(JSON.stringify(errors)+e.message)});await page.evaluate(()=>inventoryQA.startGame());
   await page.evaluate(()=>{
    const q=inventoryQA,E=VesperEquipment;q.player.xpNeeded=1e9;
-   for(const key of ['duskdagger','ashbringer','bulwark','kingsmercy'])E.collect(q.run,E.item(key));
+   for(const key of ['duskdagger','ashbringer','bulwark','kingsmercy'])E.collect(q.run,key==='duskdagger'?E.generate(key,()=>.4):E.item(key));
    q.attemptAttack();
   });
   await page.locator('#inventory-button').tap();
@@ -26,7 +26,10 @@ const path=require('node:path');
   const snapshot=await page.evaluate(()=>({clock:inventoryQA.clock,attack:inventoryQA.attackTimer,shield:inventoryQA.player.shield}));
   await page.evaluate(()=>{inventoryQA.tick(8);inventoryQA.attemptAttack()});
   if(!await page.evaluate(s=>inventoryQA.clock===s.clock&&inventoryQA.attackTimer===s.attack&&inventoryQA.player.shield===s.shield,snapshot))throw Error('Inventory pause exploit');
-  await page.locator('[data-index="0"]').tap();await page.locator('[data-action="equip"][data-target-slot="off"]').tap();
+  await page.locator('[data-index="0"]').tap();
+  const rolledInfo=await page.locator('#inventory-info').innerText();
+  if(!rolledInfo.includes('Quickened: +4% attack speed')||!rolledInfo.includes('Δ attacks/sec 0.44')||!rolledInfo.includes('Δ crit'))throw Error('Rolled modifier or stat deltas missing: '+rolledInfo);
+  await page.locator('[data-action="equip"][data-target-slot="off"]').tap();
   if(!await page.evaluate(()=>inventoryQA.equipmentStats().configuration==='Dual wield'&&inventoryQA.player.shield===0))throw Error('Dual wield failed');
   await page.locator('[data-index="1"]').tap();await page.locator('[data-action="equip"][data-target-slot="main"]').tap();
   if(!await page.evaluate(()=>inventoryQA.run.main.key==='ashbringer'&&inventoryQA.run.off===null))throw Error('Two-hand equipment failed');
@@ -53,6 +56,7 @@ const path=require('node:path');
   await page.locator('#inventory-button').tap();await page.locator('#inventory-close').tap();
   await page.locator('#dash').tap();await page.locator('#attack').tap();
   if(!await page.evaluate(()=>inventoryQA.state==='playing'&&!document.getElementById('controls').inert))throw Error('Controls remain disabled');
+  if(!await page.evaluate(()=>{const i=[inventoryQA.run.main,inventoryQA.run.off,...inventoryQA.run.bag].find(i=>i?.key==='duskdagger');return i?.modifiers?.[0]?.value===.04}))throw Error('Rolled instance changed during inventory operations');
   if(errors.length)throw Error(JSON.stringify(errors));console.log(JSON.stringify({viewport,inventory:true,loadouts:true,dropAndCollect:true,pauseSafe:true,renderers:true,errors}));await context.close();
  }
  await browser.close();
