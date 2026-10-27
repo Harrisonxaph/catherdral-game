@@ -16,8 +16,9 @@ new feature roadmap. PROJECT.md remains the detailed implementation record.
 `development/graphics-overhaul-v2`, based on main `387a900`. Increment 0 only:
 visual specification, asset/licence inventory, implementation sequence and
 performance-risk analysis in [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md),
-with baseline captures. Implementation waits for owner approval of the spec and
-decisions D1–D5. No merge or deployment.
+with baseline captures. Spec approved by the owner on 2026-10-27 with the default
+decisions in SPEC.md section 9; increments 1–7 follow as one PR each, each based on
+the previous branch. No merge or deployment.
 
 ## Previous task — merged in PR #17
 

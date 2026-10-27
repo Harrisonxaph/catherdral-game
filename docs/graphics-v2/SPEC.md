@@ -1,7 +1,8 @@
 # Graphics overhaul v2 — visual specification and plan
 
-Status: **proposal awaiting owner approval.** Nothing in this document is
-implemented yet. Branch `development/graphics-overhaul-v2`, based on main `387a900`
+Status: **approved by the owner on 2026-10-27** ("Approve"), with the default
+answers to the section 9 decisions recorded there. Implementation proceeds in the
+increments of section 7, one PR each. Branch `development/graphics-overhaul-v2`, based on main `387a900`
 (2026-10-27, after PR #17). No merge or deployment is authorised.
 
 ## 1. Starting point
@@ -247,19 +248,19 @@ check. Increments can be separate PRs or commits on one PR (decision D5).
   Medium/High; portrait and landscape; all five floors and bosses; readability of
   telegraphs; inventory; background/resume; offline reload.
 
-## 9. Decisions needed before implementation
+## 9. Decisions (resolved 2026-10-27)
 
-- **D1 Camera zoom on phones.** A slightly closer portrait camera (10.8 → about 9.6
-  units) makes characters read better but shows less of the room, which affects
-  how early enemies are seen. Keep current framing (default) or approve the zoom?
-- **D2 Full-screen grade/bloom on High.** Approve a High-only render pass, subject
-  to the measured budget, or keep grading CSS-only on all presets?
-- **D3 Readability versus darkness.** Approve the darker "light pools in darkness"
-  balance, with the contrast floor for hazards and enemies described above?
-- **D4 Portrait and PWA icon provenance.** Please confirm where
-  `images/forgotten-knight.png` and `icons/*.png` came from and their licence. This
-  work does not change them either way.
-- **D5 Delivery shape.** One PR updated per increment, or a separate PR per
-  increment (recommended for review size)?
-- **External art.** Confirm that commissioning or buying GLB characters stays out of
-  scope; this plan stays fully procedural.
+The owner approved the specification without answering each question separately,
+so the defaults proposed here apply. Any of them can be revisited in a later PR.
+
+- **D1 Camera zoom on phones: keep current framing** (10.8-unit portrait span).
+  A closer camera would show less of the room and change how early enemies are seen.
+- **D2 Full-screen grade/bloom: CSS-only grading on every preset for now.** A
+  High-only render pass needs a separate measured proposal before it is added.
+- **D3 Darker balance: approved**, with the contrast floor for hazards and enemies
+  in section 6.
+- **D4 Portrait and PWA icons: provenance remains unverified.** This work does not
+  modify `images/forgotten-knight.png` or `icons/*.png`.
+- **D5 Delivery: one PR per increment**, each based on the previous increment's
+  branch, so each review shows only its own change.
+- **External art: out of scope.** The plan stays fully procedural.
