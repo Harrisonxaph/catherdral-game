@@ -12,9 +12,22 @@ new feature roadmap. PROJECT.md remains the detailed implementation record.
 
 ## Current authorised task
 
-Shared assistant instruction adapters, handover/memory documents and PR quality
-checks on `development/shared-agent-workflow`. This is documentation/workflow
-work; application features, production settings and existing open PRs are unchanged.
+2026-10-27 — owner request: first experimental Diablo II-inspired loot enhancement
+using original VESPER content, on `development/loot-modifiers` (PR for review, not
+merged or deployed). Acceptance: 12 definitions/effects preserved; configurable
+rolled damage/attack-speed/crit modifiers on new non-legendary equipment, carried
+per instance; capped stat calculation; inventory display of bonuses and stat
+differences; existing rarity tables, boss once-only rewards, atomic swaps, loadout
+rules, pause, touch and offline behaviour preserved; seeded unit tests.
+Outstanding: physical-device check and balance playtesting.
+
+Overlap: PR #18 (`development/experimental-loot-modifiers`) implemented the same
+feature with an incompatible schema. Owner decision 2026-10-27: keep PR #17 as the
+development PR; #18's integration tests were adapted into it. #18 should be closed
+unmerged by the owner; it must not be merged alongside #17.
+
+The earlier shared assistant workflow task (`development/shared-agent-workflow`)
+has been merged.
 
 ## Open work and unverified issues
 

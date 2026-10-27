@@ -6,9 +6,12 @@
   let selected=null,confirmDrop=false,focusBefore=null,inert=[];
   const label=i=>i?E.definition(i).name:'Empty';
   function icon(item){const d=E.definition(item),axe=['graveaxe','executioner','ashbringer'].includes(item.key),shape=d.kind==='shield'?'<path d="M24 5 39 11v12c0 9-8 16-15 20C17 39 9 32 9 23V11Z"/><path d="M24 11v25M15 21h18"/>':axe?'<path d="m15 42 16-34M22 12c10-8 18-2 19 5l-8 9-11-5Z"/>':'<path d="m12 39 20-25 9-9-3 14-21 25Z"/><path d="m10 29 13 10M8 44l6-7"/>';return '<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round">'+shape+'</svg>';}
-  const card=(i,extra='')=>i?`<span class="item-icon">${icon(i)}</span><span>${label(i)}</span><small>${E.rarities[E.definition(i).rarity].label}${extra}</small>`:'<span>Empty slot</span>';
+  const bonusCount=i=>{const n=E.modifiers(i).length;return n?` · ✦ ${n} bonus${n>1?'es':''}`:'';};
+  const card=(i,extra='')=>i?`<span class="item-icon">${icon(i)}</span><span>${label(i)}</span><small>${E.rarities[E.definition(i).rarity].label}${bonusCount(i)}${extra}</small>`:'<span>Empty slot</span>';
   const rarity=i=>i?'rarity-'+E.definition(i).rarity:'';
-  function describe(i){const d=E.definition(i);return [d.hands===2?'Two-handed weapon':d.kind==='shield'?'Shield':'One-handed weapon',d.damage!==undefined?'+'+d.damage+' main-hand damage':'',d.speed?Math.round(d.speed*100)+'% attack speed':'',d.defence?'Defence '+d.defence:'',d.shield?'Shield capacity '+d.shield+' (recovers after 4s without damage)':'',d.effect||''].filter(Boolean).join(' · ');}
+  function describe(i){const d=E.definition(i);return [d.hands===2?'Two-handed weapon':d.kind==='shield'?'Shield':'One-handed weapon',d.damage!==undefined?'+'+d.damage+' main-hand damage':'',d.speed?Math.round(d.speed*100)+'% attack speed':'',d.defence?'Defence '+d.defence:'',d.shield?'Shield capacity '+d.shield+' (recovers after 4s without damage)':'',d.effect||'',...E.modifiers(i).map(m=>'✦ '+E.describeModifier(m))].filter(Boolean).join(' · ');}
+  const signed=(v,digits=1,unit='')=>(v>0?'+':v<0?'−':'±')+Math.abs(v).toFixed(digits)+unit;
+  function delta(before,after){const d=E.difference(before,after);return `Δ damage ${signed(d.damage)} · Δ attacks/sec ${signed(d.attacksPerSecond,2)} · Δ crit ${signed(d.crit*100,0,'%')} · Δ shield ${signed(d.shield,0)} · Δ defence ${signed(d.defence,0)}`;}
   function summary(s){return `${s.configuration} · Damage ${s.damage.toFixed(1)} · ${(1/s.attackRate).toFixed(2)} attacks/sec · Defence ${s.defence} (${Math.round(s.reduction*100)}%) · Shield ${s.shield} · Crit ${Math.round(s.crit*100)}% ×${s.critMultiplier.toFixed(2)}`;}
   function render(message=''){
    const run=adapter.run(),base=adapter.base(),stats=E.stats(base,run),main=E.definition(run.main);
@@ -25,7 +28,8 @@
     else{
      const d=E.definition(item),slots=d.kind==='shield'?['off']:d.hands===2?['main']:['main','off'];
      for(const slot of slots){const result=E.preview(base,run,selected.index,slot),current=slot==='off'&&main?.hands===2?run.main:run[slot];
-      const compare=document.createElement('p');compare.className='item-comparison';compare.textContent=(slot==='main'?'Main hand':'Off hand')+' replaces '+label(current)+': '+(result.ok?summary(result.stats)+' · Δ damage '+(result.stats.damage-stats.damage).toFixed(1)+' · Δ shield '+(result.stats.shield-stats.shield):result.error);info.append(compare);
+      const compare=document.createElement('p');compare.className='item-comparison';compare.textContent=(slot==='main'?'Main hand':'Off hand')+' replaces '+label(current)+': '+(result.ok?summary(result.stats):result.error);info.append(compare);
+      if(result.ok){const diff=document.createElement('p');diff.className='item-difference';diff.dataset.targetSlot=slot;diff.textContent=delta(stats,result.stats);info.append(diff);}
       const b=document.createElement('button');b.dataset.action='equip';b.dataset.targetSlot=slot;b.textContent='Equip '+(slot==='main'?'main hand':'off hand');b.disabled=!result.ok;actions.append(b);
      }
      const drop=document.createElement('button');drop.dataset.action=confirmDrop?'confirm-drop':'drop';drop.textContent=confirmDrop?'Confirm drop on ground':'Drop item';actions.append(drop);

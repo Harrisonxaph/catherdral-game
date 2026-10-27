@@ -9,7 +9,7 @@ const path=require('node:path');
   await page.goto((process.env.BASE_URL||'http://127.0.0.1:3000')+'/index.html');await page.waitForFunction(()=>window.inventoryQA&&window.castleView).catch(e=>{throw Error(JSON.stringify(errors)+e.message)});await page.evaluate(()=>inventoryQA.startGame());
   await page.evaluate(()=>{
    const q=inventoryQA,E=VesperEquipment;q.player.xpNeeded=1e9;
-   for(const key of ['duskdagger','ashbringer','bulwark','kingsmercy'])E.collect(q.run,E.item(key));
+   for(const key of ['duskdagger','ashbringer','bulwark','kingsmercy'])E.collect(q.run,E.item(key));E.collect(q.run,E.item('graveaxe',[{stat:'crit',value:.03}]));
    q.attemptAttack();
   });
   await page.locator('#inventory-button').tap();
@@ -23,6 +23,10 @@ const path=require('node:path');
    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
    if(!await panel.evaluate(el=>el.scrollTop>0))throw Error('Touch scrolling inventory failed');
   }
+  // Rolled modifiers and stat differences are visible before equipping.
+  await page.locator('[data-index="4"]').tap();
+  const rolled=await page.evaluate(()=>({card:document.querySelector('[data-index="4"]').innerText,info:document.getElementById('inventory-info').innerText,diff:document.querySelector('.item-difference[data-target-slot="main"]')?.textContent||''}));
+  if(!rolled.card.includes('✦ 1 bonus')||!rolled.info.includes('Omened: +3% critical chance')||!rolled.diff.includes('Δ damage +3.0')||!rolled.diff.includes('Δ crit +3%'))throw Error('Rolled modifier display missing: '+JSON.stringify(rolled));
   const snapshot=await page.evaluate(()=>({clock:inventoryQA.clock,attack:inventoryQA.attackTimer,shield:inventoryQA.player.shield}));
   await page.evaluate(()=>{inventoryQA.tick(8);inventoryQA.attemptAttack()});
   if(!await page.evaluate(s=>inventoryQA.clock===s.clock&&inventoryQA.attackTimer===s.attack&&inventoryQA.player.shield===s.shield,snapshot))throw Error('Inventory pause exploit');
@@ -53,7 +57,8 @@ const path=require('node:path');
   await page.locator('#inventory-button').tap();await page.locator('#inventory-close').tap();
   await page.locator('#dash').tap();await page.locator('#attack').tap();
   if(!await page.evaluate(()=>inventoryQA.state==='playing'&&!document.getElementById('controls').inert))throw Error('Controls remain disabled');
-  if(errors.length)throw Error(JSON.stringify(errors));console.log(JSON.stringify({viewport,inventory:true,loadouts:true,dropAndCollect:true,pauseSafe:true,renderers:true,errors}));await context.close();
+  if(!await page.evaluate(()=>{const i=[inventoryQA.run.main,inventoryQA.run.off,...inventoryQA.run.bag].find(i=>i?.key==='graveaxe');return i?.mods?.length===1&&i.mods[0].stat==='crit'&&i.mods[0].value===.03}))throw Error('Rolled instance changed during inventory operations');
+  if(errors.length)throw Error(JSON.stringify(errors));console.log(JSON.stringify({viewport,inventory:true,modifiers:true,loadouts:true,dropAndCollect:true,pauseSafe:true,renderers:true,errors}));await context.close();
  }
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

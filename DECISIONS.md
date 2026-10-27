@@ -4,6 +4,24 @@ PROJECT.md already records the existing game-design decisions and source
 precedence; reuse that record rather than reconstructing a competing history.
 Dates of earlier choices are not inferred from stage numbers.
 
+## 2026-10-27 — experimental rolled bonus modifiers (pending review)
+
+- Decision: add per-instance rolled modifiers (`mods` on the frozen item instance)
+  rather than new item definitions or a new rarity tier. Weapons only; Legendary,
+  shields and starting gear never roll. Rolls consume the injected `random` after
+  the existing rarity/key draws, so rarity tables and boss once-only logic are reused.
+- Reason: owner requested Diablo II-inspired variety without changing the 12 items,
+  existing caps, inventory contracts or adding dependencies.
+- Affected: `equipment.js`, `inventory-ui.js`, `inventory.css`, two display lines in
+  `index.html`, `service-worker.js` cache version, tests.
+- Not taken: defensive/shield modifiers, item-name prefixes/suffixes, floor-scaled
+  values and a fourth "magic" rarity. These remain options for owner prioritisation.
+- Overlap resolution (owner, 2026-10-27): PR #18 built the same feature with
+  `modifiers:[{key,value}]` and one guaranteed bonus. Keep this PR's `mods` schema
+  and balance model only; adapt #18's integration/offline tests; do not merge both.
+- Consequence: more random draws per drop change later seeded outcomes within a
+  run versus main (no fixed-seed gameplay contract exists). Balance is unplaytested.
+
 ## 2026-10-21 — shared assistant entry point
 
 - Decision: retain detailed AGENTS.md as authoritative; add thin agent.md,

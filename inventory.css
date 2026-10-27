@@ -4,8 +4,8 @@ html:has(#inventory-dialog[open]),body:has(#inventory-dialog[open]){touch-action
 #inventory-dialog *{touch-action:pan-y}#inventory-dialog button{touch-action:manipulation;min-height:44px;background:#221d28;border:1px solid #776049;color:#ede1d0;padding:10px;font:13px/1.35 system-ui,sans-serif}
 #inventory-dialog header{position:sticky;top:-16px;z-index:2;background:#11121cf5;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #584638}
 #inventory-dialog h2{margin:0;font:24px Georgia,serif;color:#dabb88}#inventory-dialog h3{margin:12px 0 8px;font:14px system-ui,sans-serif;letter-spacing:1px}
-#inventory-summary,#inventory-potions,#inventory-info,.item-comparison{font:12px/1.6 system-ui,sans-serif;color:#d1c1aa;overflow-wrap:anywhere}
-#inventory-info{padding:10px;background:#0b0d15;border-left:2px solid #a1835c;min-height:52px;white-space:normal}.item-comparison{margin:8px 0 0;color:#b8c6d5}
+#inventory-summary,#inventory-potions,#inventory-info,.item-comparison,.item-difference{font:12px/1.6 system-ui,sans-serif;color:#d1c1aa;overflow-wrap:anywhere}
+#inventory-info{padding:10px;background:#0b0d15;border-left:2px solid #a1835c;min-height:52px;white-space:normal}.item-comparison{margin:8px 0 0;color:#b8c6d5}.item-difference{margin:2px 0 0;color:#e6c98f}
 #equipped-slots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#backpack-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
 #inventory-dialog .inventory-slot{min-height:92px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:8px;overflow-wrap:anywhere}.inventory-slot b{font-size:9px;letter-spacing:1px;color:#b8a894}.inventory-slot small{font-size:10px}.item-icon{font-size:19px}
 #inventory-dialog .rarity-common{border-color:#9f9e9a;color:#deddd8}#inventory-dialog .rarity-rare{border-color:#588cc0;color:#8cc9ff;background:#172234}#inventory-dialog .rarity-legendary{border-color:#cba153;color:#f2cd85;background:#30281c;box-shadow:inset 0 0 14px #dbaa3628}
