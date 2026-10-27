@@ -14,8 +14,12 @@ point lights (0/2/3 by preset), shared contact-shadow decals, foreground wall fa
 articulated procedural characters, procedural bosses, instanced hit/projectile
 batches, hazard motes and Low/Medium/High presets. All of it stays and is extended.
 
-Baseline captures of current main (same seeded scene, all five floors, 960×720 and
-393×852) are in [`baseline/`](baseline/), with `metrics.json`. What they show:
+Baseline captures of current main (same seeded scene, all five floors; phone
+393×852 at Low/Medium/High and desktop 960×720 at Medium/High) are the
+`before-*` files in [`captures/`](captures/), with `before-metrics.json`. They are
+produced by `CAPTURE_PHASE=before npm run capture:graphics-v2`, which serves every
+runtime file from main `387a900`. View them side by side with [`index.html`](index.html).
+What they show:
 
 | Observed weakness | Evidence | Cause in source |
 | --- | --- | --- |
@@ -187,8 +191,12 @@ it does not claim professional sculpted or skinned quality.
 
 ## 6. Performance budgets and risks
 
-Proposed acceptance budgets, measured with the capture harness in the same seeded
-scenes against `baseline/metrics.json` (software WebGL as a relative signal only):
+Acceptance budgets, measured with the capture harness in the same seeded scenes
+against `captures/before-metrics.json` (software WebGL as a relative signal only).
+`npm run test:graphics-budget` enforces draw calls, triangles, real-time lights,
+texture counts and unchanged world digests per scene. Timings are reported but
+only advisory: on identical code, repeated software-WebGL p50 samples differed by
+up to 2.7× (1.4 → 3.8 ms), so they cannot gate a change.
 
 - Low: draw calls ≤ baseline + 10% (≤ 245 in the mobile Chapel scene); triangles
   ≤ baseline + 20%; no new real-time lights; shared texture count ≤ 8.

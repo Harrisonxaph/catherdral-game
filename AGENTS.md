@@ -150,6 +150,17 @@ CAPTURE_PHASE=after npm run capture:visuals
 npm run capture:bosses
 ```
 
+For the graphics v2 work ([docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md)), capture
+`after` and run the deterministic budget check against the main baseline:
+
+```sh
+CAPTURE_PHASE=after npm run capture:graphics-v2
+npm run test:graphics-budget
+```
+
+`CAPTURE_PHASE=before` regenerates the baseline from `CAPTURE_BASELINE` (default
+`387a900`); only do that when deliberately moving the baseline.
+
 Capture scripts overwrite tracked gallery files and need the historical commits
 available locally: `3b9b40e` for the floor baseline and `3bf7fb5` for the boss
 baseline. `CAPTURE_BOSS_ART=1 npm run test:boss-art-browser` also writes boss images.
