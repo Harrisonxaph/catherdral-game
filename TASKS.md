@@ -12,6 +12,15 @@ new feature roadmap. PROJECT.md remains the detailed implementation record.
 
 ## Current authorised task
 
+2026-10-27 — owner request: graphical overhaul v2 ("Ash and candlelight") on
+`development/graphics-overhaul-v2`, based on main `387a900`. Increment 0 only:
+visual specification, asset/licence inventory, implementation sequence and
+performance-risk analysis in [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md),
+with baseline captures. Implementation waits for owner approval of the spec and
+decisions D1–D5. No merge or deployment.
+
+## Previous task — merged in PR #17
+
 2026-10-27 — owner request: first experimental Diablo II-inspired loot enhancement
 using original VESPER content, on `development/loot-modifiers` (PR for review, not
 merged or deployed). Acceptance: 12 definitions/effects preserved; configurable
@@ -19,7 +28,7 @@ rolled damage/attack-speed/crit modifiers on new non-legendary equipment, carrie
 per instance; capped stat calculation; inventory display of bonuses and stat
 differences; existing rarity tables, boss once-only rewards, atomic swaps, loadout
 rules, pause, touch and offline behaviour preserved; seeded unit tests.
-Outstanding: physical-device check and balance playtesting.
+Merged to main as PR #17 (`387a900`). Outstanding: physical-device check and balance playtesting.
 
 Overlap: PR #18 (`development/experimental-loot-modifiers`) implemented the same
 feature with an incompatible schema. Owner decision 2026-10-27: keep PR #17 as the
