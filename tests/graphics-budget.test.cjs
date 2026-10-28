@@ -10,6 +10,13 @@ test('Graphics budgets pass equal scenes and reject growth, extra lights, textur
  assert.ok(check(before,{scenes:[]}).failures.some(f=>/No after scenes/.test(f)));
  assert.equal(budgets.low.lights,0);
 });
+test('Readability floor rejects black or flattened play areas but allows darker ones',()=>{
+ const before={scenes:[scene('low',{meanLuma:50,lumaSpread:40})]};
+ assert.deepEqual(check(before,{scenes:[scene('low',{meanLuma:30,lumaSpread:36})]}).failures,[]);
+ const bad=check(before,{scenes:[scene('low',{meanLuma:29.9,lumaSpread:35.9})]}).failures.join('\n');
+ assert.match(bad,/luminance 29.9 < 30.0/);assert.match(bad,/spread 35.9 < 36.0/);
+ assert.match(check(before,{scenes:[scene('low')]}).failures.join(),/luminance undefined/);
+});
 test('Incomplete, duplicated or malformed coverage never passes',()=>{
  const full={scenes:['low','medium','high'].flatMap(q=>[1,2,3,4,5].map(floor=>scene(q,{floor})))};
  assert.deepEqual(check(full,full).failures,[]);

@@ -5,25 +5,29 @@ const bevel=new THREE.ExtrudeGeometry(blockShape,{depth:.88,bevelEnabled:true,be
 const archShape=new THREE.Shape();archShape.moveTo(-1,0);archShape.lineTo(-1,1.15);archShape.quadraticCurveTo(-.75,2.1,0,2.55);archShape.quadraticCurveTo(.75,2.1,1,1.15);archShape.lineTo(1,0);archShape.lineTo(.77,0);archShape.lineTo(.77,1.13);archShape.quadraticCurveTo(.6,1.88,0,2.24);archShape.quadraticCurveTo(-.6,1.88,-.77,1.13);archShape.lineTo(-.77,0);archShape.closePath();
 const archGeometry=new THREE.ExtrudeGeometry(archShape,{depth:.22,bevelEnabled:true,bevelSize:.035,bevelThickness:.025,bevelSegments:1,steps:1});
 const clothShape=new THREE.Shape();clothShape.moveTo(-.4,.7);clothShape.lineTo(.4,.7);clothShape.lineTo(.36,-.54);clothShape.lineTo(.12,-.39);clothShape.lineTo(-.05,-.72);clothShape.lineTo(-.37,-.53);clothShape.closePath();const clothGeometry=new THREE.ShapeGeometry(clothShape);
+// Shared additive light-pool decal under torches (64px radial gradient, generated in code).
+const poolTexture=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const p=c.getContext('2d'),g=p.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'#ffffffb0');g.addColorStop(.45,'#ffffff40');g.addColorStop(1,'#ffffff00');p.fillStyle=g;p.fillRect(0,0,64,64);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;})();
+const poolMaterial=new THREE.MeshBasicMaterial({map:poolTexture,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,polygonOffset:true,polygonOffsetFactor:-2});
 const hash=(x,y,n=0)=>{const v=Math.sin(x*127.1+y*311.7+n*17.7)*43758.5453;return v-Math.floor(v)};
 export function buildEnvironment(world,torches,stair,theme,preset){
+ const G=window.VesperGraphics,light=G.lightField(torches,theme.torch),tint=new THREE.Color();
  const chunkSize=preset.detail===0?20:preset.detail===1?12:10;const root=new THREE.Group(),batches=new Map(),chunks=new Map(),flames=[],shafts=[];
  const stone=material(theme.stone),floorMat=material(theme.floor,world.config.number===3?'marble':'stone'),trim=material(theme.trim),metal=material(theme.metal,'metal'),iron=material('#554a40','metal'),cloth=material(theme.cloth,'fabric',{side:THREE.DoubleSide}),black=material('#1b2025');
  const glow=material(theme.accent,'stone',{emissive:theme.accent,emissiveIntensity:.6}),fire=new THREE.MeshBasicMaterial({color:world.config.number===4?'#93d5ef':'#ffba65'});fire.userData.floorOwned=true;
- function add(g,mat,x,y,z,sx,sy,sz,rz=0,ry=0,wall=false){const cx=Math.floor(x/chunkSize),cz=Math.floor(z/chunkSize),key=[cx,cz,g.id,mat.id,wall].join(':');if(!batches.has(key))batches.set(key,{g,mat,rows:[],cx,cz,wall});batches.get(key).rows.push([x,y,z,sx,sy,sz,rz,ry]);}
+ function add(g,mat,x,y,z,sx,sy,sz,rz=0,ry=0,wall=false,ao=1){const cx=Math.floor(x/chunkSize),cz=Math.floor(z/chunkSize),key=[cx,cz,g.id,mat.id,wall].join(':');if(!batches.has(key))batches.set(key,{g,mat,rows:[],cx,cz,wall});batches.get(key).rows.push([x,y,z,sx,sy,sz,rz,ry,ao]);}
  const block=preset.detail?bevel:shapes.box;
  for(let y=1;y<world.H-1;y++)for(let x=1;x<world.W-1;x++){
   const h=hash(x,y);
   if(world.walk(x,y)){
-   add(block,floorMat,x+.5,-.1-h*.018,y+.5,.985,.15,.985,0,(Math.floor(h*4))*Math.PI/2);
+   add(block,floorMat,x+.5,-.1-h*.018,y+.5,.985,.15,.985,0,(Math.floor(h*4))*Math.PI/2,false,G.occlusion(world.walk,x,y));
    // Dirt, chips and flush inlays stay below ankle height and never change collision.
    if(preset.detail&&h>.86){add(shapes.sphere,world.config.number===2?glow:black,x+.25,.005,y+.35,.16,.012,.09);add(shapes.box,stone,x+.72,.012,y+.66,.12,.035,.08,0,h*6);}
    if(preset.detail&&world.config.number===1&&h>.94){add(shapes.cylinder,trim,x+.5,.035,y+.5,.025,.35,.025,Math.PI/2);add(shapes.cylinder,trim,x+.48,.04,y+.54,.025,.28,.025,1.15);add(shapes.sphere,trim,x+.68,.07,y+.5,.08,.075,.065);}
    if(world.config.number===5&&h>.6)add(shapes.plane,trim,x+.5,.001,y+.5,.12,.12,1,-Math.PI/2);
   }else if([[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>world.walk(x+dx,y+dy))){
    const broken=h>.92;
-   for(let row=0;row<(broken?2:3);row++)for(let col=0;col<2;col++)add(block,stone,x+.25+col*.5+(row%2?.06:0),.16+row*.31,y+.5,.46,.29,.95,0,0,true);
-   add(block,trim,x+.5,broken?.65:1.02,y+.5,1.04,.12,1.04,0,0,true);
+   for(let row=0;row<(broken?2:3);row++)for(let col=0;col<2;col++)add(block,stone,x+.25+col*.5+(row%2?.06:0),.16+row*.31,y+.5,.46,.29,.95,0,0,true,G.lighting.wallRows[row]);
+   add(block,trim,x+.5,broken?.65:1.02,y+.5,1.04,.12,1.04,0,0,true,.42);
    if(h>.7&&preset.detail)add(shapes.sphere,black,x+.5,.4,y+.5,.48,.3,.48,0,0,true);
   }
  }
@@ -62,11 +66,15 @@ export function buildEnvironment(world,torches,stair,theme,preset){
  if(world.config.number===5)for(const [x,z]of [[r.x+1.3,r.y+1.3],[r.x+r.w-1.3,r.y+1.3],[r.x+1.3,r.y+r.h-1.3],[r.x+r.w-1.3,r.y+r.h-1.3]])add(shapes.disk,metal,x,.003,z,.4,.4,1,-Math.PI/2);
  const portal=new THREE.Group();root.add(portal);portal.position.set(stair.x,.02,stair.y);for(let i=0;i<5;i++)mesh(portal,shapes.box,trim,0,i*.04,.42-i*.21,1,.08,.2);const portalRing=mesh(portal,shapes.ring,glow,0,.05,0,.75,.75,1);portalRing.rotation.x=-Math.PI/2;
  for(const t of torches){const tgroup=new THREE.Group();tgroup.position.set(t.x,0,t.y);root.add(tgroup);mesh(tgroup,shapes.cylinder,iron,0,.43,0,.07,.85,.07);mesh(tgroup,shapes.cone,metal,0,.83,0,.18,.17,.18);const flame=mesh(tgroup,shapes.sphere,fire,0,1,0,.105,.26,.105);flames.push({mesh:flame,phase:t.phase,root:tgroup});}
- const dummy=new THREE.Object3D();for(const {g,mat,rows,cx,cz,wall}of batches.values()){const key=cx+':'+cz;if(!chunks.has(key)){const group=new THREE.Group();group.userData.center={x:cx*chunkSize+chunkSize/2,y:cz*chunkSize+chunkSize/2};root.add(group);chunks.set(key,group);}const m=new THREE.InstancedMesh(g,mat,rows.length);for(let i=0;i<rows.length;i++){const [x,y,z,sx,sy,sz,rz,ry]=rows[i];dummy.position.set(x,y,z);dummy.scale.set(sx,sy,sz);dummy.rotation.set(g===shapes.plane||g===shapes.disk?-Math.PI/2:0,ry,g===shapes.plane||g===shapes.disk?0:rz);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);if(mat===stone||mat===floorMat){const shade=.85+hash(x,z)*.3;m.setColorAt(i,new THREE.Color(shade,shade,shade));}}m.computeBoundingSphere();m.userData.wall=wall;chunks.get(key).add(m);}
+ const dummy=new THREE.Object3D();for(const {g,mat,rows,cx,cz,wall}of batches.values()){const key=cx+':'+cz;if(!chunks.has(key)){const group=new THREE.Group();group.userData.center={x:cx*chunkSize+chunkSize/2,y:cz*chunkSize+chunkSize/2};root.add(group);chunks.set(key,group);}const m=new THREE.InstancedMesh(g,mat,rows.length);for(let i=0;i<rows.length;i++){const [x,y,z,sx,sy,sz,rz,ry]=rows[i];dummy.position.set(x,y,z);dummy.scale.set(sx,sy,sz);dummy.rotation.set(g===shapes.plane||g===shapes.disk?-Math.PI/2:0,ry,g===shapes.plane||g===shapes.disk?0:rz);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);const shade=(mat===stone||mat===floorMat?.85+hash(x,z)*.3:1)*rows[i][8],[lr,lg,lb]=light(x,y,z);m.setColorAt(i,tint.setRGB(lr*shade,lg*shade,lb*shade));}m.computeBoundingSphere();m.userData.wall=wall;chunks.get(key).add(m);}
+ // One extra instance is the hero's lantern pool, so every preset keeps light around the player.
+ const pools=new THREE.InstancedMesh(shapes.plane,poolMaterial,torches.length+1);pools.count=torches.length+1;pools.frustumCulled=false;pools.renderOrder=1;pools.userData.color=new THREE.Color(theme.torch);for(let i=0;i<torches.length;i++){dummy.position.set(torches[i].x,.015,torches[i].y);dummy.rotation.set(-Math.PI/2,0,0);dummy.scale.set(4.2,4.2,1);dummy.updateMatrix();pools.setMatrixAt(i,dummy.matrix);pools.setColorAt(i,pools.userData.color);}pools.setColorAt(torches.length,pools.userData.color);root.add(pools);
  if(preset.detail===2){for(const r of world.rooms){const mat=new THREE.MeshBasicMaterial({color:theme.accent,transparent:true,opacity:.035,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});mat.userData.floorOwned=true;const shaft=mesh(root,shapes.cone,mat,r.cx+.5,1.9,r.y+1.5,1.2,3.5,1.2);shaft.rotation.z=.35;shafts.push(shaft);}}
- return {root,chunks,flames,shafts,portalRing,theme};
+ return {root,chunks,flames,shafts,portalRing,theme,pools,torches,tint:new THREE.Color(),dummy:new THREE.Object3D(),lantern:window.VesperGraphics.lighting.lantern};
 }
-export function updateEnvironment(env,player,time){for(const group of env.chunks.values()){const c=group.userData.center;group.visible=Math.abs(c.x-player.x)<22&&Math.abs(c.y-player.y)<26;}
+export function updateEnvironment(env,player,time){
+ // Pools flicker with the same phase as their flame and switch off beyond the flame culling range.
+ const p=env.pools,c=p.userData.color;for(let i=0;i<env.torches.length;i++){const t=env.torches[i],near=Math.hypot(t.x-player.x,t.y-player.y)<16,k=near?.55+Math.sin(time*13+t.phase)*.08:0;p.setColorAt(i,env.tint.setRGB(c.r*k,c.g*k,c.b*k));}const lantern=env.torches.length,dummy=env.dummy,k=env.lantern;dummy.position.set(player.x,.014,player.y);dummy.rotation.set(-Math.PI/2,0,0);dummy.scale.set(6,6,1);dummy.updateMatrix();p.setMatrixAt(lantern,dummy.matrix);p.setColorAt(lantern,env.tint.setRGB(c.r*k,c.g*k,c.b*k));p.instanceMatrix.needsUpdate=true;p.instanceColor.needsUpdate=true;for(const group of env.chunks.values()){const c=group.userData.center;group.visible=Math.abs(c.x-player.x)<22&&Math.abs(c.y-player.y)<26;}
  for(const f of env.flames){f.root.visible=Math.hypot(f.root.position.x-player.x,f.root.position.z-player.y)<16;f.mesh.scale.y=.26*(1+Math.sin(time*13+f.phase)*.16);}
  for(const s of env.shafts)s.visible=Math.hypot(s.position.x-player.x,s.position.z-player.y)<18;
 }

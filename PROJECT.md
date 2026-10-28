@@ -233,3 +233,26 @@ application code or deployment setting is changed. Confirm actual hosted checks
 and installed assistant context loading after review. The earlier statement that
 no CI workflow is checked in describes the pre-change baseline, superseded by
 this workflow PR once merged.
+
+## Graphics overhaul v2 — 2026-10-27/28 (in review, not merged)
+
+Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and
+candlelight"), decisions D1–D5 in its section 9 (camera framing unchanged, CSS-only
+grade, darker balance with a readability floor, portrait/icon provenance still
+unverified, one stacked PR per increment, no external art). Increments:
+
+1. PR #20 — capture tooling (`npm run capture:graphics-v2`) and enforced budgets
+   (`npm run test:graphics-budget`): draw calls, triangles, real-time lights,
+   textures, world digests and a play-area luminance/contrast floor per scene.
+2. Light and value pass (branch `development/graphics-v2-lighting`): torch light
+   and ambient occlusion baked into per-instance colours at floor build
+   (`VesperGraphics.lightField` / `occlusion`, no per-frame cost), one instanced
+   additive pool decal per torch plus a hero lantern pool, darker cornice caps,
+   per-floor torch colour/exposure/fog density, rebalanced hemisphere (1.35→1.15),
+   directional (3.2→2.4), torch (7→4.8) and hero (9→11.5) lights, and a CSS
+   vignette grade hidden with the 3D canvas. Cost: +1 draw call per scene; floor
+   build roughly +20–40% (still under 100 ms in software WebGL). No gameplay,
+   collision, Canvas fallback or HUD layout change.
+
+Measurements are software WebGL, not phone FPS; physical-device checks remain
+outstanding for every increment.
