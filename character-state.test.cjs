@@ -178,3 +178,13 @@ test('Review: allocator states near the safe-integer limit are refused before an
  assert.equal(E.nextId(),before,'a refused save never moves the allocator');
  rejects(variant(env,p=>{p.items[0].id=C.limits.itemId;p.character.nextItemId=C.limits.itemId;}),/item ID range/);
 });
+
+test('Review: hostile JSON in any field is rejected through the result, never by throwing',()=>{
+ const env=fixture('save-v1-full.json'),hostile=[{toString:null},{valueOf:null,toString:null},[{toString:null}],[],{},null,true,-1,'x'];
+ const paths=[];(function walk(v,p){if(p.length)paths.push(p);if(v&&typeof v==='object')for(const k of Object.keys(v))walk(v[k],p.concat(k));})(env,[]);
+ assert.ok(paths.length>200);
+ for(const p of paths)for(const h of hostile){
+  const candidate=copy(env);let o=candidate;for(const k of p.slice(0,-1))o=o[k];o[p.at(-1)]=h;
+  for(const fn of ['validate','hydrate','migrate']){let r;assert.doesNotThrow(()=>{r=C[fn](candidate);},fn+' threw for '+p.join('.')+' = '+JSON.stringify(h));assert.equal(typeof r.ok,'boolean');}
+ }
+});
