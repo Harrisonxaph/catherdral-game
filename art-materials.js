@@ -24,6 +24,17 @@ function surface(kind){if(textures.has(kind))return textures.get(kind);const c=d
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=2;textures.set(kind,t);return t;
 }
 export function material(color,kind='stone',extra={}){const key=color+kind+JSON.stringify(extra);if(!materials.has(key)){const map=surface(kind),m=new THREE.MeshStandardMaterial({color,map,roughnessMap:map,roughness:kind==='metal'?.88:.94,metalness:kind==='metal'?.3:0,bumpMap:map,bumpScale:kind==='metal'?.012:.035,...extra});materials.set(key,m);}return materials.get(key);}
+// Actor rim light (graphics v2, W3): a fresnel edge added to emissive light, so silhouettes separate from the floor on
+// every preset without extra lights or draw calls. One shared uniform set lets the renderer tint it per floor.
+export const rimUniforms={rimColor:{value:new THREE.Color('#9fc0dc')},rimStrength:{value:.42}};
+export function actorMaterial(color,kind='stone',extra={}){
+ const m=material(color,kind,{...extra,userData:{rim:true}});
+ if(!m.userData.rimReady){m.userData.rimReady=true;m.customProgramCacheKey=()=>'vesper-rim';m.onBeforeCompile=shader=>{
+  shader.uniforms.rimColor=rimUniforms.rimColor;shader.uniforms.rimStrength=rimUniforms.rimStrength;
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 rimColor;\nuniform float rimStrength;').replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n{vec3 rimView=isOrthographic?vec3(0.,0.,1.):normalize(vViewPosition);float rimF=pow(1.-saturate(dot(normalize(normal),rimView)),2.5);totalEmissiveRadiance+=rimColor*rimF*rimStrength;}');
+ };}
+ return m;
+}
 export const shapes={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,10,7),bone:new THREE.CapsuleGeometry(.07,.28,2,6),cylinder:new THREE.CylinderGeometry(1,1,1,10),cone:new THREE.ConeGeometry(1,1,8),plane:new THREE.PlaneGeometry(1,1),ring:new THREE.RingGeometry(.93,1,32),disk:new THREE.CircleGeometry(1,32)};
 export function mesh(group,geometry,mat,x,y,z,sx=1,sy=1,sz=1){const m=new THREE.Mesh(geometry,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);group.add(m);return m;}
 export function settingsMaterials(bump){for(const m of materials.values()){if(!!m.bumpMap!==bump){m.bumpMap=bump?m.map:null;m.needsUpdate=true;}}}

@@ -21,7 +21,8 @@ decisions in SPEC.md section 9; increments 1–7 follow as one PR each, each bas
 the previous branch. No merge or deployment.
 Progress: increment 1 (tooling and budgets) in PR #20; increment 2 (light and value
 pass) in PR #21; increment 3 (architecture and floor identities) in PR #22; increment 4 (effects)
-on `development/graphics-v2-effects`. Next: increment 5, characters.
+in PR #23; increment 5 (characters) on `development/graphics-v2-characters`. Next:
+increment 6, loot, inventory icons and HUD.
 
 ## Previous task — merged in PR #17
 

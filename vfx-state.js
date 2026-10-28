@@ -31,6 +31,14 @@
  function createPool(capacity){return {capacity,items:[],next:0};}
  function spawn(pool,item){if(!pool.capacity)return null;const entry={...item,age:0};if(pool.items.length<pool.capacity)pool.items.push(entry);else{pool.items[pool.next]=entry;pool.next=(pool.next+1)%pool.capacity;}return entry;}
  function advance(pool,dt){for(const i of pool.items)i.age+=dt;pool.items=pool.items.filter(i=>i.age<i.life);pool.next%=Math.max(1,pool.capacity);return pool.items;}
- const api=Object.freeze({budgets,telegraph,createTrail,pushTrail,trailAlpha,createPool,spawn,advance});
+ // Character pose curves (progress 0..1 in, joint angles out). They follow simulation timers and never change them.
+ const ease=t=>t*t*(3-2*t),deathDuration=.7;
+ // Swing: arm starts raised behind the shoulder, sweeps across by 55% of the strike, then follows through.
+ function swingPose(p){p=clamp01(p);const s=ease(Math.min(1,p/.55));return {raise:-1.7+2.5*s,sweep:.95-1.35*s,follow:p>.55?(p-.55)/.45:0};}
+ // Wind-up: the weapon arm climbs and the torso coils back as the windup timer runs down.
+ function windupPose(p){p=clamp01(p);const s=ease(p);return {raise:-.4-1.7*s,lean:-.12-.12*s};}
+ // Death: knees buckle first (0-40%), then the body topples (30-100%) over deathDuration seconds.
+ function deathPose(p){p=clamp01(p);const knee=ease(Math.min(1,p/.4)),fall=ease(clamp01((p-.3)/.7));return {knee,drop:.12*knee+.18*fall,tilt:fall};}
+ const api=Object.freeze({budgets,telegraph,createTrail,pushTrail,trailAlpha,createPool,spawn,advance,swingPose,windupPose,deathPose,deathDuration});
  if(typeof module!=='undefined')module.exports=api;else window.VesperVFX=api;
 })();

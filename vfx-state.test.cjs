@@ -30,3 +30,10 @@ test('Effect pools never exceed capacity, reuse the oldest slot and drop expired
  V.advance(pool,.5);assert.equal(pool.items.length,3);V.advance(pool,.6);assert.equal(pool.items.length,0);
  assert.equal(V.spawn(V.createPool(0),{life:1}),null);
 });
+test('Character pose curves are bounded, monotonic where they should be, and end at rest poses',()=>{
+ const s0=V.swingPose(0),s1=V.swingPose(.55),s2=V.swingPose(1);assert.equal(s0.raise,-1.7);assert.ok(Math.abs(s1.raise-.8)<1e-12);assert.equal(s2.raise,s1.raise);assert.ok(s0.sweep>s1.sweep);assert.ok(Math.abs(s2.follow-1)<1e-12);assert.equal(s0.follow,0);
+ for(let p=0;p<1;p+=.05){assert.ok(V.swingPose(p+.05).raise>=V.swingPose(p).raise-1e-12);assert.ok(V.windupPose(p+.05).raise<=V.windupPose(p).raise+1e-12);}
+ assert.deepEqual(V.swingPose(-1),s0);assert.deepEqual(V.swingPose(5),s2);
+ const d0=V.deathPose(0),d1=V.deathPose(1);assert.deepEqual([d0.knee,d0.tilt,d0.drop],[0,0,0]);assert.deepEqual([d1.knee,d1.tilt],[1,1]);assert.ok(Math.abs(d1.drop-.3)<1e-12);
+ assert.equal(V.deathPose(.25).tilt,0);assert.ok(V.deathPose(.25).knee>.5);assert.ok(V.deathDuration>.4&&V.deathDuration<1);
+});
