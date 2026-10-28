@@ -100,6 +100,14 @@
    if(expected!==raw.integrity.digest)return {status:'corrupt',errors:[{path:'integrity',message:'checksum mismatch'}]};
    return check.ok?{status:'valid',errors:[]}:{status:'corrupt',errors:check.errors};
   }
+  // Backups may predate a schema upgrade: verify their own checksum, then migrate them to the current version (each
+  // step validated). The migrated envelope is what a restore writes; a backup that cannot migrate is never restored.
+  async function inspectBackup(raw){
+   if(!await checksumOk(raw))return {status:'corrupt',errors:[{path:'integrity',message:'checksum mismatch'}]};
+   const m=schema.migrate(raw);
+   if(!m.ok)return {status:m.code==='unsupported'?'unsupported':'corrupt',errors:m.errors};
+   return {status:'valid',errors:[],envelope:m.envelope,migrated:!!m.migrated};
+  }
   const leaseOk=(lease,epoch)=>lease&&lease.sessionId===sessionId&&lease.epoch===epoch&&lease.expiresAt>clock();
   const backupKey=(id,rev,pinned)=>id+(pinned?'#pinned#':'#')+pad(rev);
   // Prune rotating backups only inside a successful write; pinned pre-migration backups are never pruned.
@@ -164,7 +172,7 @@
   // Backups newest first, each re-verified, with a summary so the player can compare progress before restoring.
   const listBackups=id=>guard(async()=>{
    const all=(await adapter.transact(['backups'],'readonly',tx=>tx.getAll('backups'))).filter(b=>b.characterId===id).sort((a,b)=>b.revision-a.revision||(b.pinned?1:0)-(a.pinned?1:0));
-   const out=[];for(const b of all){const state=await inspect(b.envelope),c=b.envelope?.payload?.character;out.push({key:b.key,revision:b.revision,pinned:!!b.pinned,savedAt:b.savedAt,status:state.status,summary:state.status==='valid'?{level:c.level,ash:c.ash,items:b.envelope.payload.items.length,unlocked:b.envelope.payload.campaign.unlockedLocations.length}:null});}
+   const out=[];for(const b of all){const state=await inspectBackup(b.envelope),c=state.envelope?.payload?.character;out.push({key:b.key,revision:b.revision,pinned:!!b.pinned,savedAt:b.savedAt,status:state.status,summary:state.status==='valid'?{level:c.level,ash:c.ash,items:state.envelope.payload.items.length,unlocked:state.envelope.payload.campaign.unlockedLocations.length,migrated:state.migrated}:null});}
    return {ok:true,backups:out};
   });
   // Restore rolls the character back to a chosen backup as a new revision; nothing is merged into the current one.
@@ -172,11 +180,11 @@
   const restoreBackup=(id,key,epoch)=>guard(async()=>{
    const [backup,current]=await adapter.transact(['backups','characters'],'readonly',async tx=>[await tx.get('backups',key),await tx.get('characters',id)]);
    if(!backup||backup.characterId!==id)return failure('missing','no such backup');
-   const state=await inspect(backup.envelope);if(state.status!=='valid')return failure(state.status,'that backup failed its checks',{errors:state.errors});
+   const state=await inspectBackup(backup.envelope);if(state.status!=='valid')return failure(state.status,'that backup failed its checks or cannot be migrated; storage is unchanged',{errors:state.errors});
    const currentState=current?await inspect(current):null;
    if(currentState?.status==='unsupported')return failure('unsupported','a newer save is never overwritten');
    const corrupt=currentState?.status==='corrupt',floor=Math.max(backup.revision,Number.isSafeInteger(current?.revision)?current.revision:0);
-   return commitPayload(id,backup.envelope.payload,{expectedRevision:corrupt?floor:current?current.revision:0,epoch,quarantineCurrent:corrupt?schema.canonical(current):false,revisionFloor:floor},backup.envelope.createdAt);
+   return commitPayload(id,state.envelope.payload,{expectedRevision:corrupt?floor:current?current.revision:0,epoch,quarantineCurrent:corrupt?schema.canonical(current):false,revisionFloor:floor},backup.envelope.createdAt);
   });
   // Persist a pure migration: the pre-migration record is pinned and outlives rotation. Repeating it is a no-op.
   const migrateStored=(id,epoch)=>guard(async()=>{

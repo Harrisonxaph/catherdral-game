@@ -169,3 +169,22 @@ test('Review: the stored record is a snapshot; caller mutations during signing c
  const pending=a.create(ID,payload,epoch);await new Promise(r=>setTimeout(r,0));payload.character.ash+=1;release();
  assert.ok((await pending).ok);const loaded=await a.load(ID);assert.ok(loaded.ok,JSON.stringify(loaded.errors));assert.equal(loaded.envelope.payload.character.ash,basePayload().character.ash);
 });
+
+test('Review: backups from before a schema upgrade are migrated when restored; a failing migration changes nothing',async()=>{
+ const {adapter,time,store}=setup(),plain=store('tab-a'),lease=await plain.acquireLease(ID);assert.ok((await plain.create(ID,basePayload(),lease.epoch)).ok);
+ const strip=e=>({...e,schemaVersion:1,payload:{...e.payload,character:(({title,...rest})=>rest)(e.payload.character)}});
+ const validate=e=>e?.schemaVersion===2?(e.payload?.character?.title==='Penitent'?C.validate(strip(e)):{ok:false,code:'invalid',errors:[{path:'title',message:'missing'}]}):C.validate(e);
+ const plan={target:2,steps:{1:e=>{e.schemaVersion=2;e.payload.character.title='Penitent';return e;}},validators:{1:C.validate,2:validate}};
+ const schema={...C,validate,migrate:e=>C.migrate(e,plan),envelope:(p,m)=>({...C.envelope(p,m),schemaVersion:2})};
+ const v2=S.createStore({adapter,sessionId:'tab-a',clock:()=>time.now,schema});
+ assert.ok((await v2.migrateStored(ID,lease.epoch)).ok);
+ const {backups}=await v2.listBackups(ID),pinned=backups.find(b=>b.pinned);
+ assert.equal(pinned.status,'valid');assert.equal(pinned.summary.migrated,true);
+ const restored=await v2.restoreBackup(ID,pinned.key,lease.epoch);assert.ok(restored.ok,JSON.stringify(restored));assert.equal(restored.revision,3);
+ const loaded=await v2.load(ID);assert.ok(loaded.ok);assert.equal(loaded.envelope.schemaVersion,2);assert.equal(loaded.envelope.payload.character.title,'Penitent');
+ // A backup whose migration fails is reported and never restored.
+ const broken=S.createStore({adapter,sessionId:'tab-a',clock:()=>time.now,schema:{...schema,migrate:e=>e.schemaVersion===2?C.migrate(e,{...plan,target:2}):{ok:false,code:'invalid',errors:[{path:'',message:'boom'}]}}});
+ const before=snapshot(adapter);
+ assert.equal((await broken.listBackups(ID)).backups.find(b=>b.pinned).status,'corrupt');
+ assert.equal((await broken.restoreBackup(ID,pinned.key,lease.epoch)).code,'corrupt');assert.equal(snapshot(adapter),before);
+});
