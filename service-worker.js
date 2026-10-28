@@ -1,5 +1,5 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v18-graphics-loot-hud-r2';
+const CACHE_VERSION = 'vesper-cathedral-v19-graphics-camera-r2';
 const APP_ASSETS = [
   './',
   './index.html',

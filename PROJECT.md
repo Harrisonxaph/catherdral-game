@@ -312,5 +312,14 @@ unverified, one stacked PR per increment, no external art). Increments:
    44px touch targets. No item rules, rarity tables or
    equipment logic changed.
 
+7. Camera, fade and culling (branch `development/graphics-v2-camera`): wall-capable
+   environment materials (`envMaterial`) use a per-pixel dithered cutaway: a front
+   band ghosts walls more than 1.2 south of the view target (as main's chunk fade
+   did) and soft windows open around the hero and up to three nearby enemies (eased
+   0.2 s). Walls stay opaque, with no material clones or extra draws. Chunks are
+   culled against the camera frustum with precomputed bounds. Framing unchanged
+   (D1). Final measurements, device checklist and remaining asset work:
+   [docs/graphics-v2/RESULTS.md](docs/graphics-v2/RESULTS.md).
+
 Measurements are software WebGL, not phone FPS; physical-device checks remain
 outstanding for every increment.
