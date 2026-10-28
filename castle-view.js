@@ -133,9 +133,10 @@ class CastleView {
     for(const p of V.advance(fx.pickups,this.visualDt)){const k=1-p.age/p.life,st=lootStyle[p.rarity]||lootStyle.common;d.position.set(p.x,p.age*1.4,p.y);d.rotation.set(0,0,0);d.scale.set(.6+k*.4,st.beam*(.4+k*.8),.6+k*.4);d.updateMatrix();this.lootBeams.setMatrixAt(beams,d.matrix);this.lootBeams.setColorAt(beams++,c.set(p.color).multiplyScalar(st.glow*1.6*k));}
     for(const [b,n] of [[this.lootBeams,beams],[this.lootRings,rings],[this.lootGlints,glints]]){b.count=n;b.visible=n>0;b.instanceMatrix.needsUpdate=true;if(b.instanceColor)b.instanceColor.needsUpdate=true;}
   }
-  updateCutaway(player,enemies){
+  updateCutaway(player,enemies,cam=player){
+    // Front band: like main's chunk fade, walls more than 1.2 south of the view target (within 9 sideways) are ghosted.
     // Wall cutaway centres: the hero always, plus up to three nearby living enemies eased in/out over 0.2 s.
-    const c=cutUniforms.cutCentres.value,dt=this.visualDt,ease=this.cutEase??=new Map();c[0].set(player.x,.7,player.y,1);
+    const c=cutUniforms.cutCentres.value,dt=this.visualDt,ease=this.cutEase??=new Map();c[0].set(player.x,.7,player.y,1);cutUniforms.cutFront.value.set(cam.x,cam.y+1.2,9,.72);
     const near=enemies.filter(e=>!e.dead&&Math.hypot(e.x-player.x,e.y-player.y)<8).sort((a,b)=>Math.hypot(a.x-player.x,a.y-player.y)-Math.hypot(b.x-player.x,b.y-player.y)).slice(0,3);
     for(const [e,w] of ease){const k=Math.max(0,w-dt/.2);if(!near.includes(e)&&k<=0)ease.delete(e);else if(!near.includes(e))ease.set(e,k);}
     for(const e of near)ease.set(e,Math.min(1,(ease.get(e)||0)+dt/.2));
@@ -169,7 +170,7 @@ class CastleView {
     this.heroLight.position.set(player.x,2.5,player.y);
     this.renderer.domElement.style.filter=damageOverlay>.1?'sepia(.25) saturate(1.4)':'none';
     updateEnvironment(this.environment,player,time,this.camera);
-    this.updateCutaway(player,enemies);
+    this.updateCutaway(player,enemies,cam);
     const motes=this.theme.motes,positions=this.atmosphereGeometry.attributes.position,count=this.quality==='low'?0:this.quality==='high'?42:24;for(let i=0;i<count;i++)positions.setXYZ(i,player.x+Math.sin(i*127.1)*8+Math.sin(time*.2+i)*.2,.25+(((i*.13+time*motes.speed)%1.8)+1.8)%1.8,player.y+Math.cos(i*79.3)*8);positions.needsUpdate=true;this.atmosphereGeometry.setDrawRange(0,count);this.atmosphereMaterial.color.set(motes.color);this.atmosphereMaterial.size=motes.size;
     const nearest=this.flames.filter(f=>f.root.visible).sort((a,b)=>a.root.position.distanceToSquared(heroPosition.set(player.x,0,player.y))-b.root.position.distanceToSquared(heroPosition));for(let i=0;i<this.torchLights.length;i++){const light=this.torchLights[i],f=nearest[i];light.visible=i<this.preset.lights&&!!f;if(light.visible){light.position.set(f.root.position.x,1.25,f.root.position.z);light.intensity=4.8+Math.sin(time*13+f.phase)*.9;light.color.set(this.theme.torch);}}
     this.heroLight.visible=this.quality!=='low';

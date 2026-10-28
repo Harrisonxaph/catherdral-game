@@ -57,6 +57,10 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    const cutOn=v.updateCutaway;const legs=sample(P.x,.3,P.y+.45),far=sample(P.x,.3,room.y+.5);
    const uniforms=window.__cut;v.updateCutaway=function(){cutOn.apply(this,arguments);for(const c of uniforms.cutCentres.value)c.w=0;};const legsOff=sample(P.x,.3,P.y+.45),farOff=sample(P.x,.3,room.y+.5);v.updateCutaway=cutOn;
    const diff=(a,b)=>a.reduce((n,x,i)=>n+Math.abs(x-b[i]),0)/a.length;out.cutLegs=diff(legs,legsOff);out.cutFar=diff(far,farOff);
+   // Front band: like main's chunk fade, a south wall in front of the view is ghosted; the back wall is not.
+   P.y=room.cy+.5;q.cam.y=P.y;const southWall=[P.x,.45,room.y+room.h+.5],backWall=[P.x,.45,room.y-.5];const frontOn=sample(...southWall),backOn=sample(...backWall);
+   const band=uniforms.cutFront.value,keep=v.updateCutaway;v.updateCutaway=function(){keep.apply(this,arguments);band.w=0;};const frontOff=sample(...southWall),backOff=sample(...backWall);v.updateCutaway=keep;
+   out.frontBand=diff(frontOn,frontOff);out.backBand=diff(backOn,backOff);
    const oldRule=[...v.environment.chunks.values()].filter(g=>Math.abs(g.userData.center.x-P.x)<22&&Math.abs(g.userData.center.y-P.y)<26).length,shown=[...v.environment.chunks.values()].filter(g=>g.visible);
    out.frustum={shown:shown.length,oldRule,heroChunk:shown.some(g=>g.userData.box.containsPoint(new v.camera.position.constructor(P.x,0,P.y)))};
    q.draw();return out;
@@ -67,10 +71,10 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    telegraphGrow:grow.every(x=>x.early.visible&&x.early.scale<.1&&x.late.scale>.99&&x.hiddenWhenActive),telegraphWall:wall.early.scale===1&&wall.late.scale===1&&wall.late.opacity>wall.early.opacity&&wall.hiddenWhenActive,
    rim:report.rim,cape:report.cape&&report.capeMoves,swing:report.swing,windup:report.windup,death:report.deathMid&&report.deathEnds,
    loot:report.lootGlow&&report.pickup&&report.pickupEnds,icons:report.icons,
-   cutaway:report.cutLegs>3&&report.cutFar<.5,frustum:report.frustum.shown>0&&report.frustum.shown<=report.frustum.oldRule&&report.frustum.heroChunk};
+   cutaway:report.cutLegs>3&&report.cutFar<.5,frontBand:report.frontBand>3&&report.backBand<.5,frustum:report.frustum.shown>0&&report.frustum.shown<=report.frustum.oldRule&&report.frustum.heroChunk};
   for(const [k,ok] of Object.entries(checks))if(!ok)throw Error(`${quality} effect check failed: ${k} ${JSON.stringify(report)}`);
   if(errors.length)throw Error(JSON.stringify(errors));
-  console.log(JSON.stringify({viewport,quality,...checks,scorch:report.scorch,cutLegs:+report.cutLegs.toFixed(1),cutFar:+report.cutFar.toFixed(2),chunks:report.frustum,errors}));await context.close();
+  console.log(JSON.stringify({viewport,quality,...checks,scorch:report.scorch,cutLegs:+report.cutLegs.toFixed(1),cutFar:+report.cutFar.toFixed(2),frontBandDiff:+report.frontBand.toFixed(1),backBandDiff:+report.backBand.toFixed(2),chunks:report.frustum,errors}));await context.close();
  }
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

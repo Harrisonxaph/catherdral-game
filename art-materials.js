@@ -37,13 +37,14 @@ export function actorMaterial(color,kind='stone',extra={}){
 }
 // Wall cutaway (graphics v2, W6): wall fragments above ankle height that are nearer the camera than a tracked actor,
 // within cutRadius of it on screen, are discarded with an ordered dither. Walls stay opaque and keep a faint outline.
-export const cutUniforms={cutCentres:{value:Array.from({length:4},()=>new THREE.Vector4(0,0,0,0))},cutRadius:{value:1.7}};
+// cutFront keeps main's behaviour of ghosting walls in front of the view (x: camera x, y: start z, z: half width, w: strength).
+export const cutUniforms={cutCentres:{value:Array.from({length:4},()=>new THREE.Vector4(0,0,0,0))},cutRadius:{value:1.7},cutFront:{value:new THREE.Vector4(0,1e9,9,0)}};
 export function envMaterial(color,kind='stone',extra={}){
  const m=material(color,kind,{...extra,userData:{cut:true}});
  if(!m.userData.cutReady){m.userData.cutReady=true;m.customProgramCacheKey=()=>'vesper-cut';m.onBeforeCompile=shader=>{
   Object.assign(shader.uniforms,cutUniforms);
   shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vCutWorld;').replace('#include <project_vertex>','#include <project_vertex>\n{vec4 cutP=vec4(transformed,1.);\n#ifdef USE_INSTANCING\ncutP=instanceMatrix*cutP;\n#endif\nvCutWorld=(modelMatrix*cutP).xyz;}');
-  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vCutWorld;\nuniform vec4 cutCentres[4];\nuniform float cutRadius;\nfloat cutBayer(vec2 p){ivec2 q=ivec2(mod(p,4.));float m[16]=float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);return (m[q.x+q.y*4]+.5)/16.;}').replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nif(vCutWorld.y>.22){vec3 cutV=(viewMatrix*vec4(vCutWorld,1.)).xyz;float cut=0.;for(int i=0;i<4;i++){vec4 c=cutCentres[i];if(c.w<=0.)continue;vec3 h=(viewMatrix*vec4(c.xyz,1.)).xyz;if(cutV.z>h.z+.35)cut=max(cut,c.w*.88*(1.-smoothstep(cutRadius*.55,cutRadius,length(cutV.xy-h.xy))));}if(cut>cutBayer(gl_FragCoord.xy))discard;}');
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vCutWorld;\nuniform vec4 cutCentres[4];\nuniform float cutRadius;\nuniform vec4 cutFront;\nfloat cutBayer(vec2 p){ivec2 q=ivec2(mod(p,4.));float m[16]=float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);return (m[q.x+q.y*4]+.5)/16.;}').replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nif(vCutWorld.y>.22){vec3 cutV=(viewMatrix*vec4(vCutWorld,1.)).xyz;float cut=0.;for(int i=0;i<4;i++){vec4 c=cutCentres[i];if(c.w<=0.)continue;vec3 h=(viewMatrix*vec4(c.xyz,1.)).xyz;if(cutV.z>h.z+.35)cut=max(cut,c.w*.88*(1.-smoothstep(cutRadius*.55,cutRadius,length(cutV.xy-h.xy))));}cut=max(cut,cutFront.w*smoothstep(cutFront.y,cutFront.y+1.,vCutWorld.z)*(1.-smoothstep(cutFront.z-1.,cutFront.z,abs(vCutWorld.x-cutFront.x))));if(cut>cutBayer(gl_FragCoord.xy))discard;}');
  };}
  return m;
 }
