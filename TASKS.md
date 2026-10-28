@@ -10,7 +10,25 @@ new feature roadmap. PROJECT.md remains the detailed implementation record.
 - Backpack icon and boss health follow-up: 2,500 / 2,500 / 4,000 HP.
 - Root AGENTS.md and PROJECT.md handoff merged in PR #12.
 
-## Current authorised task
+## Current authorised task — persistent ARPG design, 2026-10-28
+
+Create a complete conversion specification, verified reset/graphics audit and six
+implementation phases on `development/arpg-conversion-spec`, updated against main
+`17c8fad` after PR #28. Read [docs/arpg/SPEC.md](docs/arpg/SPEC.md),
+[docs/arpg/AUDIT.md](docs/arpg/AUDIT.md) and
+[docs/arpg/ROADMAP.md](docs/arpg/ROADMAP.md). Documentation only: no production
+application, save wiring, merge or deployment. Await owner approval before code.
+
+Gate G0 satisfied: owner tested and merged PR #28. Updated pinned main is
+`17c8fadea6f881245384cec92fd14417b4a998c1`; PR #27 incorporates it and updates
+its graphics audit. ARPG specification/milestone approval remains pending.
+
+Next proposed milestone: test-only schema, item hydration/ID reservation and
+IndexedDB revision repository; not Save/Continue yet. Then incremental Claude
+implementation PRs independently reviewed by Codex. Numeric policies and future
+features in the spec are proposals, not approved tasks. Device testing remains open.
+
+## Previous graphics specification task
 
 2026-10-27 — owner request: graphical overhaul v2 ("Ash and candlelight") on
 `development/graphics-overhaul-v2`, based on main `387a900`. Increment 0 only:
@@ -24,7 +42,8 @@ pass) in PR #21; increment 3 (architecture and floor identities) in PR #22; incr
 in PR #23; increment 5 (characters) in PR #24; increment 6 (loot, icons, HUD) in PR #25;
 increment 7 (camera, fade, culling) on `development/graphics-v2-camera` with the
 final results in docs/graphics-v2/RESULTS.md. Next: owner review of PRs #19 to #26 in
-order and the physical-device checklist; nothing is merged or deployed.
+order was completed; PR #28 subsequently integrated the complete stack into main.
+The owner reports testing #28; detailed physical-device coverage remains unrecorded.
 
 ## Previous task — merged in PR #17
 

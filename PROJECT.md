@@ -234,7 +234,27 @@ and installed assistant context loading after review. The earlier statement that
 no CI workflow is checked in describes the pre-change baseline, superseded by
 this workflow PR once merged.
 
-## Graphics overhaul v2 — 2026-10-27/28 (in review, not merged)
+## Persistent ARPG conversion — design requested 2026-10-28
+
+Owner direction: evolve the current game into a persistent single-player ARPG,
+with permanent character/loot/progression, checkpoints, revisitable campaign and
+Sanctuary. **Current deliverable is architecture/specification only.** No save,
+Continue, hub or gameplay conversion has been implemented by this documentation.
+[Specification](docs/arpg/SPEC.md), [source/reset audit](docs/arpg/AUDIT.md) and
+[six-phase roadmap](docs/arpg/ROADMAP.md) distinguish proposed defaults from approval.
+
+Updated baseline: main `17c8fadea6f881245384cec92fd14417b4a998c1`
+(2026-10-28, merged PR #28) now includes the complete reviewed graphics v2 stack
+and PR #17 loot. The owner reports testing and merging #28. Its graphics tree
+matches reviewed head `1c4b4e9`; the graphics integration gate is satisfied.
+PR #27 incorporates this main baseline and remains documentation-only. Approval
+of the ARPG specification and implementation milestones is still required.
+
+Recommended first code milestone after approval: pure save DTO/validation, item-ID
+hydration/reservation and native IndexedDB revision storage with tests, not wired
+into gameplay. Proposed balance, death/revisit/resource rules, migration and
+single-character scope await approval. Current run reset behaviour still applies.
+## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
 
 Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and
 candlelight"), decisions D1–D5 in its section 9 (camera framing unchanged, CSS-only

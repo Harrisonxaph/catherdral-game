@@ -53,3 +53,26 @@ Dates of earlier choices are not inferred from stage numbers.
 - Affected: `.github/workflows/quality.yml`, `.github/scripts/check_agent_docs.py`.
 - Alternative not taken: changing application dependencies for a workflow-only task.
 - Hosted Actions success remains unverified until the PR check run finishes.
+
+## 2026-10-28 — persistent ARPG direction; specification gate
+
+- Owner direction: replace run-loss progression with a persistent single-player
+  character/campaign, preserving existing combat, original content and mods schema.
+- Authorised now: audit, conversion specification and six-phase roadmap before
+  changing production gameplay. No implementation/merge/deployment approval implied.
+- Proposed architecture: IndexedDB atomic revision snapshots, item ownership/ID
+  validation, backups/migrations, durable reward and area ledgers, checkpoint resume.
+  These choices and balance/resource rules await review in docs/arpg/SPEC.md.
+- Verified integration risk: graphics #20–#26 merged into development targets;
+  reviewed #26 head is not in main 3c7b762. Establish an explicitly approved
+  integrated graphics baseline first; documentation does not perform that merge.
+- Preserve earlier implementation history; a spec author's review is not an
+  independent approval of their own implementation PR.
+
+## 2026-10-28 — graphics baseline integrated before ARPG work
+
+- Owner tested and merged PR #28; fetched main is `17c8fad`. Reviewed graphics
+  head `1c4b4e9` is now included. The earlier integration risk above is resolved.
+- PR #27 incorporates main, preserves graphics progress notes and updates G0.
+- ARPG design and balance remain proposals awaiting approval; no save/gameplay
+  implementation, production merge or deployment is part of this update.
