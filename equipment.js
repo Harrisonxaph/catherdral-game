@@ -29,14 +29,15 @@
   }
  });
  const none=Object.freeze([]);
- const eligibleModifiers=key=>{const spec=definitions[key];return spec?Object.keys(affixes.pool).filter(stat=>affixes.pool[stat].kinds.includes(spec.kind)&&affixes.pool[stat].ranges[spec.rarity]&&affixes.maxCount[spec.rarity]>0):[];};
+ const eligibleModifiers=key=>{const spec=Object.hasOwn(definitions,key)?definitions[key]:null;return spec?Object.keys(affixes.pool).filter(stat=>affixes.pool[stat].kinds.includes(spec.kind)&&affixes.pool[stat].ranges[spec.rarity]&&affixes.maxCount[spec.rarity]>0):[];};
  function validModifiers(key,mods){
-  const spec=definitions[key];if(!spec||!Array.isArray(mods)||mods.length>(affixes.maxCount[spec.rarity]||0))return false;
+  const spec=Object.hasOwn(definitions,key)?definitions[key]:null;if(!spec||!Array.isArray(mods)||mods.length>(affixes.maxCount[spec.rarity]||0))return false;
   const allowed=eligibleModifiers(key),seen=new Set();
   return mods.every(m=>{if(!m||!allowed.includes(m.stat)||seen.has(m.stat)||!Number.isFinite(m.value))return false;const [lo,hi]=affixes.pool[m.stat].ranges[spec.rarity];seen.add(m.stat);return m.value>=lo-1e-9&&m.value<=hi+1e-9;});
  }
  let serial=0;
- const instance=(id,key,mods)=>{if(!definitions[key])throw new RangeError('Unknown item '+key);if(!validModifiers(key,mods))throw new RangeError('Invalid modifiers for '+key);return Object.freeze({id,key,mods:mods.length?Object.freeze(mods.map(m=>Object.freeze({stat:m.stat,value:m.value}))):none});};
+ const known=key=>typeof key==='string'&&Object.hasOwn(definitions,key);
+ const instance=(id,key,mods)=>{if(!known(key))throw new RangeError('Unknown item '+key);if(!Number.isSafeInteger(id)||id<1)throw new RangeError('Item IDs are exhausted');if(!validModifiers(key,mods))throw new RangeError('Invalid modifiers for '+key);return Object.freeze({id,key,mods:mods.length?Object.freeze(mods.map(m=>Object.freeze({stat:m.stat,value:m.value}))):none});};
  const item=(key,mods=none)=>{const made=instance(serial+1,key,mods);serial++;return made;};
  // Persistence: saved instances keep their own ID, and the allocator never falls below a durable high-water mark.
  const nextId=()=>serial+1;

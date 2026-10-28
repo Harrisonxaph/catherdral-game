@@ -7,7 +7,7 @@
  const SCHEMA_VERSION=1,CONTENT_VERSION='campaign-1',PROGRESSION_VERSION=1;
  const deepFreeze=o=>{Object.values(o).forEach(v=>v&&typeof v==='object'&&deepFreeze(v));return Object.freeze(o);};
  // Bounds refuse oversized candidates before hydration; exceeding them never discards data.
- const limits=deepFreeze({items:4096,stash:24,instances:6,groundDrops:1024,escrow:256,flags:512,quests:256,journal:512,ledger:4096,idLength:96,textLength:4000,ash:1e9,xp:1e12,deaths:1e9,cooldownSlack:1e-9});
+ const limits=deepFreeze({items:4096,stash:24,instances:6,groundDrops:1024,escrow:256,flags:512,quests:256,journal:512,ledger:4096,idLength:96,itemId:1e12,textLength:4000,ash:1e9,xp:1e12,deaths:1e9,cooldownSlack:1e-9});
  const locations=Object.freeze(['forgotten-crypt','plague-halls','crimson-chapel','hollow-sanctum','throne-of-ash']);
  const bossLocations=Object.freeze(['forgotten-crypt','crimson-chapel','throne-of-ash']),eliteLocations=Object.freeze(['plague-halls','hollow-sanctum']);
  const abilityIds=Object.freeze(Object.keys(A.definitions));
@@ -40,7 +40,7 @@
   const errors=[];
   const fail=(path,message)=>{if(errors.length<64)errors.push({path,message});return false;};
   const shape=(v,path,keys)=>{if(!plain(v))return fail(path,'must be an object');const extra=Object.keys(v).filter(k=>!keys.includes(k)),missing=keys.filter(k=>!(k in v));if(extra.length)fail(path,'unknown field '+extra[0]);if(missing.length)fail(path,'missing field '+missing[0]);return !extra.length&&!missing.length;};
-  const map=(v,path,max,each)=>{if(!plain(v))return fail(path,'must be an object');const keys=Object.keys(v);if(keys.length>max)return fail(path,'too many entries');keys.forEach(k=>idText(k)?each(k,v[k],path+'.'+k):fail(path,'invalid key'));return true;};
+  const map=(v,path,max,each)=>{if(!plain(v))return fail(path,'must be an object');const keys=Object.keys(v);if(keys.length>max)return fail(path,'too many entries');keys.forEach(k=>idText(k)&&!(k in Object.prototype)?each(k,v[k],path+'.'+k):fail(path,'invalid key'));return true;};
   const list=(v,path,max,each,exact)=>{if(!Array.isArray(v))return fail(path,'must be an array');if(exact!==undefined?v.length!==exact:v.length>max)return fail(path,exact!==undefined?'must have exactly '+exact+' slots':'too many entries');v.forEach((x,i)=>each(x,path+'['+i+']',i));return true;};
   const uniqueStrings=(v,path,max,valid=idText)=>list(v,path,max,(x,p)=>valid(x)||fail(p,'invalid value'))&&(new Set(v).size===v.length||fail(path,'duplicate values'));
   return {errors,fail,shape,map,list,uniqueStrings};
@@ -65,14 +65,14 @@
    finite(c.timers.firePassiveRemaining,0,E.balance.fireCooldown)||k.fail('character.timers.firePassiveRemaining','out of range');
    finite(c.timers.shieldDelay,0,E.balance.shieldDelay)||k.fail('character.timers.shieldDelay','out of range');
   }
-  if(!safeInt(c.nextItemId,1))k.fail('character.nextItemId','must be a positive safe integer');
+  if(!safeInt(c.nextItemId,1,limits.itemId))k.fail('character.nextItemId','must be a positive integer within the item ID range');
   const owner=(id,path)=>{if(id===null)return;if(!safeInt(id,1))return k.fail(path,'must be an item ID or null');if(!itemsById.has(id))return k.fail(path,'references a missing item');owners.push({id,path});};
   if(k.shape(c.equipment,'character.equipment',['main','off'])){owner(c.equipment.main,'character.equipment.main');owner(c.equipment.off,'character.equipment.off');}
   k.list(c.backpack,'character.backpack',0,owner,E.balance.capacity);
   k.list(c.stash,'character.stash',0,owner,limits.stash);
  }
 
- function validateCampaign(m,k,itemsById,owners){
+ function validateCampaign(m,k,itemsById,owners,rewards){
   if(!k.shape(m,'campaign',['unlockedLocations','activeCheckpointId','campaignComplete','bossCompletions','eliteCompletions','questStates','storyFlags','journalEntries','rewardLedger','rewardEscrow']))return [];
   const unlocked=Array.isArray(m.unlockedLocations)?m.unlockedLocations:[];
   // Locations unlock in campaign order, so the unlocked list is always a prefix of the five floors.
@@ -88,13 +88,11 @@
   k.uniqueStrings(m.storyFlags,'campaign.storyFlags',limits.flags);
   if(k.list(m.journalEntries,'campaign.journalEntries',limits.journal,(e,p)=>{if(k.shape(e,p,['id','title','text'])){idText(e.id)||k.fail(p+'.id','invalid');text(e.title)||k.fail(p+'.title','invalid');text(e.text)||k.fail(p+'.text','invalid');}})&&new Set(m.journalEntries.map(e=>e?.id)).size!==m.journalEntries.length)k.fail('campaign.journalEntries','duplicate entry IDs');
   k.map(m.rewardLedger,'campaign.rewardLedger',limits.ledger,(id,state,p)=>['escrow','claimed'].includes(state)||k.fail(p,'must be escrow or claimed'));
-  const escrowKeys=[];
-  k.list(m.rewardEscrow,'campaign.rewardEscrow',limits.escrow,(e,p)=>{if(!k.shape(e,p,['rewardKey','itemId']))return;if(!idText(e.rewardKey))return k.fail(p+'.rewardKey','invalid');escrowKeys.push(e.rewardKey);if(!plain(m.rewardLedger)||m.rewardLedger[e.rewardKey]!=='escrow')k.fail(p+'.rewardKey','ledger must mark escrowed rewards as escrow');if(!safeInt(e.itemId,1)||!itemsById.has(e.itemId))return k.fail(p+'.itemId','references a missing item');owners.push({id:e.itemId,path:p+'.itemId'});});
-  if(new Set(escrowKeys).size!==escrowKeys.length)k.fail('campaign.rewardEscrow','duplicate reward keys');
+  k.list(m.rewardEscrow,'campaign.rewardEscrow',limits.escrow,(e,p)=>{if(!k.shape(e,p,['rewardKey','itemId']))return;if(!idText(e.rewardKey))return k.fail(p+'.rewardKey','invalid');rewards.push({key:e.rewardKey,path:p+'.rewardKey'});if(!plain(m.rewardLedger)||m.rewardLedger[e.rewardKey]!=='escrow')k.fail(p+'.rewardKey','ledger must mark escrowed rewards as escrow');if(!safeInt(e.itemId,1)||!itemsById.has(e.itemId))return k.fail(p+'.itemId','references a missing item');owners.push({id:e.itemId,path:p+'.itemId'});});
   return unlocked;
  }
 
- function validateWorld(w,k,itemsById,owners,unlocked,hp,rewardLedger){
+ function validateWorld(w,k,itemsById,owners,rewards,unlocked,hp,rewardLedger){
   if(!k.shape(w,'world',['lifecycle','currentLocationId','currentInstanceId','pendingTransition','checkpoints','locations','instances']))return;
   if(k.shape(w.lifecycle,'world.lifecycle',['mode','deathId','lastRespawnId'])){
    const l=w.lifecycle;
@@ -117,7 +115,7 @@
     if(!k.shape(d,dp,['dropId','kind','itemId','amount','x','y','rewardKey']))return;
     if(!idText(d.dropId))k.fail(dp+'.dropId','invalid');else if(dropIds.has(d.dropId))k.fail(dp+'.dropId','duplicate drop ID');else dropIds.add(d.dropId);
     if(!finite(d.x,-1024,1024)||!finite(d.y,-1024,1024))k.fail(dp,'position out of range');
-    if(d.rewardKey!==null&&!idText(d.rewardKey))k.fail(dp+'.rewardKey','invalid');
+    if(d.rewardKey!==null&&!idText(d.rewardKey))k.fail(dp+'.rewardKey','invalid');else if(d.rewardKey!==null)rewards.push({key:d.rewardKey,path:dp+'.rewardKey'});
     if(d.rewardKey!==null&&(!plain(rewardLedger)||rewardLedger[d.rewardKey]!=='escrow'))k.fail(dp+'.rewardKey','ledger must mark a dropped reward as escrow');
     if(d.kind==='item'){if(d.amount!==1)k.fail(dp+'.amount','item drops have amount 1');if(!safeInt(d.itemId,1)||!itemsById.has(d.itemId))return k.fail(dp+'.itemId','references a missing item');owners.push({id:d.itemId,path:dp+'.itemId'});}
     else if(d.kind==='ash'||d.kind==='potion'){if(d.itemId!==null)k.fail(dp+'.itemId','must be null');if(!safeInt(d.amount,1,d.kind==='ash'?limits.ash:E.balance.potions))k.fail(dp+'.amount','out of range');}
@@ -146,23 +144,26 @@
  }
  function validatePayload(p,k){
   if(!k.shape(p,'payload',['character','items','campaign','world','legacy']))return;
-  const itemsById=new Map(),owners=[];
+  const itemsById=new Map(),owners=[],rewards=[];
   k.list(p.items,'items',limits.items,(it,path)=>{
    if(!k.shape(it,path,['id','key','mods','upgradeRank']))return;
-   if(!safeInt(it.id,1))return k.fail(path+'.id','must be a positive safe integer');
+   if(!safeInt(it.id,1,limits.itemId-1))return k.fail(path+'.id','must be a positive integer within the item ID range');
    if(itemsById.has(it.id))return k.fail(path+'.id','duplicate item ID '+it.id);
    // Invalid gear rejects the whole candidate: never reroll, clamp or silently delete it.
-   if(!E.definitions[it.key])k.fail(path+'.key','unknown item');else if(!Array.isArray(it.mods)||!it.mods.every(m=>plain(m)&&Object.keys(m).length===2&&'stat'in m&&'value'in m)||!E.validModifiers(it.key,it.mods))k.fail(path+'.mods','invalid modifiers');
+   if(typeof it.key!=='string'||!Object.hasOwn(E.definitions,it.key))k.fail(path+'.key','unknown item');else if(!Array.isArray(it.mods)||!it.mods.every(m=>plain(m)&&Object.keys(m).length===2&&'stat'in m&&'value'in m)||!E.validModifiers(it.key,it.mods))k.fail(path+'.mods','invalid modifiers');
    if(it.upgradeRank!==0)k.fail(path+'.upgradeRank','upgrades are not available in progression v1');
    itemsById.set(it.id,it);
   });
   if(plain(p.character))validateCharacter(p.character,k,itemsById,owners);else k.fail('character','must be an object');
-  const unlocked=plain(p.campaign)?validateCampaign(p.campaign,k,itemsById,owners):(k.fail('campaign','must be an object'),[]);
+  const unlocked=plain(p.campaign)?validateCampaign(p.campaign,k,itemsById,owners,rewards):(k.fail('campaign','must be an object'),[]);
   const c=plain(p.character)?p.character:{},hp=plain(c.resources)?c.resources.hp:undefined;
-  validateWorld(p.world,k,itemsById,owners,unlocked,hp,plain(p.campaign)?p.campaign.rewardLedger:null);
+  validateWorld(p.world,k,itemsById,owners,rewards,unlocked,hp,plain(p.campaign)?p.campaign.rewardLedger:null);
   // Ownership graph: every item has exactly one owner reference across hands, bag, stash, ground and escrow.
   const seen=new Map();for(const o of owners){if(seen.has(o.id))k.fail(o.path,'item '+o.id+' is also owned at '+seen.get(o.id));else seen.set(o.id,o.path);}
   for(const id of itemsById.keys())if(!seen.has(id))k.fail('items','item '+id+' has no owner');
+  // A once-only reward held in escrow exists exactly once, either in reward escrow or as one ground drop.
+  const held=new Map();for(const r of rewards){if(held.has(r.key))k.fail(r.path,'reward '+r.key+' is also held at '+held.get(r.key));else held.set(r.key,r.path);}
+  if(plain(p.campaign)&&plain(p.campaign.rewardLedger))for(const [key,state] of Object.entries(p.campaign.rewardLedger))if(state==='escrow'&&!held.has(key))k.fail('campaign.rewardLedger.'+key,'an escrowed reward must be held in escrow or on the ground');
   const maxId=Math.max(0,...itemsById.keys());if(safeInt(c.nextItemId,1)&&c.nextItemId<=maxId)k.fail('character.nextItemId','must exceed every allocated item ID');
   if(!k.errors.length){
    const run=hydrateRun(c,itemsById,()=>null);
