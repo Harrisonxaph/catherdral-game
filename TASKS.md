@@ -20,8 +20,8 @@ with baseline captures. Spec approved by the owner on 2026-10-27 with the defaul
 decisions in SPEC.md section 9; increments 1–7 follow as one PR each, each based on
 the previous branch. No merge or deployment.
 Progress: increment 1 (tooling and budgets) in PR #20; increment 2 (light and value
-pass) on `development/graphics-v2-lighting`. Next: increment 3, architecture and
-floor identities.
+pass) in PR #21; increment 3 (architecture and floor identities) on
+`development/graphics-v2-architecture`. Next: increment 4, effects.
 
 ## Previous task — merged in PR #17
 

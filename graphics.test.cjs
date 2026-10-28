@@ -9,6 +9,7 @@ test('Baked torch light is bounded, falls off with distance and is deterministic
  for(const v of near)assert.ok(v>=lighting.base&&v<=lighting.max);
  assert.ok(near[0]>near[2]); // warm torch colour tints red above blue
  assert.deepEqual(sample(10.5,0,10),G.lightField(torches,'#ffb46a')(10.5,0,10));
+ assert.deepEqual(G.lightField([], '#ffb46a',.5)(3,0,3),[.5,.5,.5]);assert.deepEqual(G.lightField([], '#ffb46a',undefined)(3,0,3),[lighting.base,lighting.base,lighting.base]);
  // Many overlapping torches stay capped; bucketing finds torches across cell borders.
  const crowd=G.lightField(Array.from({length:40},(_,i)=>({x:5+i*.01,y:5})),'#ffffff')(5,0,5);assert.ok(crowd.every(v=>v===lighting.max));
  const edge=G.lightField([{x:lighting.radius-.01,y:0}],'#ffffff')(lighting.radius+.01,0,0);assert.ok(edge[0]>lighting.base);
@@ -22,5 +23,7 @@ test('Ambient occlusion darkens wall-adjacent floor cells within its cap',()=>{
 test('Every floor theme defines distinct torch light, exposure, fog density and grade',()=>{
  const hex=/^#[0-9a-f]{6}$/i;
  for(const t of G.themes){assert.match(t.torch,hex);assert.match(t.grade,hex);assert.ok(t.exposure>=1&&t.exposure<=1.5);assert.ok(t.fogDensity>0&&t.fogDensity<.05);}
- assert.equal(new Set(G.themes.map(t=>t.torch)).size,5);assert.equal(new Set(G.themes.map(t=>t.grade)).size,5);
+ assert.equal(new Set(G.themes.map(t=>t.torch)).size,5);
+ for(const t of G.themes){assert.match(t.motes.color,hex);assert.ok(Math.abs(t.motes.speed)>0&&Math.abs(t.motes.speed)<.5);assert.ok(t.motes.size>0&&t.motes.size<4);}
+ assert.ok(G.themes[4].motes.speed<0,'Throne of Ash ash falls');assert.equal(new Set(G.themes.map(t=>t.motes.color)).size,5);assert.equal(new Set(G.themes.map(t=>t.grade)).size,5);
 });

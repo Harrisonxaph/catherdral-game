@@ -254,5 +254,20 @@ unverified, one stacked PR per increment, no external art). Increments:
    build roughly +20–40% (still under 100 ms in software WebGL). No gameplay,
    collision, Canvas fallback or HUD layout change.
 
+3. Architecture and floor identities (branch `development/graphics-v2-architecture`):
+   generated `flagstone` (floors, uniform roughness 0.55 so grout cannot shine) and
+   `relief` textures; varied slab layouts (border courses along walls, split,
+   cracked and sunken slabs, worn centre-line paths) reusing the floor batch;
+   chamfered cornice caps; rubble and fallen drums on broken walls; back-wall
+   reliefs and per-floor features (crypt skull niches/ossuary, plague censers,
+   fungus and puddles, chapel runner/hangings/candelabra, sanctum floating masonry
+   and non-emissive rune inlays, throne braziers that join the baked light and ash
+   drifts); per-floor motes (falling ash on floor 5) and a darker floor-5 base.
+   Fixed existing decorations that sat on walkable cells (window tracery on the
+   wall/floor boundary; banners and High vault ribs across doorways); the graphics
+   suite now fails any decoration taller than 0.2 centred on a walkable cell.
+   Remaining budget after increment 3: Medium triangles about 4k in the tightest
+   scene, Low textures at the 8 limit.
+
 Measurements are software WebGL, not phone FPS; physical-device checks remain
 outstanding for every increment.
