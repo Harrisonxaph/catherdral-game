@@ -25,11 +25,13 @@
  const pointsSpent=c=>Object.values(c.passiveRanks).reduce((n,r)=>n+r,0)+Object.values(c.abilityUpgradeRanks).reduce((n,r)=>n+r,0);
  // Intrinsic stats are always recomputed from rules; equipment totals are applied later by E.stats and never stored here.
  function derivedStats(c){
-  const core=progression.core[c.coreProfile],levels=c.level-1,r=k=>c.passiveRanks[k]||0,p=progression.passives;
+  const core=own(progression.core,c.coreProfile),levels=c.level-1,r=k=>c.passiveRanks[k]||0,p=progression.passives;
   return Object.freeze({maxHp:core.maxHp+levels*progression.hpPerLevel+r('vigor')*p.vigor.maxHp,damage:core.damage+levels*progression.damagePerLevel+r('edge')*p.edge.damage,speed:Math.min(progression.maxSpeed,core.speed*(1+r('stride')*p.stride.speed)),range:core.range,arc:core.arc,attackRate:core.attackRate,dashCd:core.dashCd,crit:Math.min(.7,core.crit+r('focus')*p.focus.crit)});
  }
 
  // ---- validation helpers: every record is allowlisted; nothing from a candidate is spread into live state.
+ // Candidate values are never coerced: lookups keyed by save data go through own(), so {toString:null} cannot throw.
+ const own=(table,key)=>typeof key==='string'&&plain(table)&&Object.hasOwn(table,key)?table[key]:undefined;
  const plain=v=>!!v&&typeof v==='object'&&!Array.isArray(v)&&(Object.getPrototypeOf(v)===Object.prototype||Object.getPrototypeOf(v)===null);
  const safeInt=(v,lo=0,hi=Number.MAX_SAFE_INTEGER)=>Number.isSafeInteger(v)&&v>=lo&&v<=hi;
  const finite=(v,lo,hi)=>typeof v==='number'&&Number.isFinite(v)&&v>=lo&&v<=hi;
@@ -50,7 +52,7 @@
   if(!k.shape(c,'character',['level','lifetimeXp','xpIntoLevel','unspentSkillPoints','coreProfile','passiveRanks','abilityUpgradeRanks','resources','timers','ash','deaths','equipment','backpack','stash','nextItemId','abilityUnlocks']))return;
   if(!safeInt(c.lifetimeXp,0,limits.xp))k.fail('character.lifetimeXp','must be a bounded non-negative integer');
   else{const d=levelFor(c.lifetimeXp);if(c.level!==d.level)k.fail('character.level','does not match lifetime XP');if(c.xpIntoLevel!==d.xpIntoLevel)k.fail('character.xpIntoLevel','does not match lifetime XP');}
-  if(!progression.core[c.coreProfile])k.fail('character.coreProfile','unknown core profile');
+  if(!own(progression.core,c.coreProfile))k.fail('character.coreProfile','unknown core profile');
   k.map(c.passiveRanks,'character.passiveRanks',8,(id,rank,p)=>progression.passives[id]?safeInt(rank,1,progression.passives[id].max)||k.fail(p,'rank out of range'):k.fail(p,'unknown passive'));
   k.map(c.abilityUpgradeRanks,'character.abilityUpgradeRanks',8,(id,rank,p)=>progression.abilityUpgrades[id]?safeInt(rank,1,progression.abilityUpgrades[id].max)||k.fail(p,'rank out of range'):k.fail(p,'ability upgrades are not approved'));
   if(!safeInt(c.unspentSkillPoints,0,progression.levelCap))k.fail('character.unspentSkillPoints','must be a bounded non-negative integer');
@@ -74,9 +76,9 @@
 
  function validateCampaign(m,k,itemsById,owners,rewards){
   if(!k.shape(m,'campaign',['unlockedLocations','activeCheckpointId','campaignComplete','bossCompletions','eliteCompletions','questStates','storyFlags','journalEntries','rewardLedger','rewardEscrow']))return [];
-  const unlocked=Array.isArray(m.unlockedLocations)?m.unlockedLocations:[];
+  const unlocked=Array.isArray(m.unlockedLocations)&&m.unlockedLocations.every(id=>typeof id==='string')?m.unlockedLocations:[];
   // Locations unlock in campaign order, so the unlocked list is always a prefix of the five floors.
-  if(!Array.isArray(m.unlockedLocations)||!unlocked.length||unlocked.length>locations.length||unlocked.some((id,i)=>id!==locations[i]))k.fail('campaign.unlockedLocations','must be the campaign prefix starting with forgotten-crypt');
+  if(!Array.isArray(m.unlockedLocations)||!unlocked.length||unlocked.length!==m.unlockedLocations.length||unlocked.length>locations.length||unlocked.some((id,i)=>id!==locations[i]))k.fail('campaign.unlockedLocations','must be the campaign prefix starting with forgotten-crypt');
   if(typeof m.activeCheckpointId!=='string'||!unlocked.some(id=>m.activeCheckpointId===id+':entrance'))k.fail('campaign.activeCheckpointId','must be the entrance of an unlocked location');
   const completion=(v,path,allowed)=>k.map(v,path,allowed.length,(id,done,p)=>!allowed.includes(id)?k.fail(p,'not an encounter location'):!unlocked.includes(id)?k.fail(p,'location is not unlocked'):done===true||k.fail(p,'must be true'));
   completion(m.bossCompletions,'campaign.bossCompletions',bossLocations);completion(m.eliteCompletions,'campaign.eliteCompletions',eliteLocations);
@@ -96,7 +98,7 @@
   if(!k.shape(w,'world',['lifecycle','currentLocationId','currentInstanceId','pendingTransition','checkpoints','locations','instances']))return;
   if(k.shape(w.lifecycle,'world.lifecycle',['mode','deathId','lastRespawnId'])){
    const l=w.lifecycle;
-   if(l.mode==='alive'){if(!(hp>0))k.fail('world.lifecycle.mode','a living character needs health above zero');if(l.deathId!==null)k.fail('world.lifecycle.deathId','must be null while alive');}
+   if(l.mode==='alive'){if(!(typeof hp==='number'&&hp>0))k.fail('world.lifecycle.mode','a living character needs health above zero');if(l.deathId!==null)k.fail('world.lifecycle.deathId','must be null while alive');}
    else if(l.mode==='dead-pending-respawn'){if(hp!==0)k.fail('world.lifecycle.mode','a pending respawn stores zero health');if(!idText(l.deathId))k.fail('world.lifecycle.deathId','a pending respawn needs a death ID');}
    else k.fail('world.lifecycle.mode','must be alive or dead-pending-respawn');
    if(l.lastRespawnId!==null&&!idText(l.lastRespawnId))k.fail('world.lifecycle.lastRespawnId','invalid');
@@ -116,13 +118,13 @@
     if(!idText(d.dropId))k.fail(dp+'.dropId','invalid');else if(dropIds.has(d.dropId))k.fail(dp+'.dropId','duplicate drop ID');else dropIds.add(d.dropId);
     if(!finite(d.x,-1024,1024)||!finite(d.y,-1024,1024))k.fail(dp,'position out of range');
     if(d.rewardKey!==null&&!idText(d.rewardKey))k.fail(dp+'.rewardKey','invalid');else if(d.rewardKey!==null)rewards.push({key:d.rewardKey,path:dp+'.rewardKey'});
-    if(d.rewardKey!==null&&(!plain(rewardLedger)||rewardLedger[d.rewardKey]!=='escrow'))k.fail(dp+'.rewardKey','ledger must mark a dropped reward as escrow');
+    if(d.rewardKey!==null&&(!plain(rewardLedger)||own(rewardLedger,d.rewardKey)!=='escrow'))k.fail(dp+'.rewardKey','ledger must mark a dropped reward as escrow');
     if(d.kind==='item'){if(d.amount!==1)k.fail(dp+'.amount','item drops have amount 1');if(!safeInt(d.itemId,1)||!itemsById.has(d.itemId))return k.fail(dp+'.itemId','references a missing item');owners.push({id:d.itemId,path:dp+'.itemId'});}
     else if(d.kind==='ash'||d.kind==='potion'){if(d.itemId!==null)k.fail(dp+'.itemId','must be null');if(!safeInt(d.amount,1,d.kind==='ash'?limits.ash:E.balance.potions))k.fail(dp+'.amount','out of range');}
     else k.fail(dp+'.kind','must be item, ash or potion');
    });
   });
-  if(w.currentInstanceId!==null&&!(plain(w.instances)&&w.instances[w.currentInstanceId]?.locationId===w.currentLocationId))k.fail('world.currentInstanceId','must name an instance of the current location');
+  if(w.currentInstanceId!==null&&!(plain(w.instances)&&own(w.instances,w.currentInstanceId)?.locationId===w.currentLocationId))k.fail('world.currentInstanceId','must name an instance of the current location');
  }
 
  // Returns {ok, code, errors}. code is 'unsupported' for a future or unknown version: such saves are read-only, never overwritten.
@@ -134,11 +136,11 @@
    return {ok:false,code:future?'unsupported':'invalid',errors:[{path:'schemaVersion',message:future?'saved by a newer or different game version':'unknown save version'}]};
   }
   if(!k.shape(envelope,'',['schemaVersion','contentVersion','progressionVersion','characterId','revision','createdAt','savedAt','writer','integrity','payload']))return {ok:false,code:'invalid',errors:k.errors};
-  if(!/^[A-Za-z0-9-]{8,64}$/.test(String(envelope.characterId)))k.fail('characterId','invalid');
+  if(typeof envelope.characterId!=='string'||!/^[A-Za-z0-9-]{8,64}$/.test(envelope.characterId))k.fail('characterId','invalid');
   if(!safeInt(envelope.revision,1))k.fail('revision','must be a positive safe integer');
   if(!isoTime(envelope.createdAt))k.fail('createdAt','must be a timestamp');if(!isoTime(envelope.savedAt))k.fail('savedAt','must be a timestamp');
   if(k.shape(envelope.writer,'writer',['sessionId','leaseEpoch'])){idText(envelope.writer.sessionId)||k.fail('writer.sessionId','invalid');safeInt(envelope.writer.leaseEpoch)||k.fail('writer.leaseEpoch','invalid');}
-  if(envelope.integrity!==null&&k.shape(envelope.integrity,'integrity',['algorithm','digest'])){envelope.integrity.algorithm==='SHA-256'||k.fail('integrity.algorithm','unsupported');/^[0-9a-f]{64}$/.test(String(envelope.integrity.digest))||k.fail('integrity.digest','invalid');}
+  if(envelope.integrity!==null&&k.shape(envelope.integrity,'integrity',['algorithm','digest'])){envelope.integrity.algorithm==='SHA-256'||k.fail('integrity.algorithm','unsupported');typeof envelope.integrity.digest==='string'&&/^[0-9a-f]{64}$/.test(envelope.integrity.digest)||k.fail('integrity.digest','invalid');}
   validatePayload(envelope.payload,k);
   return {ok:!k.errors.length,code:k.errors.length?'invalid':null,errors:k.errors};
  }
@@ -175,7 +177,7 @@
     safeInt(c.resources.potions,0,E.balance.potions)||k.fail('character.resources.potions','out of range');
    }
   }
-  if(p.legacy!==null&&k.shape(p.legacy,'legacy',['migrationId','bestKills','narrativeMemories','sourceFingerprint'])){idText(p.legacy.migrationId)||k.fail('legacy.migrationId','invalid');safeInt(p.legacy.bestKills,0,limits.deaths)||k.fail('legacy.bestKills','invalid');k.list(p.legacy.narrativeMemories,'legacy.narrativeMemories',limits.journal,(m,mp)=>text(m)||k.fail(mp,'invalid'));/^[0-9a-f]{0,64}$/.test(String(p.legacy.sourceFingerprint))||k.fail('legacy.sourceFingerprint','invalid');}
+  if(p.legacy!==null&&k.shape(p.legacy,'legacy',['migrationId','bestKills','narrativeMemories','sourceFingerprint'])){idText(p.legacy.migrationId)||k.fail('legacy.migrationId','invalid');safeInt(p.legacy.bestKills,0,limits.deaths)||k.fail('legacy.bestKills','invalid');k.list(p.legacy.narrativeMemories,'legacy.narrativeMemories',limits.journal,(m,mp)=>text(m)||k.fail(mp,'invalid'));typeof p.legacy.sourceFingerprint==='string'&&/^[0-9a-f]{0,64}$/.test(p.legacy.sourceFingerprint)||k.fail('legacy.sourceFingerprint','invalid');}
  }
  // Plain records → frozen E.* instances. `make` is E.restore for real hydration, or a stub for validation.
  function hydrateRun(c,itemsById,make){const get=id=>id===null?null:make(itemsById.get(id))||{id,key:itemsById.get(id).key,mods:itemsById.get(id).mods};return {main:get(c.equipment.main),off:get(c.equipment.off),bag:c.backpack.map(get),potions:c.resources?.potions};}
