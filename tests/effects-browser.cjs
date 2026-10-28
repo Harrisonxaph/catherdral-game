@@ -5,8 +5,9 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
  for(const [viewport,quality] of [[{width:393,height:852},'low'],[{width:960,height:720},'high']]){
   const context=await browser.newContext({viewport,serviceWorkers:'block'}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(q=>{requestAnimationFrame=()=>0;localStorage.setItem('vesperGraphics',q);},quality);
-  await page.route('**/index.html',r=>{let h=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');h=h.replace("const stick=$('stick')","window.fxQA={startGame,tick,draw,dropEquipment,clearLoot(){loots=[]},collectEquipment,get run(){return runEquipment},attemptAttack,activateAbility,spawnEnemy,killEnemy,combat,abilities,setAttackTimer(v){attackTimer=v},get player(){return player},get enemies(){return enemies},clearEnemies(){enemies=[]},get torches(){return torches},get time(){return time},get state(){return state},setState(s){state=s}};const stick=$('stick')");r.fulfill({body:h,contentType:'text/html'});});
+  await page.route('**/index.html',r=>{let h=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');h=h.replace("const stick=$('stick')","window.fxQA={get world(){return world},get cam(){return cam},startGame,tick,draw,dropEquipment,clearLoot(){loots=[]},collectEquipment,get run(){return runEquipment},attemptAttack,activateAbility,spawnEnemy,killEnemy,combat,abilities,setAttackTimer(v){attackTimer=v},get player(){return player},get enemies(){return enemies},clearEnemies(){enemies=[]},get torches(){return torches},get time(){return time},get state(){return state},setState(s){state=s}};const stick=$('stick')");r.fulfill({body:h,contentType:'text/html'});});
   await page.goto((process.env.BASE_URL||'http://127.0.0.1:3011')+'/index.html');await page.waitForFunction(()=>window.fxQA&&window.castleView);
+  await page.evaluate(async()=>{window.__cut=(await import('./art-materials.js')).cutUniforms;});
   const report=await page.evaluate(()=>{
    const q=fxQA,v=castleView,out={};q.startGame();q.player.xpNeeded=1e9;q.clearEnemies();q.draw();
    if(v.quality!==VesperGraphics.current)throw Error('Quality not applied');
@@ -50,6 +51,14 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    // Inventory icons: every item renders its own icon.
    const keys=Object.keys(E.definitions),seen={};for(let batch=0;batch<2;batch++){q.run.bag=Array(6).fill(null);for(const k of keys.slice(batch*6,batch*6+6))E.collect(q.run,E.item(k));document.getElementById('inventory-button').click();for(const svg of document.querySelectorAll('#backpack-slots svg[data-icon]'))seen[svg.dataset.icon]=svg.innerHTML;document.getElementById('inventory-close').click();}
    out.icons=keys.every(k=>seen[k])&&new Set(Object.values(seen)).size===keys.length;
+   // Camera (W6): wall cutaway in front of the hero, and frustum chunk culling.
+   q.clearEnemies();q.clearLoot();const room=q.world.rooms.find(r=>!q.world.walk(r.cx,r.y+r.h)),P=q.player;P.x=room.cx+.5;P.y=room.y+room.h-.6;q.cam.x=P.x;q.cam.y=P.y;
+   const sample=(x,y,z,box=24)=>{q.draw();const canvas=v.renderer.domElement,ctx=document.createElement('canvas').getContext('2d');ctx.canvas.width=canvas.width;ctx.canvas.height=canvas.height;ctx.drawImage(canvas,0,0);const p=new v.camera.position.constructor(x,y,z).project(v.camera),px=Math.round((p.x+1)/2*canvas.width),py=Math.round((1-p.y)/2*canvas.height);return Array.from(ctx.getImageData(px-box/2,py-box/2,box,box).data);};
+   const cutOn=v.updateCutaway;const legs=sample(P.x,.3,P.y+.45),far=sample(P.x,.3,room.y+.5);
+   const uniforms=window.__cut;v.updateCutaway=function(){cutOn.apply(this,arguments);for(const c of uniforms.cutCentres.value)c.w=0;};const legsOff=sample(P.x,.3,P.y+.45),farOff=sample(P.x,.3,room.y+.5);v.updateCutaway=cutOn;
+   const diff=(a,b)=>a.reduce((n,x,i)=>n+Math.abs(x-b[i]),0)/a.length;out.cutLegs=diff(legs,legsOff);out.cutFar=diff(far,farOff);
+   const oldRule=[...v.environment.chunks.values()].filter(g=>Math.abs(g.userData.center.x-P.x)<22&&Math.abs(g.userData.center.y-P.y)<26).length,shown=[...v.environment.chunks.values()].filter(g=>g.visible);
+   out.frustum={shown:shown.length,oldRule,heroChunk:shown.some(g=>g.userData.box.containsPoint(new v.camera.position.constructor(P.x,0,P.y)))};
    q.draw();return out;
   });
   const t=report.telegraph,grow=t.filter(x=>x.shape!=='wall'),wall=t.find(x=>x.shape==='wall');
@@ -57,10 +66,11 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    scorchBudget:report.scorch<=report.scorchBudget&&(report.scorchBudget===0?report.scorch===0:report.scorch>=1),
    telegraphGrow:grow.every(x=>x.early.visible&&x.early.scale<.1&&x.late.scale>.99&&x.hiddenWhenActive),telegraphWall:wall.early.scale===1&&wall.late.scale===1&&wall.late.opacity>wall.early.opacity&&wall.hiddenWhenActive,
    rim:report.rim,cape:report.cape&&report.capeMoves,swing:report.swing,windup:report.windup,death:report.deathMid&&report.deathEnds,
-   loot:report.lootGlow&&report.pickup&&report.pickupEnds,icons:report.icons};
+   loot:report.lootGlow&&report.pickup&&report.pickupEnds,icons:report.icons,
+   cutaway:report.cutLegs>3&&report.cutFar<.5,frustum:report.frustum.shown>0&&report.frustum.shown<=report.frustum.oldRule&&report.frustum.heroChunk};
   for(const [k,ok] of Object.entries(checks))if(!ok)throw Error(`${quality} effect check failed: ${k} ${JSON.stringify(report)}`);
   if(errors.length)throw Error(JSON.stringify(errors));
-  console.log(JSON.stringify({viewport,quality,...checks,scorch:report.scorch,errors}));await context.close();
+  console.log(JSON.stringify({viewport,quality,...checks,scorch:report.scorch,cutLegs:+report.cutLegs.toFixed(1),cutFar:+report.cutFar.toFixed(2),chunks:report.frustum,errors}));await context.close();
  }
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});
