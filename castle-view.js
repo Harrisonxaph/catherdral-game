@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.min.js';
 import {material,shapes,mesh,settingsMaterials,contactMaterial,resourceInfo} from './art-materials.js';
-import {buildEnvironment,updateEnvironment,disposeEnvironment} from './environment-art.js';
+import {buildEnvironment,updateEnvironment,disposeEnvironment,poolTexture} from './environment-art.js';
 import {createCharacter,animateCharacter,disposeCharacter} from './character-art.js';
 import {createBoss,animateBoss,disposeBoss,createRoyalAxe,setBossQuality,createRitualCandle,animateRitualCandle,createAcidProjectile} from './boss-art.js';
 import {createBossEffects,animateHazardEffects,animateCollapse,disposeBossEffects,createAcidStreams} from './boss-effects.js';
@@ -27,6 +27,13 @@ const hitMaterial=new THREE.MeshBasicMaterial({color:'#ffe3c2',transparent:true,
 const hazardMaterials=new Map();
 function hazardMaterial(color,warning){const key=color+warning;if(!hazardMaterials.has(key))hazardMaterials.set(key,new THREE.MeshBasicMaterial({color,transparent:true,opacity:warning?.18:.5,depthWrite:false,side:THREE.DoubleSide}));return hazardMaterials.get(key);}
 
+// Combat effects (graphics v2, W4). Pools are allocated at the High budget and drawn up to the active preset's budget.
+const impactMaterial=new THREE.MeshBasicMaterial({map:poolTexture,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+const scorchMaterial=new THREE.MeshBasicMaterial({map:poolTexture,color:'#000000',transparent:true,opacity:.5,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3});
+const puffMaterial=new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:.55,depthWrite:false});
+const ribbonMaterial=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+const puffGeometry=new THREE.IcosahedronGeometry(1,0),tipWorld=new THREE.Vector3(),baseWorld=new THREE.Vector3();
+function progressMaterial(color){const m=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});return m;}
 const heroPosition=new THREE.Vector3();const trailMaterials=new Map();const fadingMaterials=new Map();
 function trailMaterial(color){if(!trailMaterials.has(color))trailMaterials.set(color,new THREE.MeshBasicMaterial({color,transparent:true,opacity:.7,depthWrite:false,blending:THREE.AdditiveBlending}));return trailMaterials.get(color);}
 function fadedMaterial(original){if(!fadingMaterials.has(original)){const m=original.clone();m.transparent=true;m.opacity=.24;m.depthWrite=false;fadingMaterials.set(original,m);}return fadingMaterials.get(original);}
@@ -61,6 +68,11 @@ class CastleView {
     this.camera = new THREE.OrthographicCamera();
     this.camera.near = .1; this.camera.far = 100;
     this.atmosphereGeometry=new THREE.BufferGeometry();this.atmosphereGeometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(42*3),3));this.atmosphereMaterial=new THREE.PointsMaterial({color:'#beced4',size:1.8,transparent:true,opacity:.3,depthWrite:false});this.atmosphere=new THREE.Points(this.atmosphereGeometry,this.atmosphereMaterial);this.atmosphere.frustumCulled=false;this.scene.add(this.atmosphere);this.effectDummy=new THREE.Object3D();this.effectColor=new THREE.Color();this.effectMaterial=new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:.85,depthWrite:false,blending:THREE.AdditiveBlending});this.particleBatch=new THREE.InstancedMesh(sphere,this.effectMaterial,120);this.projectileBatch=new THREE.InstancedMesh(sphere,this.effectMaterial,48);for(const batch of [this.particleBatch,this.projectileBatch]){batch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);batch.frustumCulled=false;batch.count=0;this.scene.add(batch);}this.actorPool=new Map();this.torchLights=Array.from({length:3},()=>{const light=new THREE.PointLight('#ffb46c',0,6,2);this.scene.add(light);return light;});this.dynamic = new Map(); this.world = null; this.enabled = true;
+    const V=window.VesperVFX,max=V.budgets.high;this.fxDummy=new THREE.Object3D();this.resetEffects();
+    const ribbon=new THREE.BufferGeometry(),index=[];ribbon.setAttribute('position',new THREE.BufferAttribute(new Float32Array(max.trail*6),3).setUsage(THREE.DynamicDrawUsage));ribbon.setAttribute('color',new THREE.BufferAttribute(new Float32Array(max.trail*6),3).setUsage(THREE.DynamicDrawUsage));for(let i=0;i<max.trail-1;i++){const a=i*2;index.push(a,a+1,a+2,a+1,a+3,a+2);}ribbon.setIndex(index);
+    this.ribbon=new THREE.Mesh(ribbon,ribbonMaterial);this.ribbon.frustumCulled=false;this.ribbon.renderOrder=6;this.ribbon.visible=false;this.scene.add(this.ribbon);
+    this.impactBatch=new THREE.InstancedMesh(shapes.plane,impactMaterial,max.impacts);this.scorchBatch=new THREE.InstancedMesh(shapes.plane,scorchMaterial,max.scorch);this.puffBatch=new THREE.InstancedMesh(puffGeometry,puffMaterial,max.puffs*5);
+    for(const b of [this.impactBatch,this.scorchBatch,this.puffBatch]){b.instanceMatrix.setUsage(THREE.DynamicDrawUsage);b.frustumCulled=false;b.count=0;b.visible=false;this.scene.add(b);}this.impactBatch.renderOrder=7;
     window.addEventListener('vesper-graphics-change',()=>this.setQuality(window.VesperGraphics.current));
     this.renderer.domElement.addEventListener('webglcontextlost', e => {
       e.preventDefault(); this.enabled = false; this.renderer.domElement.hidden = true; this.grade.hidden = true;
@@ -68,8 +80,9 @@ class CastleView {
     });
     this.renderer.domElement.addEventListener('webglcontextrestored', () => { this.enabled = true; });
   }
+  resetEffects(){const V=window.VesperVFX,b=V.budgets[this.quality];this.vfx={trail:V.createTrail(b.trail),impacts:V.createPool(b.impacts),scorch:V.createPool(b.scorch),puffs:V.createPool(b.puffs),hits:new WeakMap(),dead:new WeakSet()};}
   setQuality(value){
-    this.quality=value;this.preset=window.VesperGraphics.presets[value];this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,this.preset.pixelRatio));this.width=0;this.world=null;settingsMaterials(this.preset.bump);setBossQuality(this.quality);for(const [base,m]of fadingMaterials){m.bumpMap=this.preset.bump?base.map:null;m.needsUpdate=true;}
+    this.quality=value;this.preset=window.VesperGraphics.presets[value];this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,this.preset.pixelRatio));this.width=0;this.world=null;this.resetEffects();settingsMaterials(this.preset.bump);setBossQuality(this.quality);for(const [base,m]of fadingMaterials){m.bumpMap=this.preset.bump?base.map:null;m.needsUpdate=true;}
   }
   release(mesh,pool=true){
     this.scene.remove(mesh);
@@ -80,8 +93,27 @@ class CastleView {
   build(world,torches,stair){
     disposeEnvironment(this.environment);if(this.bossEffects)disposeBossEffects(this.bossEffects);this.bossEffects=createBossEffects();this.scene.add(this.bossEffects);
     for(const object of this.dynamic.values())this.release(object,false);this.dynamic.clear();for(const pool of this.actorPool.values())for(const m of pool)disposeCharacter(m);this.actorPool.clear();
-    this.world=world;this.theme=window.VesperGraphics.themes[world.config.number-1];this.environment=buildEnvironment(world,torches,stair,this.theme,this.preset);this.structure=this.environment.root;this.scene.add(this.structure);this.flames=this.environment.flames;this.portalRing=this.environment.portalRing;
+    this.resetEffects();this.world=world;this.theme=window.VesperGraphics.themes[world.config.number-1];this.environment=buildEnvironment(world,torches,stair,this.theme,this.preset);this.structure=this.environment.root;this.scene.add(this.structure);this.flames=this.environment.flames;this.portalRing=this.environment.portalRing;
     this.renderer.setClearColor(this.theme.fog);this.scene.fog=new THREE.FogExp2(this.theme.fog,this.theme.fogDensity);this.renderer.toneMappingExposure=this.theme.exposure;this.grade.style.setProperty('--grade',this.theme.grade);this.ambient.color.set(this.theme.ambient);this.moon.color.set(this.theme.ambient);settingsMaterials(this.preset.bump);setBossQuality(this.quality);
+  }
+  updateEffects({player,enemies,abilityState,equipment,flashes=[]},hero){
+    // Presentation only: reads simulation state (attack timer, hit flash, death flag) and never writes it.
+    const V=window.VesperVFX,fx=this.vfx,dt=this.visualDt,d=this.fxDummy,u=hero.userData,E=window.VesperEquipment,cast=abilityState?.cast;
+    // The trail sweeps the strike's real arc and range from the newest melee flash (the swing pose itself is static).
+    let f=null;for(const x of flashes)if(!x.fullCircle&&(!f||x.t<f.t))f=x;
+    if(f){const arc=f.arc??player.arc,ang=f.a-arc+2*arc*Math.min(1,f.t/(f.duration*.6)),c=Math.cos(ang),sn=Math.sin(ang);tipWorld.set(f.x+c*f.range*.9,.62,f.y+sn*f.range*.9);baseWorld.set(f.x+c*.35,.5,f.y+sn*.35);}
+    const points=V.pushTrail(fx.trail,tipWorld,baseWorld,dt,!!f&&u.sword.visible),pos=this.ribbon.geometry.attributes.position,col=this.ribbon.geometry.attributes.color,main=E?.definition(equipment?.main);
+    this.effectColor.set(f?.color||(cast?window.VesperAbilities.definitions[cast.id]?.color:null)||(main?E.rarities[main.rarity].color:'#ffe0a5'));
+    for(let i=0;i<points.length;i++){const p=points[i],a=V.trailAlpha(i,points.length),c=this.effectColor;pos.setXYZ(i*2,p.tip.x,p.tip.y,p.tip.z);pos.setXYZ(i*2+1,p.base.x,p.base.y,p.base.z);col.setXYZ(i*2,c.r*a,c.g*a,c.b*a);col.setXYZ(i*2+1,c.r*a*.2,c.g*a*.2,c.b*a*.2);}
+    pos.needsUpdate=col.needsUpdate=true;this.ribbon.geometry.setDrawRange(0,Math.max(0,points.length-1)*6);this.ribbon.visible=points.length>1;
+    for(const e of enemies){
+      const last=fx.hits.get(e)||0;if((e.hit||0)>last+.01&&Math.hypot(e.x-player.x,e.y-player.y)<13){const heavy=!!u.heavy;V.spawn(fx.impacts,{x:e.x,y:e.y,life:.16,size:heavy?1.5:.95,heavy});if(heavy)V.spawn(fx.scorch,{x:e.x,y:e.y,life:1.4,size:.9});}fx.hits.set(e,e.hit||0);
+      if(e.dead&&!fx.dead.has(e)){fx.dead.add(e);if(e.type!=='boss'&&Math.hypot(e.x-player.x,e.y-player.y)<13)V.spawn(fx.puffs,{x:e.x,y:e.y,life:.7,color:e.type==='wraith'?'#a9cdd6':e.type==='plague'?'#8f9a6c':'#8f8a84'});}
+    }
+    const draw=(batch,items,place)=>{let n=0;for(const item of items)n=place(item,n,1-item.age/item.life);batch.count=n;batch.visible=n>0;batch.instanceMatrix.needsUpdate=true;if(batch.instanceColor)batch.instanceColor.needsUpdate=true;};
+    draw(this.impactBatch,V.advance(fx.impacts,dt),(i,n,k)=>{d.position.set(i.x,.75,i.y);d.quaternion.copy(this.camera.quaternion);d.scale.setScalar(i.size*(1.2-.6*k));d.updateMatrix();this.impactBatch.setMatrixAt(n,d.matrix);this.impactBatch.setColorAt(n,this.effectColor.set(i.heavy?'#ffb36b':'#fff0d0').multiplyScalar(k));return n+1;});
+    draw(this.scorchBatch,V.advance(fx.scorch,dt),(i,n,k)=>{d.position.set(i.x,.012,i.y);d.rotation.set(-Math.PI/2,0,0);d.scale.setScalar(i.size*(.6+.4*k));d.updateMatrix();this.scorchBatch.setMatrixAt(n,d.matrix);return n+1;});
+    draw(this.puffBatch,V.advance(fx.puffs,dt),(i,n,k)=>{for(let m=0;m<5;m++){const a=m*2.4+i.x,r=.15+(1-k)*.45;d.position.set(i.x+Math.cos(a)*r,.2+(1-k)*1.1+m*.05,i.y+Math.sin(a)*r);d.rotation.set(0,a,0);d.scale.setScalar(.03+.09*k);d.updateMatrix();this.puffBatch.setMatrixAt(n,d.matrix);this.puffBatch.setColorAt(n,this.effectColor.set(i.color));n++;}return n;});
   }
   damageLabel(text) {
     const canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;
@@ -165,6 +197,7 @@ class CastleView {
       if(e.minion)m.scale.setScalar(.65);
       if(e.elite&&!m.userData.elite)m.userData.elite=part(m,cone,gold,0,1.85,0,.13,.16,.13);if(m.userData.elite)m.userData.elite.visible=!!e.elite;
     }
+    this.updateEffects(data,hero);
     for(const h of hazards){
       if(h.spent||Math.hypot(h.x-player.x,h.y-player.y)>24)continue;
       const warning=h.age<h.warning,complex=['cross','wall','polygon'].includes(h.shape);
@@ -183,10 +216,13 @@ class CastleView {
         if(h.shape==='cross'){const streams=createAcidStreams(h);group.add(streams);group.userData.streams=streams;}
         if(h.axe){const axe=createRoyalAxe();axe.scale.setScalar(.6);axe.position.y=.4;axe.rotation.z=Math.PI/2;group.add(axe);group.userData.axe=axe;}
 
+        const progress=new THREE.Group(),pmat=progressMaterial(h.color);progress.position.y=.006;for(const fill of group.userData.fills){const p=new THREE.Mesh(fill.geometry,pmat);p.position.copy(fill.position);p.rotation.copy(fill.rotation);p.renderOrder=3;progress.add(p);}progress.children[0].userData.ownedMaterial=true;group.add(progress);group.userData.progress=progress;
         group.userData.fill=group.userData.fills[0];return group;
       },active);
       m.position.set(h.x,0,h.y);m.rotation.y=-(h.angle||0);m.scale.set(complex?1:h.shape==='rect'?h.width:h.radius,1,complex?1:h.shape==='rect'?h.height:h.radius);
       for(const fill of m.userData.fills){fill.material=hazardMaterial(h.color,warning);fill.visible=true;}
+      // Warning progress: circles/rects/crosses grow from the hazard origin to exactly the final shape; walls and polygons ramp opacity so safe gaps never move.
+      const t=window.VesperVFX.telegraph(h),pg=m.userData.progress;pg.visible=!t.active;if(pg.visible){pg.scale.set(t.scale,1,t.scale);pg.children[0].material.opacity=t.opacity;}
       if(m.userData.streams)m.userData.streams.visible=!warning;
       if(m.userData.flames){m.userData.flames.visible=!warning;m.userData.flames.scale.y=1+Math.sin(time*15)*.12;}
       if(m.userData.axe){m.userData.axe.visible=!warning;m.userData.axe.rotation.y=time*5;}

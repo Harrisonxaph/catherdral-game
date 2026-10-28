@@ -271,5 +271,18 @@ unverified, one stacked PR per increment, no external art). Increments:
    budget after increment 3: Medium triangles about 9.9k in the tightest scene
    (floor 2 desktop; 15–21k elsewhere, was 4.2k), Low textures at the 8 limit.
 
+4. Effects (branch `development/graphics-v2-effects`): pure `vfx-state.js`
+   (budgets per preset, telegraph progress, trail and pool maths). Warning fills
+   grow from the hazard origin to exactly the final shape for circles, rects and
+   crosses, while walls and free polygons only ramp opacity so safe gaps never
+   move; the final quarter pulses. Swing trail sweeps the real strike arc/range
+   from the melee flash (the swing pose is static), coloured by rarity or ability;
+   additive impact flashes from each enemy's hit flash; scorch decals for heavy
+   hits (Medium/High); ash puffs on regular-enemy deaths; torch halos facing the
+   fixed camera. All reuse the existing glow texture (Low is at its texture limit)
+   and freeze with simulation time. Not done: fire flipbook textures (no Low
+   texture slot), per-actor dissolve (character materials are shared; ash puffs
+   instead) and new acid visuals (existing acid streams/motes kept).
+
 Measurements are software WebGL, not phone FPS; physical-device checks remain
 outstanding for every increment.
