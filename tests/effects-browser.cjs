@@ -5,7 +5,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
  for(const [viewport,quality] of [[{width:393,height:852},'low'],[{width:960,height:720},'high']]){
   const context=await browser.newContext({viewport,serviceWorkers:'block'}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(q=>{requestAnimationFrame=()=>0;localStorage.setItem('vesperGraphics',q);},quality);
-  await page.route('**/index.html',r=>{let h=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');h=h.replace("const stick=$('stick')","window.fxQA={startGame,tick,draw,dropEquipment,clearLoot(){loots=[]},collectEquipment,get run(){return runEquipment},attemptAttack,activateAbility,spawnEnemy,killEnemy,combat,abilities,setAttackTimer(v){attackTimer=v},get player(){return player},get enemies(){return enemies},clearEnemies(){enemies=[]},get torches(){return torches},get time(){return time},get state(){return state},setState(s){state=s}};const stick=$('stick')");r.fulfill({body:h,contentType:'text/html'});});
+  await page.route('**/index.html',r=>{let h=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');h=h.replace("const stick=$('stick')","window.fxQA={startGame,tick,draw,dropEquipment,clearLoot(){loots=[]},get loot(){return loots},collectEquipment,get run(){return runEquipment},attemptAttack,activateAbility,spawnEnemy,killEnemy,combat,abilities,setAttackTimer(v){attackTimer=v},get player(){return player},get enemies(){return enemies},clearEnemies(){enemies=[]},get torches(){return torches},get time(){return time},get state(){return state},setState(s){state=s}};const stick=$('stick')");r.fulfill({body:h,contentType:'text/html'});});
   await page.goto((process.env.BASE_URL||'http://127.0.0.1:3011')+'/index.html');await page.waitForFunction(()=>window.fxQA&&window.castleView);
   const report=await page.evaluate(()=>{
    const q=fxQA,v=castleView,out={};q.startGame();q.player.xpNeeded=1e9;q.clearEnemies();q.draw();
@@ -50,6 +50,13 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    out.lootGlow=v.lootBeams.count===1&&v.lootRings.count===1&&v.lootGlints.count===1;
    q.player.x+=.4;q.tick(.04);q.collectEquipment();q.tick(.04);q.draw();out.pickup=v.vfx.pickups.items.length===1&&v.lootBeams.count===1&&v.lootRings.count===0&&document.getElementById('toast').dataset.rarity==='rare';
    for(let i=0;i<20;i++){q.tick(.04);q.draw();}out.pickupEnds=v.lootBeams.count===0&&v.vfx.pickups.items.length===0;
+   // Instance buffers: 60 nearby drops (enemy/chest drops bypass the manual-drop cap) plus 8 simultaneous pickups.
+   q.clearLoot();const P2=q.player,many=[];for(let i=0;i<60;i++){const it=E.item('duskdagger',[{stat:'speed',value:.05}]);many.push(it);q.dropEquipment(it,P2.x+(i%10)*.5-2.25,P2.y+Math.floor(i/10)*.5-1.25);}q.tick(.5);q.draw();
+   const within=b=>b.count<=b.instanceMatrix.count,ringPos=()=>{const a=v.lootRings.instanceMatrix.array,out=[];for(let i=0;i<v.lootRings.count;i++)out.push([a[i*16+12],a[i*16+14]]);return out;};
+   const nearest=q.loot.filter(l=>l.kind==='equipment').sort((a,b)=>Math.hypot(a.x-P2.x,a.y-P2.y)-Math.hypot(b.x-P2.x,b.y-P2.y))[0];
+   out.lootCap={rings:within(v.lootRings),glints:within(v.lootGlints),beams:within(v.lootBeams),nearestShown:ringPos().some(([x,z])=>Math.abs(x-nearest.x)<1e-6&&Math.abs(z-nearest.y)<1e-6),lootKept:q.loot.filter(l=>l.kind==='equipment').length===60};
+   for(const l of q.loot.filter(l=>l.kind==='equipment').slice(0,8))l.gone=true;q.tick(.02);q.draw();out.lootCap.afterPickups=within(v.lootBeams)&&within(v.lootRings)&&v.vfx.pickups.items.length===8&&q.loot.filter(l=>l.kind==='equipment'&&!l.gone).length===52;
+   q.clearLoot();for(let i=0;i<20;i++){q.tick(.04);q.draw();}
    // Inventory icons: every item renders its own icon.
    const keys=Object.keys(E.definitions),seen={};for(let batch=0;batch<2;batch++){q.run.bag=Array(6).fill(null);for(const k of keys.slice(batch*6,batch*6+6))E.collect(q.run,E.item(k));document.getElementById('inventory-button').click();for(const svg of document.querySelectorAll('#backpack-slots svg[data-icon]'))seen[svg.dataset.icon]=svg.innerHTML;document.getElementById('inventory-close').click();}
    out.icons=keys.every(k=>seen[k])&&new Set(Object.values(seen)).size===keys.length;
@@ -60,7 +67,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    scorchBudget:report.scorch<=report.scorchBudget&&(report.scorchBudget===0?report.scorch===0:report.scorch>=1),
    telegraphGrow:grow.every(x=>x.early.visible&&x.early.scale<.1&&x.late.scale>.99&&x.hiddenWhenActive),telegraphWall:wall.early.scale===1&&wall.late.scale===1&&wall.late.opacity>wall.early.opacity&&wall.hiddenWhenActive,
    rim:report.rim,cape:report.cape&&report.capeMoves,swing:report.swing,windup:report.windup,death:report.deathMid&&report.deathEnds,
-   loot:report.lootGlow&&report.pickup&&report.pickupEnds,icons:report.icons};
+   loot:report.lootGlow&&report.pickup&&report.pickupEnds,lootCap:Object.values(report.lootCap).every(Boolean),icons:report.icons};
   for(const [k,ok] of Object.entries(checks))if(!ok)throw Error(`${quality} effect check failed: ${k} ${JSON.stringify(report)}`);
   if(errors.length)throw Error(JSON.stringify(errors));
   console.log(JSON.stringify({viewport,quality,...checks,scorch:report.scorch,errors}));await context.close();
