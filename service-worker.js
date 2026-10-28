@@ -1,5 +1,5 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v13-graphics-lighting';
+const CACHE_VERSION = 'vesper-cathedral-v15-graphics-architecture';
 const APP_ASSETS = [
   './',
   './index.html',
