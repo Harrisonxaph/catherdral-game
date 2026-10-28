@@ -7,7 +7,9 @@ const budgets=Object.freeze({
  low:{drawCalls:1.1,triangles:1.2,lights:0,textures:8},
  medium:{drawCalls:1.2,triangles:1.3,lights:2,textures:10},
  high:{drawCalls:1.2,triangles:1.3,lights:3,textures:10},
- timingAdvisory:1.5
+ timingAdvisory:1.5,
+ // Readability floor (decision D3): darker is allowed, black or flattened is not.
+ minLuma:.6,minSpread:.9
 });
 const allowed=(value,factor)=>Math.floor(value*factor+1e-9);
 function check(before,after){
@@ -22,8 +24,12 @@ function check(before,after){
   if(s.triangles>allowed(b.triangles,limit.triangles))failures.push(`${key(s)}: triangles ${s.triangles} > ${allowed(b.triangles,limit.triangles)}`);
   if(s.lights>limit.lights)failures.push(`${key(s)}: ${s.lights} real-time torch lights > ${limit.lights}`);
   if(s.textures>limit.textures)failures.push(`${key(s)}: ${s.textures} textures > ${limit.textures}`);
+  if(b.meanLuma!==undefined){
+   if(!(s.meanLuma>=b.meanLuma*budgets.minLuma))failures.push(`${key(s)}: play-area luminance ${s.meanLuma} < ${(b.meanLuma*budgets.minLuma).toFixed(1)}`);
+   if(!(s.lumaSpread>=b.lumaSpread*budgets.minSpread))failures.push(`${key(s)}: luminance spread ${s.lumaSpread} < ${(b.lumaSpread*budgets.minSpread).toFixed(1)}`);
+  }
   const slow=s.p50Ms>b.p50Ms*budgets.timingAdvisory;
-  rows.push({scene:key(s),drawCalls:b.drawCalls+'→'+s.drawCalls,triangles:b.triangles+'→'+s.triangles,p50Ms:b.p50Ms+'→'+s.p50Ms+(slow?' (advisory: over 1.5×)':'')});
+  rows.push({scene:key(s),drawCalls:b.drawCalls+'→'+s.drawCalls,triangles:b.triangles+'→'+s.triangles,luma:b.meanLuma+'→'+s.meanLuma,spread:b.lumaSpread+'→'+s.lumaSpread,p50Ms:b.p50Ms+'→'+s.p50Ms+(slow?' (advisory: over 1.5×)':'')});
  }
  return {failures,rows};
 }

@@ -51,17 +51,19 @@ class CastleView {
     this.renderer.domElement.setAttribute('aria-label', '3D castle dungeon');
     this.renderer.domElement.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none';
     document.getElementById('game').after(this.renderer.domElement);
+    // CSS-only colour grade (decision D2): vignette tinted per floor, below every HUD layer, hidden with the 3D canvas.
+    this.grade=document.createElement('div');this.grade.id='castle-grade';this.grade.setAttribute('aria-hidden','true');this.grade.style.cssText='position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 75% 70% at 50% 46%,transparent 55%,var(--grade,#050c16) 100%);opacity:.6';this.renderer.domElement.after(this.grade);
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2('#101722', .035);
-    this.ambient=new THREE.HemisphereLight('#a7bed8','#282330',1.35);this.scene.add(this.ambient);
-    const moon = this.moon = new THREE.DirectionalLight('#c0d7ff', 3.2); moon.position.set(-6, 15, 8); this.scene.add(moon);
-    this.heroLight = new THREE.PointLight('#ffc486', 9, 9, 2); this.scene.add(this.heroLight);
+    this.ambient=new THREE.HemisphereLight('#a7bed8','#282330',1.15);this.scene.add(this.ambient);
+    const moon = this.moon = new THREE.DirectionalLight('#c0d7ff', 2.4); moon.position.set(-6, 15, 8); this.scene.add(moon);
+    this.heroLight = new THREE.PointLight('#ffc486', 11.5, 9, 2); this.scene.add(this.heroLight);
     this.camera = new THREE.OrthographicCamera();
     this.camera.near = .1; this.camera.far = 100;
     this.atmosphereGeometry=new THREE.BufferGeometry();this.atmosphereGeometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(42*3),3));this.atmosphereMaterial=new THREE.PointsMaterial({color:'#beced4',size:1.8,transparent:true,opacity:.3,depthWrite:false});this.atmosphere=new THREE.Points(this.atmosphereGeometry,this.atmosphereMaterial);this.atmosphere.frustumCulled=false;this.scene.add(this.atmosphere);this.effectDummy=new THREE.Object3D();this.effectColor=new THREE.Color();this.effectMaterial=new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:.85,depthWrite:false,blending:THREE.AdditiveBlending});this.particleBatch=new THREE.InstancedMesh(sphere,this.effectMaterial,120);this.projectileBatch=new THREE.InstancedMesh(sphere,this.effectMaterial,48);for(const batch of [this.particleBatch,this.projectileBatch]){batch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);batch.frustumCulled=false;batch.count=0;this.scene.add(batch);}this.actorPool=new Map();this.torchLights=Array.from({length:3},()=>{const light=new THREE.PointLight('#ffb46c',0,6,2);this.scene.add(light);return light;});this.dynamic = new Map(); this.world = null; this.enabled = true;
     window.addEventListener('vesper-graphics-change',()=>this.setQuality(window.VesperGraphics.current));
     this.renderer.domElement.addEventListener('webglcontextlost', e => {
-      e.preventDefault(); this.enabled = false; this.renderer.domElement.hidden = true;
+      e.preventDefault(); this.enabled = false; this.renderer.domElement.hidden = true; this.grade.hidden = true;
       document.getElementById('viewmode').textContent = '2D';
     });
     this.renderer.domElement.addEventListener('webglcontextrestored', () => { this.enabled = true; });
@@ -79,7 +81,7 @@ class CastleView {
     disposeEnvironment(this.environment);if(this.bossEffects)disposeBossEffects(this.bossEffects);this.bossEffects=createBossEffects();this.scene.add(this.bossEffects);
     for(const object of this.dynamic.values())this.release(object,false);this.dynamic.clear();for(const pool of this.actorPool.values())for(const m of pool)disposeCharacter(m);this.actorPool.clear();
     this.world=world;this.theme=window.VesperGraphics.themes[world.config.number-1];this.environment=buildEnvironment(world,torches,stair,this.theme,this.preset);this.structure=this.environment.root;this.scene.add(this.structure);this.flames=this.environment.flames;this.portalRing=this.environment.portalRing;
-    this.renderer.setClearColor(this.theme.fog);this.scene.fog=new THREE.FogExp2(this.theme.fog,.018);this.ambient.color.set(this.theme.ambient);this.moon.color.set(this.theme.ambient);settingsMaterials(this.preset.bump);setBossQuality(this.quality);
+    this.renderer.setClearColor(this.theme.fog);this.scene.fog=new THREE.FogExp2(this.theme.fog,this.theme.fogDensity);this.renderer.toneMappingExposure=this.theme.exposure;this.grade.style.setProperty('--grade',this.theme.grade);this.ambient.color.set(this.theme.ambient);this.moon.color.set(this.theme.ambient);settingsMaterials(this.preset.bump);setBossQuality(this.quality);
   }
   damageLabel(text) {
     const canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;
@@ -99,7 +101,7 @@ class CastleView {
   }
   render(data) {
     const {world,player,torches,stair,cam,time,equipment,abilityState,bossState,enemies,hazards=[],chests,traps,loots,bullets,particles,flashes,texts,portalReady,attackTimer,invul,damageOverlay}=data;
-    this.renderer.domElement.hidden=!this.enabled;
+    this.renderer.domElement.hidden=!this.enabled;this.grade.hidden=!this.enabled;
     if(!this.enabled)return false;
     if(this.world!==world)this.build(world,torches,stair);
     const w=innerWidth,h=innerHeight;
@@ -111,7 +113,7 @@ class CastleView {
     updateEnvironment(this.environment,player,time);
     for(const group of this.environment.chunks.values())if(group.visible)for(const o of group.children)if(o.userData.wall){o.userData.originalMaterial??=o.material;const c=group.userData.center;o.material=c.y>cam.y+3&&Math.abs(c.x-cam.x)<9?fadedMaterial(o.userData.originalMaterial):o.userData.originalMaterial;}
     const positions=this.atmosphereGeometry.attributes.position,count=this.quality==='low'?0:this.quality==='high'?42:24;for(let i=0;i<count;i++)positions.setXYZ(i,player.x+Math.sin(i*127.1)*8+Math.sin(time*.2+i)*.2,.25+((i*.13+time*.1)%1.8),player.y+Math.cos(i*79.3)*8);positions.needsUpdate=true;this.atmosphereGeometry.setDrawRange(0,count);this.atmosphereMaterial.color.set(this.theme.accent);
-    const nearest=this.flames.filter(f=>f.root.visible).sort((a,b)=>a.root.position.distanceToSquared(heroPosition.set(player.x,0,player.y))-b.root.position.distanceToSquared(heroPosition));for(let i=0;i<this.torchLights.length;i++){const light=this.torchLights[i],f=nearest[i];light.visible=i<this.preset.lights&&!!f;if(light.visible){light.position.set(f.root.position.x,1.25,f.root.position.z);light.intensity=7+Math.sin(time*13+f.phase)*1.2;}}
+    const nearest=this.flames.filter(f=>f.root.visible).sort((a,b)=>a.root.position.distanceToSquared(heroPosition.set(player.x,0,player.y))-b.root.position.distanceToSquared(heroPosition));for(let i=0;i<this.torchLights.length;i++){const light=this.torchLights[i],f=nearest[i];light.visible=i<this.preset.lights&&!!f;if(light.visible){light.position.set(f.root.position.x,1.25,f.root.position.z);light.intensity=4.8+Math.sin(time*13+f.phase)*.9;light.color.set(this.theme.torch);}}
     this.heroLight.visible=this.quality!=='low';
     this.visualDt=Math.max(0,Math.min(.05,time-(this.lastVisualTime??time)));this.lastVisualTime=time;
     this.portalRing.material=portalReady?colorMaterial('#efc878'):dark;
