@@ -21,8 +21,11 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    // Death puff: five motes per puff, removed after its life; bosses are excluded elsewhere.
    q.killEnemy(e);q.draw();out.puff=v.puffBatch.count===5;for(let i=0;i<30;i++){q.tick(.03);q.draw();}out.puffEnds=v.puffBatch.count===0;
    // Paused simulation time freezes effects: spawn an impact, pause, redraw, nothing advances.
-   const e2=q.spawnEnemy(q.player.x,q.player.y-1,'bone');e2.hp=e2.maxHp=9999;q.setAttackTimer(0);q.attemptAttack();q.tick(.02);q.draw();const frozen=v.vfx.impacts.items.map(i=>i.age).join();
-   q.setState('inventory');for(let i=0;i<5;i++){q.tick(.1);q.draw();}out.pauseFrozen=frozen!==''&&v.vfx.impacts.items.map(i=>i.age).join()===frozen;q.setState('playing');
+   const e2=q.spawnEnemy(q.player.x,q.player.y-1,'bone');e2.hp=e2.maxHp=9999;q.setAttackTimer(0);q.attemptAttack();for(let i=0;i<3;i++){q.tick(.02);q.draw();}const frozen=v.vfx.impacts.items.map(i=>i.age).join();
+   const trailNow=()=>JSON.stringify(v.vfx.trail.points.map(p=>[p.tip,p.base,p.age]));const trailBefore=trailNow(),trailCount=v.vfx.trail.points.length;
+   q.setState('inventory');for(let i=0;i<5;i++){q.tick(.1);q.draw();}out.pauseFrozen=frozen!==''&&v.vfx.impacts.items.map(i=>i.age).join()===frozen;
+   // Repeated paused redraws must not add samples to the swing trail or age it.
+   for(let i=0;i<6;i++)q.draw();out.trailFrozen=trailCount>1&&trailNow()===trailBefore;q.setState('playing');
    // Heavy hit scorch follows the preset budget (none on Low).
    q.setAttackTimer(0);for(let i=0;i<40;i++){q.tick(.25);}q.abilities.reset?.();e2.x=q.player.x;e2.y=q.player.y-1;q.activateAbility('execution');for(let i=0;i<12;i++){q.tick(.03);q.draw();}
    out.scorch=v.vfx.scorch.items.length;out.scorchBudget=VesperVFX.budgets[v.quality].scorch;
@@ -34,7 +37,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    q.draw();return out;
   });
   const t=report.telegraph,grow=t.filter(x=>x.shape!=='wall'),wall=t.find(x=>x.shape==='wall');
-  const checks={halos:report.halos,trail:report.trail&&report.trailEnds,impact:report.impact&&report.impactEnds,puff:report.puff&&report.puffEnds,pauseFrozen:report.pauseFrozen,
+  const checks={halos:report.halos,trail:report.trail&&report.trailEnds,impact:report.impact&&report.impactEnds,puff:report.puff&&report.puffEnds,pauseFrozen:report.pauseFrozen,trailFrozen:report.trailFrozen,
    scorchBudget:report.scorch<=report.scorchBudget&&(report.scorchBudget===0?report.scorch===0:report.scorch>=1),
    telegraphGrow:grow.every(x=>x.early.visible&&x.early.scale<.1&&x.late.scale>.99&&x.hiddenWhenActive),telegraphWall:wall.early.scale===1&&wall.late.scale===1&&wall.late.opacity>wall.early.opacity&&wall.hiddenWhenActive};
   for(const [k,ok] of Object.entries(checks))if(!ok)throw Error(`${quality} effect check failed: ${k} ${JSON.stringify(report)}`);

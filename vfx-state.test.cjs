@@ -23,6 +23,9 @@ test('Trails keep newest samples first, cap their length and expire old samples'
  for(let i=0;i<6;i++)V.pushTrail(t,p(i),p(i),.01,true);assert.equal(t.points.length,4);assert.equal(t.points[0].tip.x,5);
  V.pushTrail(t,p(9),p(9),.01,false);assert.equal(t.points.length,4);assert.equal(t.points[0].tip.x,5);
  V.pushTrail(t,p(9),p(9),.2,false);assert.equal(t.points.length,0);
+ // Paused redraws (dt 0, or a negative/NaN dt) neither add samples nor age the trail.
+ const frozen=V.createTrail(8);for(let i=0;i<4;i++)V.pushTrail(frozen,p(i),p(i),.02,true);const snap=JSON.stringify(frozen.points);
+ for(let i=0;i<10;i++){V.pushTrail(frozen,p(99),p(99),0,true);V.pushTrail(frozen,p(98),p(98),-.1,true);V.pushTrail(frozen,p(97),p(97),NaN,true);}assert.equal(JSON.stringify(frozen.points),snap);
  assert.equal(V.trailAlpha(0,5),1);assert.equal(V.trailAlpha(4,5),0);assert.ok(V.trailAlpha(1,5)>V.trailAlpha(2,5));assert.equal(V.trailAlpha(0,1),0);
 });
 test('Effect pools never exceed capacity, reuse the oldest slot and drop expired items',()=>{
