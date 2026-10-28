@@ -21,5 +21,6 @@ for(const viewport of [{width:320,height:568},{width:960,height:720},{width:844,
 await browser.close();})().catch(e=>{console.error(e);process.exit(1)});
 const V={low:0,medium:2,high:3};
 // Decoration must never stand above ankle height (0.2) centred on a walkable cell, where the player would walk through it.
-const walkableIntrusions=()=>{const env=castleView.environment,w=graphicsQA.world,bad=[];env.root.traverse(m=>{if(!m.isInstancedMesh||m===env.pools)return;const g=m.geometry;if(!g.boundingBox)g.computeBoundingBox();const bb=g.boundingBox,a=m.instanceMatrix.array;
+const walkableIntrusions=()=>{const env=castleView.environment,w=graphicsQA.world,bad=[];// Light pools and torch halos are additive glow around existing torches, not solid decoration.
+env.root.traverse(m=>{if(!m.isInstancedMesh||m===env.pools||m===env.halos)return;const g=m.geometry;if(!g.boundingBox)g.computeBoundingBox();const bb=g.boundingBox,a=m.instanceMatrix.array;
  for(let i=0;i<m.count;i++){const e=a.subarray(i*16,i*16+16);let top=-1e9;for(const x of [bb.min.x,bb.max.x])for(const y of [bb.min.y,bb.max.y])for(const z of [bb.min.z,bb.max.z])top=Math.max(top,e[1]*x+e[5]*y+e[9]*z+e[13]);if(top>.2&&w.walk(Math.floor(e[12]),Math.floor(e[14])))bad.push(g.type+'@'+e[12].toFixed(1)+','+e[14].toFixed(1));}});return bad;};
