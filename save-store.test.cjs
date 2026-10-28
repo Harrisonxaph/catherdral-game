@@ -188,3 +188,19 @@ test('Review: backups from before a schema upgrade are migrated when restored; a
  assert.equal((await broken.listBackups(ID)).backups.find(b=>b.pinned).status,'corrupt');
  assert.equal((await broken.restoreBackup(ID,pinned.key,lease.epoch)).code,'corrupt');assert.equal(snapshot(adapter),before);
 });
+
+test('Review: non-JSON candidate values are refused, never normalised into a saved record',async()=>{
+ const {adapter,store}=setup(),a=store(),{epoch}=await a.acquireLease(ID),empty=snapshot(adapter);
+ class Slot{}
+ const cases=[['NaN',p=>{p.character.stash[10]=NaN;}],['Infinity',p=>{p.character.ash=Infinity;}],['undefined',p=>{p.character.stash[10]=undefined;}],
+  ['hole',p=>{delete p.character.stash[10];}],['function',p=>{p.character.stash[10]=()=>null;}],['class instance',p=>{p.character.stash[10]=new Slot();}],
+  ['bigint',p=>{p.character.ash=10n;}],['cycle',p=>{p.campaign.questStates.self=p.campaign;}]];
+ for(const [name,change] of cases){
+  const p=basePayload();change(p);
+  const made=await a.create(ID,p,epoch);assert.equal(made.code,'invalid',name+' was accepted');
+  assert.equal(snapshot(adapter),empty,name+' wrote to storage');
+ }
+ // Existing records are protected the same way on commit.
+ assert.ok((await a.create(ID,basePayload(),epoch)).ok);const before=snapshot(adapter),p=basePayload();p.character.stash[10]=NaN;
+ assert.equal((await a.commit(ID,p,{expectedRevision:1,epoch})).code,'invalid');assert.equal(snapshot(adapter),before);
+});

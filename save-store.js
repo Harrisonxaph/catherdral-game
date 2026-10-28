@@ -10,6 +10,18 @@
  const ALL=STORES.map(s=>s.name);
  const pad=n=>String(n).padStart(16,'0');
  const clone=v=>v===undefined?undefined:JSON.parse(JSON.stringify(v));
+ // Snapshot of caller data that refuses, rather than normalises, anything JSON would silently change: NaN/Infinity,
+ // undefined, functions, symbols, bigints, array holes, cycles and non-plain objects all fail instead of becoming null.
+ function strictSnapshot(v,path='payload',seen=new Set()){
+  if(v===null||typeof v==='string'||typeof v==='boolean')return v;
+  if(typeof v==='number'){if(!Number.isFinite(v))throw new StoreError('invalid',path+' is not a finite number');return v;}
+  if(typeof v!=='object')throw new StoreError('invalid',path+' is not JSON data');
+  if(seen.has(v))throw new StoreError('invalid',path+' is circular');seen.add(v);
+  let out;
+  if(Array.isArray(v)){out=[];for(let i=0;i<v.length;i++){if(!(i in v))throw new StoreError('invalid',path+'['+i+'] is a hole');out.push(strictSnapshot(v[i],path+'['+i+']',seen));}}
+  else{const proto=Object.getPrototypeOf(v);if(proto!==Object.prototype&&proto!==null)throw new StoreError('invalid',path+' is not a plain object');out={};for(const k of Object.keys(v))Object.defineProperty(out,k,{value:strictSnapshot(v[k],path+'.'+k,seen),enumerable:true,writable:true,configurable:true});}
+  seen.delete(v);return out;
+ }
  const failure=(code,message,extra)=>({ok:false,code,message,...extra});
  class StoreError extends Error{constructor(code,message){super(message);this.code=code;}}
  // Storage errors become stable codes; nothing is reported as saved unless its transaction completed.
@@ -126,7 +138,9 @@
   // Compare-and-swap write: lease, expected revision and candidate are checked in one transaction, which also moves the
   // previous revision into backups. Validation and signing (WebCrypto) finish before the IndexedDB transaction opens.
   async function commitPayload(id,input,options,createdAt){
-   const payload=clone(input);// repository-owned snapshot: later caller mutations cannot reach the signed record
+   // Repository-owned snapshot taken synchronously, so later caller mutations cannot reach the signed record; a value
+   // the snapshot would have to change is refused here and never saved.
+   let payload;try{payload=strictSnapshot(input);}catch(e){return failure('invalid','the candidate save is invalid',{errors:[{path:'',message:e.message}]});}
    const now=iso(),rev=Math.max(options.expectedRevision,options.revisionFloor||0)+1;
    const env=schema.envelope(payload,{characterId:id,revision:rev,createdAt:createdAt||now,savedAt:now,sessionId,leaseEpoch:options.epoch});
    const check=schema.validate(env);if(!check.ok)return failure(check.code||'invalid','the candidate save is invalid',{errors:check.errors});
