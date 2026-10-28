@@ -243,14 +243,103 @@ Continue, hub or gameplay conversion has been implemented by this documentation.
 [Specification](docs/arpg/SPEC.md), [source/reset audit](docs/arpg/AUDIT.md) and
 [six-phase roadmap](docs/arpg/ROADMAP.md) distinguish proposed defaults from approval.
 
-Fresh baseline: main `3c7b762` includes loot PR #17 and graphics spec #19. GitHub
-reports no open PRs at audit; #20–#26 are merged into preceding development branches,
-not main. Ancestry confirms reviewed graphics head `1c4b4e9` is absent from main.
-Integrate the complete reviewed graphics stack via a separately authorised PR and
-pin the resulting main SHA before implementation; do not overwrite art work or
-assume a closed PR proves production contains it. No integration/merge/deploy here.
+Updated baseline: main `17c8fadea6f881245384cec92fd14417b4a998c1`
+(2026-10-28, merged PR #28) now includes the complete reviewed graphics v2 stack
+and PR #17 loot. The owner reports testing and merging #28. Its graphics tree
+matches reviewed head `1c4b4e9`; the graphics integration gate is satisfied.
+PR #27 incorporates this main baseline and remains documentation-only. Approval
+of the ARPG specification and implementation milestones is still required.
 
 Recommended first code milestone after approval: pure save DTO/validation, item-ID
 hydration/reservation and native IndexedDB revision storage with tests, not wired
 into gameplay. Proposed balance, death/revisit/resource rules, migration and
 single-character scope await approval. Current run reset behaviour still applies.
+## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
+
+Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and
+candlelight"), decisions D1–D5 in its section 9 (camera framing unchanged, CSS-only
+grade, darker balance with a readability floor, portrait/icon provenance still
+unverified, one stacked PR per increment, no external art). Increments:
+
+1. PR #20 — capture tooling (`npm run capture:graphics-v2`) and enforced budgets
+   (`npm run test:graphics-budget`): draw calls, triangles, real-time lights,
+   textures, world digests and a play-area luminance/contrast floor per scene.
+2. Light and value pass (branch `development/graphics-v2-lighting`): torch light
+   and ambient occlusion baked into per-instance colours at floor build
+   (`VesperGraphics.lightField` / `occlusion`, no per-frame cost), one instanced
+   additive pool decal per torch plus a hero lantern pool, darker cornice caps,
+   per-floor torch colour/exposure/fog density, rebalanced hemisphere (1.35→1.15),
+   directional (3.2→2.4), torch (7→4.8) and hero (9→11.5) lights, and a CSS
+   vignette grade hidden with the 3D canvas. Cost: +1 draw call per scene; floor
+   build roughly +20–40% (still under 100 ms in software WebGL). No gameplay,
+   collision, Canvas fallback or HUD layout change.
+
+3. Architecture and floor identities (branch `development/graphics-v2-architecture`):
+   generated `flagstone` (floors, uniform roughness 0.55 so grout cannot shine) and
+   `relief` textures; varied slab layouts (border courses along walls, split,
+   cracked and sunken slabs, worn centre-line paths) reusing the floor batch;
+   chamfered cornice caps; rubble and fallen drums on broken walls; back-wall
+   reliefs and per-floor features (crypt skull niches/ossuary, plague censers,
+   fungus and puddles, chapel runner/hangings/candelabra, sanctum floating masonry
+   and non-emissive rune inlays, throne braziers that join the baked light and ash
+   drifts); per-floor motes (falling ash on floor 5) and a darker floor-5 base.
+   Fixed existing decorations that sat on walkable cells (window tracery on the
+   wall/floor boundary; banners and High vault ribs across doorways); the graphics
+   suite now fails any decoration taller than 0.2 centred on a walkable cell.
+   Owner decision 2026-10-28 (option 1): quarter, half and cracked slab splits are
+   High-only; Medium keeps border courses, sunken slabs and worn paths. Remaining
+   budget after increment 3: Medium triangles about 9.9k in the tightest scene
+   (floor 2 desktop; 15–21k elsewhere, was 4.2k), Low textures at the 8 limit.
+
+4. Effects (branch `development/graphics-v2-effects`): pure `vfx-state.js`
+   (budgets per preset, telegraph progress, trail and pool maths). Warning fills
+   grow from the hazard origin to exactly the final shape for circles, rects and
+   crosses, while walls and free polygons only ramp opacity so safe gaps never
+   move; the final quarter pulses. Swing trail sweeps the real strike arc/range
+   from the melee flash (the swing pose is static), coloured by rarity or ability;
+   additive impact flashes from each enemy's hit flash; scorch decals for heavy
+   hits (Medium/High); ash puffs on regular-enemy deaths; torch halos facing the
+   fixed camera. All reuse the existing glow texture (Low is at its texture limit)
+   and freeze with simulation time. Not done: fire flipbook textures (no Low
+   texture slot), per-actor dissolve (character materials are shared; ash puffs
+   instead) and new acid visuals (existing acid streams/motes kept).
+
+5. Characters (branch `development/graphics-v2-characters`): `actorMaterial` in
+   `art-materials.js` adds a shared fresnel rim (strength 0.42, floor accent mixed
+   45% toward white) to character and boss materials through `onBeforeCompile`,
+   with one program cache key and no extra draw calls; environment materials are
+   unchanged. Hero layered pauldrons, gauntlet cuffs, armoured skirt and helm brim;
+   brute shoulder spikes, ghoul spine ridges, skull crack, plague boils, robe hood
+   folds and wraith wisps, each reusing a material already on its bone. Animation
+   reads existing timers: hero swing from the melee flash, ability wind-up from the
+   cast's remaining windup, enemy wind-up/attack from `stateTime`; breathing idle,
+   turn lean, hit flinch, stun sway with head droop, cape secondary motion (cape
+   kept as its own mesh: one draw call per caped actor) and a 0.7 s two-phase
+   death for regular enemies (`VesperVFX.deathDuration`; was 0.4 s; visual only).
+   Still procedural pivot rigs, not skinned or sculpted assets.
+
+6. Loot, inventory icons and HUD (branch `development/graphics-v2-loot-hud`):
+   item-shaped ground drops (shield, axe, two-handed or one-handed blade); three
+   instanced batches for rarity light (beam taller for Rare, tallest and pulsing for
+   Legendary), rune-ring glow and a glint for rolled-bonus items, drawn only while
+   loot is visible; a beam collapse and rarity-coloured flash on pickup and a
+   rarity-coloured "RELIC ACQUIRED" toast (`showToast` gained an optional rarity).
+   Twelve original line-art inventory icons (one per item) with rarity glows. HUD
+   ornament only (health striations, panel corner brackets, inner button frames):
+   `tests/hud-layout-browser.cjs` renders main `387a900` and the current tree in
+   the same browser at four viewports and compares 23 HUD/control/inventory
+   rectangles (a stored snapshot failed on other machines' fonts), and requires
+   44px touch targets. No item rules, rarity tables or
+   equipment logic changed.
+
+7. Camera, fade and culling (branch `development/graphics-v2-camera`): wall-capable
+   environment materials (`envMaterial`) use a per-pixel dithered cutaway: a front
+   band ghosts walls more than 1.2 south of the view target (as main's chunk fade
+   did) and soft windows open around the hero and up to three nearby enemies (eased
+   0.2 s). Walls stay opaque, with no material clones or extra draws. Chunks are
+   culled against the camera frustum with precomputed bounds. Framing unchanged
+   (D1). Final measurements, device checklist and remaining asset work:
+   [docs/graphics-v2/RESULTS.md](docs/graphics-v2/RESULTS.md).
+
+Measurements are software WebGL, not phone FPS; physical-device checks remain
+outstanding for every increment.

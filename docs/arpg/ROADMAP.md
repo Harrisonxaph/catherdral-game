@@ -4,7 +4,7 @@
 [SPEC.md](SPEC.md); verified integration/reset inventory: [AUDIT.md](AUDIT.md).
 No phase is authorised by this document alone. Use small development branches/PRs,
 never one large conversion. G0 (owner-approved graphics integration and pinned
-main SHA) precedes implementation. Claude implements; Codex reviews actual PRs
+main SHA) is satisfied by PR #28 / main `17c8fad`; spec approval still precedes implementation. Claude implements; Codex reviews actual PRs
 independently before owner decides to merge. No deployment/purchase permission.
 
 ## Recommended smallest first milestone — Phase 1A

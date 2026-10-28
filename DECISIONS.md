@@ -4,6 +4,17 @@ PROJECT.md already records the existing game-design decisions and source
 precedence; reuse that record rather than reconstructing a competing history.
 Dates of earlier choices are not inferred from stage numbers.
 
+## 2026-10-28 — graphics v2: Medium triangle headroom
+
+- Decision (owner chose option 1 of 3): make quarter/half/cracked floor slab splits
+  High-only, rather than raising the Medium triangle budget or squeezing later
+  increments. Medium keeps border courses, sunken slabs and worn paths.
+- Reason: increment 3 left about 4.2k triangles of Medium headroom against the
+  +30% budget, too little for effects, characters and loot work.
+- Result: tightest Medium scene 9.9k headroom (15–21k elsewhere); all 25 scenes
+  within budget and readability floor. Alternatives not taken: raise Medium to
+  +40% (more phone risk), or keep limits and constrain later increments.
+
 ## 2026-10-27 — experimental rolled bonus modifiers (pending review)
 
 - Decision: add per-instance rolled modifiers (`mods` on the frozen item instance)
@@ -57,3 +68,11 @@ Dates of earlier choices are not inferred from stage numbers.
   integrated graphics baseline first; documentation does not perform that merge.
 - Preserve earlier implementation history; a spec author's review is not an
   independent approval of their own implementation PR.
+
+## 2026-10-28 — graphics baseline integrated before ARPG work
+
+- Owner tested and merged PR #28; fetched main is `17c8fad`. Reviewed graphics
+  head `1c4b4e9` is now included. The earlier integration risk above is resolved.
+- PR #27 incorporates main, preserves graphics progress notes and updates G0.
+- ARPG design and balance remain proposals awaiting approval; no save/gameplay
+  implementation, production merge or deployment is part of this update.

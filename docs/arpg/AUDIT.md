@@ -5,12 +5,16 @@ Read with [SPEC.md](SPEC.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Repository and graphics integration
 
-Fetched default main: `3c7b762da4af2ccfe110534fbd367411790efb16` (PR #19).
-No open PRs were returned by GitHub at audit. A clean, isolated worktree uses
-`development/arpg-conversion-spec`; no other checkout or branch was overwritten.
+Updated default-main baseline: `17c8fadea6f881245384cec92fd14417b4a998c1`
+(merged PR #28, 2026-10-28). PR #27 now incorporates this main via a merge,
+preserving graphics documentation and changing no production application files
+relative to main. The owner reports testing and merging #28; device/browser
+coverage of that user test was not specified. PR #27 remains open for design review.
 Root AGENTS.md, PROJECT.md, TASKS.md, DECISIONS.md and docs/AGENT-WORKFLOW.md read.
-Inspected runtime/data modules, reset/input/event adapters, tests, static build,
-service worker and both current-main and reviewed graphics-stack integration.
+The original source/reset audit below was performed against pre-integration main
+`3c7b762`; line numbers are historical locators, so use named functions on the
+updated baseline. Graphics integration changes presentation, not those lifecycle
+contracts. The table records the original stack targets, not an outstanding merge.
 
 **Merged PR does not necessarily mean merged into main.** GitHub reports:
 
@@ -25,18 +29,13 @@ service worker and both current-main and reviewed graphics-stack integration.
 | #25 | Loot/HUD | Merged | development/graphics-v2-characters | 1b7e2c6 |
 | #26 | Camera/cutaway | Merged | development/graphics-v2-loot-hud | 1c4b4e9 |
 
-Merge #26 is `2720819cd716335ca73e853388ec5526de7117da`. An ancestry check
-confirms reviewed graphics head `1c4b4e955153ffb0af197fd76ecb188db030ee82`
-is **not an ancestor of main**. Runtime main still has cache v12 and seven browser
-scripts; the graphics target has cache v19-r2, VesperVFX, nine browser scripts and
-fresh scene-budget CI. Earlier review found all four corrections applied; this
-audit does not claim those graphics features are currently on main/production.
-
-Proposed gate G0: owner/maintainer integrates the complete reviewed graphics stack
-into main with a separate reviewable PR, without losing loot changes; establish
-and approve the resulting immutable main SHA, then branch implementation from it.
-This documentation PR does not perform that integration or authorise a deployment.
-Re-audit status and diffs before G0: branch heads, retargets and production may change.
+PR #28 integrated merge #26 `2720819cd716335ca73e853388ec5526de7117da`
+into main. Reviewed graphics head `1c4b4e955153ffb0af197fd76ecb188db030ee82`
+is now an ancestor of main. Main's tree equals reviewed graphics tree
+`10a038f1ffe4ba4e99e02c79c443886f274f34a7`. Cache v19-r2, VesperVFX,
+nine browser scripts and fresh scene-budget CI are included. Gate G0 is satisfied
+for this pinned baseline; recheck main and open PRs before implementation.
+This documentation update does not merge or deploy anything or approve ARPG code.
 Do not use PR #18's incompatible `modifiers` format: PR #17's `mods` is in main.
 
 ## Architecture and reuse
@@ -94,7 +93,7 @@ new original dialogue, without deleting his Crypt interaction.
 
 ## Verified checks for this documentation baseline
 
-Local `npm test`: **69/69 passed** on main-derived code. `npm run build`: passed,
+Original pre-integration checks (historical): `npm test` **69/69 passed**. `npm run build`: passed,
 32 declared runtime resources verified. Shared documentation checker, all five
 validator tests, Markdown fences/local links and `git diff --check` passed.
 A fresh independent design reviewer identified and then confirmed fixes for
@@ -105,3 +104,11 @@ Graphics-stack review results are historical evidence, not a new device pass.
 No live Vercel configuration, production deployment or real-device performance
 was inspected/changed. Browser storage guarantees must be verified in Phase 1,
 not assumed from a proposed schema.
+
+### PR #27 refresh after PR #28
+
+On the updated main-derived branch: `npm test` passed **82/82**, `npm run build`
+verified **33** declared resources, shared-document validation and diff whitespace
+checks passed. No browser suite was rerun for this documentation-only refresh.
+The PR diff against main contains only six Markdown documents; runtime files
+match main. Owner testing of #28 is reported separately above.

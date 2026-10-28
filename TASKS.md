@@ -13,16 +13,15 @@ new feature roadmap. PROJECT.md remains the detailed implementation record.
 ## Current authorised task — persistent ARPG design, 2026-10-28
 
 Create a complete conversion specification, verified reset/graphics audit and six
-implementation phases on `development/arpg-conversion-spec`, based on main
-`3c7b762`. Read [docs/arpg/SPEC.md](docs/arpg/SPEC.md),
+implementation phases on `development/arpg-conversion-spec`, updated against main
+`17c8fad` after PR #28. Read [docs/arpg/SPEC.md](docs/arpg/SPEC.md),
 [docs/arpg/AUDIT.md](docs/arpg/AUDIT.md) and
 [docs/arpg/ROADMAP.md](docs/arpg/ROADMAP.md). Documentation only: no production
 application, save wiring, merge or deployment. Await owner approval before code.
 
-Outstanding gate G0: no open PRs at fresh audit; graphics #19 is in main, while
-#20–#26 were merged into preceding development branches. Reviewed #26 code is not
-in main. Obtain an owner-approved complete graphics integration and exact baseline
-before creating implementation branches. The audit records evidence/SHAs.
+Gate G0 satisfied: owner tested and merged PR #28. Updated pinned main is
+`17c8fadea6f881245384cec92fd14417b4a998c1`; PR #27 incorporates it and updates
+its graphics audit. ARPG specification/milestone approval remains pending.
 
 Next proposed milestone: test-only schema, item hydration/ID reservation and
 IndexedDB revision repository; not Save/Continue yet. Then incremental Claude
@@ -38,6 +37,13 @@ performance-risk analysis in [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md
 with baseline captures. Spec approved by the owner on 2026-10-27 with the default
 decisions in SPEC.md section 9; increments 1–7 follow as one PR each, each based on
 the previous branch. No merge or deployment.
+Progress: increment 1 (tooling and budgets) in PR #20; increment 2 (light and value
+pass) in PR #21; increment 3 (architecture and floor identities) in PR #22; increment 4 (effects)
+in PR #23; increment 5 (characters) in PR #24; increment 6 (loot, icons, HUD) in PR #25;
+increment 7 (camera, fade, culling) on `development/graphics-v2-camera` with the
+final results in docs/graphics-v2/RESULTS.md. Next: owner review of PRs #19 to #26 in
+order was completed; PR #28 subsequently integrated the complete stack into main.
+The owner reports testing #28; detailed physical-device coverage remains unrecorded.
 
 ## Previous task — merged in PR #17
 

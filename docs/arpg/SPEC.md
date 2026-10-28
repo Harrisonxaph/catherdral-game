@@ -36,14 +36,14 @@ The owner has not yet selected/approved these options; approval is the next gate
 
 ## 2. Integration gate G0
 
-Current main is 3c7b762; only graphics spec #19 is there. #20–#26 were merged into
-preceding development branches, not main. See audit's exact SHAs. Do not interpret
-closed/merged badges as integration. Proposed target: complete reviewed graphics
-stack through 1c4b4e9 / merge 2720819, plus current loot/main, reconciled through a
-separate owner-approved integration PR. Pin the resulting main SHA **before** any
-ARPG implementation. This spec PR adds docs only on current main; rebase/reconcile
-its memory-doc updates after graphics integration. No code cherry-picking or
-unrequested merge/deploy is authorised by the audit.
+Gate G0 is satisfied: the owner tested and merged graphics integration PR #28.
+Pinned main is `17c8fadea6f881245384cec92fd14417b4a998c1`; reviewed graphics
+head `1c4b4e9` is an ancestor and the runtime tree matches that reviewed stack.
+See AUDIT.md for original stack targets and integration evidence. This spec branch
+now incorporates that main and preserves its graphics work. Recheck upstream and
+open PRs before creating implementation branches. Specification/balance approval
+is still pending; this documentation authorises no gameplay implementation,
+merge, deployment or code cherry-picking.
 
 ## 3. State ownership and proposed modules
 
@@ -468,7 +468,7 @@ and extend build checks/tests. This docs-only deliverable needs no cache bump.
 
 | Risk / affected boundary | Required mitigation and acceptance evidence |
 | --- | --- |
-| Graphics merged into wrong targets, stale ARPG base | G0 ancestry/tree comparison, separate owner-approved integration PR, fresh pinned main and full graphics tests before implementation |
+| Graphics merged into wrong targets, stale ARPG base | G0 satisfied by PR #28; recheck pinned-main ancestry/tree and relevant graphics tests before implementation |
 | Save records differ from in-memory E.* contracts | Explicit hydrate/serialize adapters, full ownership graph, allocator reservation, no second mods format; round-trip and collision fixtures |
 | Crash between kill, currency, item and completion writes | One revision/transaction for outcomes and ledgers, durable idempotency IDs, failure at every write boundary |
 | Mobile closes before async save finishes | Early event commits, bounded dirty snapshots, honest last-durable status and recovery; actual OS-close/device tests; no exit-handler guarantee |
