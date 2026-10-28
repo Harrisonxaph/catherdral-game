@@ -31,6 +31,7 @@ specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 | `floors.js` | Five immutable floor configurations, rosters, scaling, boss HP and connected procedural layouts |
 | `enemy-system.js` | Eight archetypes, state machine, navigation/separation, shields/statuses, hazard/projectile/summon budgets and exact hazard geometry |
 | `equipment.js` | Pure equipment definitions, rolled bonus modifiers, loadout/stat calculations, atomic inventory transactions and weighted loot |
+| `character-state.js`, `tests/fixtures/` | Proposed persistent-character save schema: validation, item ownership graph, hydration, derived stats and migrations (ARPG Phase 1A; not loaded by the game yet) |
 | `inventory-ui.js`, `inventory.css` | Tap-based inventory UI and pause integration |
 | `abilities.js`, `abilities.css` | Three simulation-time player abilities, cooldowns, temporary Aegis and targeting helpers |
 | `boss-system.js`, `bosses.css` | Boss encounter state machines, candles, protected actions, sequence lifecycle and boss UI |

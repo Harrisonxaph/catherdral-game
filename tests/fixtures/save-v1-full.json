@@ -1,0 +1,283 @@
+{
+ "schemaVersion": 1,
+ "contentVersion": "campaign-1",
+ "progressionVersion": 1,
+ "characterId": "0f1e2d3c-aaaa-4bbb-8ccc-123456789abc",
+ "revision": 3,
+ "createdAt": "2026-10-28T12:00:00.000Z",
+ "savedAt": "2026-10-28T12:30:00.000Z",
+ "writer": {
+  "sessionId": "session-a",
+  "leaseEpoch": 2
+ },
+ "integrity": null,
+ "payload": {
+  "character": {
+   "level": 4,
+   "lifetimeXp": 241,
+   "xpIntoLevel": 7,
+   "unspentSkillPoints": 0,
+   "coreProfile": "penitent-v1",
+   "passiveRanks": {
+    "vigor": 2,
+    "edge": 1
+   },
+   "abilityUpgradeRanks": {},
+   "resources": {
+    "hp": 96.5,
+    "equipmentShield": 18,
+    "potions": 2
+   },
+   "timers": {
+    "abilityCooldowns": {
+     "execution": 3.5,
+     "aegis": 0,
+     "stunning": 11.25
+    },
+    "attackRemaining": 0.1,
+    "dodgeRemaining": 0,
+    "firePassiveRemaining": 0,
+    "shieldDelay": 1.5
+   },
+   "ash": 340,
+   "deaths": 2,
+   "equipment": {
+    "main": 1,
+    "off": 2
+   },
+   "backpack": [
+    3,
+    4,
+    5,
+    null,
+    6,
+    null
+   ],
+   "stash": [
+    7,
+    8,
+    9,
+    10,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "nextItemId": 13,
+   "abilityUnlocks": [
+    "execution",
+    "aegis",
+    "stunning"
+   ]
+  },
+  "items": [
+   {
+    "id": 1,
+    "key": "duskdagger",
+    "mods": [
+     {
+      "stat": "damage",
+      "value": 3
+     },
+     {
+      "stat": "crit",
+      "value": 0.04
+     }
+    ],
+    "upgradeRank": 0
+   },
+   {
+    "id": 2,
+    "key": "bulwark",
+    "mods": [],
+    "upgradeRank": 0
+   },
+   {
+    "id": 3,
+    "key": "ashbringer",
+    "mods": [],
+    "upgradeRank": 0
+   },
+   {
+    "id": 4,
+    "key": "oathguard",
+    "mods": [],
+    "upgradeRank": 0
+   },
+   {
+    "id": 5,
+    "key": "graveaxe",
+    "mods": [
+     {
+      "stat": "damage",
+      "value": 2
+     }
+    ],
+    "upgradeRank": 0
+   },
+   {
+    "id": 6,
+    "key": "rustbound",
+    "mods": [
+     {
+      "stat": "speed",
+      "value": 0.04
+     }
+    ],
+    "upgradeRank": 0
+   },
+   {
+    "id": 7,
+    "key": "kingsmercy",
+    "mods": [],
+    "upgradeRank": 0
+   },
+   {
+    "id": 8,
+    "key": "executioner",
+    "mods": [
+     {
+      "stat": "speed",
+      "value": 0.06
+     }
+    ],
+    "upgradeRank": 0
+   },
+   {
+    "id": 9,
+    "key": "mournblade",
+    "mods": [],
+    "upgradeRank": 0
+   },
+   {
+    "id": 10,
+    "key": "cryptshield",
+    "mods": [],
+    "upgradeRank": 0
+   },
+   {
+    "id": 11,
+    "key": "bloodforged",
+    "mods": [
+     {
+      "stat": "crit",
+      "value": 0.05
+     }
+    ],
+    "upgradeRank": 0
+   },
+   {
+    "id": 12,
+    "key": "twinmoon",
+    "mods": [],
+    "upgradeRank": 0
+   }
+  ],
+  "campaign": {
+   "unlockedLocations": [
+    "forgotten-crypt",
+    "plague-halls"
+   ],
+   "activeCheckpointId": "plague-halls:entrance",
+   "campaignComplete": false,
+   "bossCompletions": {
+    "forgotten-crypt": true
+   },
+   "eliteCompletions": {},
+   "questStates": {
+    "chapter-1:crown": "complete"
+   },
+   "storyFlags": [
+    "chapter-1:keeper-met"
+   ],
+   "journalEntries": [
+    {
+     "id": "memory:0",
+     "title": "Death memory 1",
+     "text": "A remembered death."
+    }
+   ],
+   "rewardLedger": {
+    "campaign:forgotten-crypt:boss:snakeling:item": "escrow",
+    "campaign:forgotten-crypt:chest:3:item": "claimed"
+   },
+   "rewardEscrow": [
+    {
+     "rewardKey": "campaign:forgotten-crypt:boss:snakeling:item",
+     "itemId": 11
+    }
+   ]
+  },
+  "world": {
+   "lifecycle": {
+    "mode": "alive",
+    "deathId": null,
+    "lastRespawnId": "respawn-2"
+   },
+   "currentLocationId": "forgotten-crypt",
+   "currentInstanceId": "campaign-forgotten-crypt-1",
+   "pendingTransition": null,
+   "checkpoints": {},
+   "locations": {},
+   "instances": {
+    "campaign-forgotten-crypt-1": {
+     "locationId": "forgotten-crypt",
+     "mode": "campaign",
+     "groundDrops": [
+      {
+       "dropId": "drop-1",
+       "kind": "item",
+       "itemId": 12,
+       "amount": 1,
+       "x": 4.5,
+       "y": -2.25,
+       "rewardKey": null
+      },
+      {
+       "dropId": "drop-2",
+       "kind": "ash",
+       "itemId": null,
+       "amount": 12,
+       "x": 5,
+       "y": -2,
+       "rewardKey": null
+      },
+      {
+       "dropId": "drop-3",
+       "kind": "potion",
+       "itemId": null,
+       "amount": 1,
+       "x": 6,
+       "y": 1,
+       "rewardKey": null
+      }
+     ]
+    }
+   }
+  },
+  "legacy": {
+   "migrationId": "legacy-import-1",
+   "bestKills": 42,
+   "narrativeMemories": [
+    "A remembered death."
+   ],
+   "sourceFingerprint": ""
+  }
+ }
+}

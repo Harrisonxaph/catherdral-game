@@ -29,14 +29,20 @@
   }
  });
  const none=Object.freeze([]);
- const eligibleModifiers=key=>{const spec=definitions[key];return spec?Object.keys(affixes.pool).filter(stat=>affixes.pool[stat].kinds.includes(spec.kind)&&affixes.pool[stat].ranges[spec.rarity]&&affixes.maxCount[spec.rarity]>0):[];};
+ const eligibleModifiers=key=>{const spec=Object.hasOwn(definitions,key)?definitions[key]:null;return spec?Object.keys(affixes.pool).filter(stat=>affixes.pool[stat].kinds.includes(spec.kind)&&affixes.pool[stat].ranges[spec.rarity]&&affixes.maxCount[spec.rarity]>0):[];};
  function validModifiers(key,mods){
-  const spec=definitions[key];if(!spec||!Array.isArray(mods)||mods.length>(affixes.maxCount[spec.rarity]||0))return false;
+  const spec=Object.hasOwn(definitions,key)?definitions[key]:null;if(!spec||!Array.isArray(mods)||mods.length>(affixes.maxCount[spec.rarity]||0))return false;
   const allowed=eligibleModifiers(key),seen=new Set();
   return mods.every(m=>{if(!m||!allowed.includes(m.stat)||seen.has(m.stat)||!Number.isFinite(m.value))return false;const [lo,hi]=affixes.pool[m.stat].ranges[spec.rarity];seen.add(m.stat);return m.value>=lo-1e-9&&m.value<=hi+1e-9;});
  }
  let serial=0;
- const item=(key,mods=none)=>{if(!definitions[key])throw new RangeError('Unknown item '+key);if(!validModifiers(key,mods))throw new RangeError('Invalid modifiers for '+key);return Object.freeze({id:++serial,key,mods:mods.length?Object.freeze(mods.map(m=>Object.freeze({stat:m.stat,value:m.value}))):none});};
+ const known=key=>typeof key==='string'&&Object.hasOwn(definitions,key);
+ const instance=(id,key,mods)=>{if(!known(key))throw new RangeError('Unknown item '+key);if(!Number.isSafeInteger(id)||id<1)throw new RangeError('Item IDs are exhausted');if(!validModifiers(key,mods))throw new RangeError('Invalid modifiers for '+key);return Object.freeze({id,key,mods:mods.length?Object.freeze(mods.map(m=>Object.freeze({stat:m.stat,value:m.value}))):none});};
+ const item=(key,mods=none)=>{const made=instance(serial+1,key,mods);serial++;return made;};
+ // Persistence: saved instances keep their own ID, and the allocator never falls below a durable high-water mark.
+ const nextId=()=>serial+1;
+ function reserve(next){if(!Number.isSafeInteger(next)||next<1)throw new RangeError('Invalid item ID reservation');serial=Math.max(serial,next-1);return serial+1;}
+ function restore(record){if(!record||!Number.isSafeInteger(record.id)||record.id<1)throw new RangeError('Invalid item ID');const made=instance(record.id,record.key,record.mods);reserve(record.id+1);return made;}
  const definition=instance=>instance?definitions[instance.key]:null;
  const modifiers=instance=>instance?.mods||none;
  const bonus=(instance,stat)=>modifiers(instance).reduce((n,m)=>n+(m.stat===stat?m.value:0),0);
@@ -106,6 +112,6 @@
  function encounterReward(encounter,floor,random=Math.random){if(encounter.rewarded||encounter.kind!=='boss'||!encounter.members.length||!encounter.members.every(e=>e.dead))return null;encounter.rewarded=true;return roll('boss',floor,random);}
  function addPotion(run){if(run.potions>=balance.potions)return false;run.potions++;return true;}
  function usePotion(run,hp,maxHp){if(run.potions<=0||hp>=maxHp)return 0;run.potions--;return Math.min(maxHp-hp,Math.round(maxHp*.42));}
- const api=Object.freeze({balance,rarities,definitions,affixes,item,definition,modifiers,eligibleModifiers,validModifiers,rollModifiers,describeModifier,difference,createRun,valid,collect,equip,unequip,drop,stats,preview,weighted,tables,roll,encounterReward,addPotion,usePotion});
+ const api=Object.freeze({balance,rarities,definitions,affixes,item,nextId,reserve,restore,definition,modifiers,eligibleModifiers,validModifiers,rollModifiers,describeModifier,difference,createRun,valid,collect,equip,unequip,drop,stats,preview,weighted,tables,roll,encounterReward,addPotion,usePotion});
  if(typeof module!=='undefined')module.exports=api;else window.VesperEquipment=api;
 })();

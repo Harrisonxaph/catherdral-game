@@ -127,3 +127,19 @@ test('Seeded drops are repeatable, legendary drops never roll, and roll frequenc
  const ordinary=seeded(12);for(let i=0;i<5000;i++){const it=E.roll('ordinary',4,ordinary);if(it)assert.equal(E.definition(it).rarity,'common');}
  const encounter={kind:'boss',members:[{dead:true}]},reward=E.encounterReward(encounter,5,seeded(9));assert.ok(reward);assert.equal(E.encounterReward(encounter,5,seeded(9)),null);
 });
+test('Saved instances restore with their own IDs and the allocator only moves upwards',()=>{
+ const restored=E.restore({id:500000,key:'duskdagger',mods:[{stat:'damage',value:3}]});
+ assert.deepEqual(JSON.parse(JSON.stringify(restored)),{id:500000,key:'duskdagger',mods:[{stat:'damage',value:3}]});assert.ok(Object.isFrozen(restored)&&Object.isFrozen(restored.mods));
+ assert.ok(E.nextId()>500000);assert.ok(E.item('rustbound').id>500000);
+ const next=E.nextId();assert.equal(E.reserve(10),next);assert.equal(E.reserve(next+5),next+5);assert.equal(E.item('rustbound').id,next+5);
+ for(const bad of [{id:0,key:'rustbound',mods:[]},{id:7,key:'nope',mods:[]},{id:7,key:'rustbound',mods:[{stat:'damage',value:9}]},null])assert.throws(()=>E.restore(bad),RangeError);
+ // A restored item behaves like any other instance in atomic run transactions.
+ const r=E.createRun();assert.ok(E.collect(r,restored).ok);assert.equal(E.collect(r,restored).ok,false);assert.ok(E.valid(r));
+});
+test('Review: inherited names are not items, and an exhausted allocator throws instead of reusing IDs',()=>{
+ for(const key of ['toString','constructor','__proto__'])assert.throws(()=>E.item(key),RangeError);
+ assert.throws(()=>E.restore({id:9,key:'toString',mods:[]}),RangeError);assert.equal(E.validModifiers('constructor',[]),false);assert.deepEqual(E.eligibleModifiers('toString'),[]);
+ // Kept last in this file: it exhausts the process-wide allocator.
+ E.reserve(Number.MAX_SAFE_INTEGER);const last=E.item('rustbound');assert.equal(last.id,Number.MAX_SAFE_INTEGER);
+ assert.throws(()=>E.item('rustbound'),/exhausted/);assert.throws(()=>E.item('rustbound'),/exhausted/);assert.equal(E.nextId(),Number.MAX_SAFE_INTEGER+1);
+});
