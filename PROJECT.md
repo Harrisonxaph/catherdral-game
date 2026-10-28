@@ -233,3 +233,24 @@ application code or deployment setting is changed. Confirm actual hosted checks
 and installed assistant context loading after review. The earlier statement that
 no CI workflow is checked in describes the pre-change baseline, superseded by
 this workflow PR once merged.
+
+## Persistent ARPG conversion — design requested 2026-10-28
+
+Owner direction: evolve the current game into a persistent single-player ARPG,
+with permanent character/loot/progression, checkpoints, revisitable campaign and
+Sanctuary. **Current deliverable is architecture/specification only.** No save,
+Continue, hub or gameplay conversion has been implemented by this documentation.
+[Specification](docs/arpg/SPEC.md), [source/reset audit](docs/arpg/AUDIT.md) and
+[six-phase roadmap](docs/arpg/ROADMAP.md) distinguish proposed defaults from approval.
+
+Fresh baseline: main `3c7b762` includes loot PR #17 and graphics spec #19. GitHub
+reports no open PRs at audit; #20–#26 are merged into preceding development branches,
+not main. Ancestry confirms reviewed graphics head `1c4b4e9` is absent from main.
+Integrate the complete reviewed graphics stack via a separately authorised PR and
+pin the resulting main SHA before implementation; do not overwrite art work or
+assume a closed PR proves production contains it. No integration/merge/deploy here.
+
+Recommended first code milestone after approval: pure save DTO/validation, item-ID
+hydration/reservation and native IndexedDB revision storage with tests, not wired
+into gameplay. Proposed balance, death/revisit/resource rules, migration and
+single-character scope await approval. Current run reset behaviour still applies.

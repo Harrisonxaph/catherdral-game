@@ -10,7 +10,26 @@ new feature roadmap. PROJECT.md remains the detailed implementation record.
 - Backpack icon and boss health follow-up: 2,500 / 2,500 / 4,000 HP.
 - Root AGENTS.md and PROJECT.md handoff merged in PR #12.
 
-## Current authorised task
+## Current authorised task — persistent ARPG design, 2026-10-28
+
+Create a complete conversion specification, verified reset/graphics audit and six
+implementation phases on `development/arpg-conversion-spec`, based on main
+`3c7b762`. Read [docs/arpg/SPEC.md](docs/arpg/SPEC.md),
+[docs/arpg/AUDIT.md](docs/arpg/AUDIT.md) and
+[docs/arpg/ROADMAP.md](docs/arpg/ROADMAP.md). Documentation only: no production
+application, save wiring, merge or deployment. Await owner approval before code.
+
+Outstanding gate G0: no open PRs at fresh audit; graphics #19 is in main, while
+#20–#26 were merged into preceding development branches. Reviewed #26 code is not
+in main. Obtain an owner-approved complete graphics integration and exact baseline
+before creating implementation branches. The audit records evidence/SHAs.
+
+Next proposed milestone: test-only schema, item hydration/ID reservation and
+IndexedDB revision repository; not Save/Continue yet. Then incremental Claude
+implementation PRs independently reviewed by Codex. Numeric policies and future
+features in the spec are proposals, not approved tasks. Device testing remains open.
+
+## Previous graphics specification task
 
 2026-10-27 — owner request: graphical overhaul v2 ("Ash and candlelight") on
 `development/graphics-overhaul-v2`, based on main `387a900`. Increment 0 only:
