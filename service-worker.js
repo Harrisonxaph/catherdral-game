@@ -1,5 +1,5 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v17-graphics-characters';
+const CACHE_VERSION = 'vesper-cathedral-v17-graphics-characters-r2';
 const APP_ASSETS = [
   './',
   './index.html',
