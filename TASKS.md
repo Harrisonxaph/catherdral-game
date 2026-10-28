@@ -28,6 +28,13 @@ IndexedDB revision repository; not Save/Continue yet. Then incremental Claude
 implementation PRs independently reviewed by Codex. Numeric policies and future
 features in the spec are proposals, not approved tasks. Device testing remains open.
 
+2026-10-28 — owner request: start the architecture and persistent-character
+foundation, then await approval for gameplay changes. Phase 1A part 1 on
+`development/arpg-character-foundation` (stacked on PR #27): `character-state.js`,
+`equipment.js` restore/reserve, `character-state.test.cjs` and the fixture
+`tests/fixtures/save-v1-full.json`. Not wired into the game. Next: part 2, the
+IndexedDB repository with real-browser tests; then Phase 2 needs owner approval.
+
 ## Previous graphics specification task
 
 2026-10-27 — owner request: graphical overhaul v2 ("Ash and candlelight") on

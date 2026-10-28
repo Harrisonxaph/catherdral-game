@@ -254,6 +254,20 @@ Recommended first code milestone after approval: pure save DTO/validation, item-
 hydration/reservation and native IndexedDB revision storage with tests, not wired
 into gameplay. Proposed balance, death/revisit/resource rules, migration and
 single-character scope await approval. Current run reset behaviour still applies.
+
+**Phase 1A, part 1 (2026-10-28, branch `development/arpg-character-foundation`, stacked on
+PR #27; in review, not merged).** Owner asked to start the persistent-character
+foundation and await approval before gameplay changes. Added pure `character-state.js`
+(proposed save schema 1: allowlisted validation, one-owner item graph across hands,
+backpack, 24-slot stash, ground drops and reward escrow; XP/level/point consistency;
+derived stats from a versioned core profile; hydrate/dehydrate; canonical form; pure
+validated migrations) and `equipment.js` `restore`/`reserve`/`nextId` so saved items
+keep their IDs and the allocator never falls below the durable high-water mark.
+**Not loaded by the game**: no script tag, `APP_ASSETS` entry, storage access or
+gameplay change. Proposed balance values (cap 30, +5 HP/+1 damage per level, four
+passives) are encoded for validation only and still await approval. Schema 1 is
+amended in place until Phase 2 enables persistence, because no save can exist yet.
+Next: part 2, the IndexedDB revision repository (backups, leases, recovery).
 ## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
 
 Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and
