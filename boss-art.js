@@ -1,8 +1,8 @@
 import * as THREE from './vendor/three.module.min.js';
-import {material,shapes,mesh,mergeStatic} from './art-materials.js';
+import {material,actorMaterial,shapes,mesh,mergeStatic} from './art-materials.js';
 
 // Original procedural art. Pivot rigs and deforming surfaces, not imported glTF assets.
-const iron=material('#3b3a3c','metal'),edge=material('#96928a','metal'),gold=material('#a68b52','metal'),bone=material('#d1c3a1'),black=material('#15151b','metal'),flesh=material('#6a6252');
+const iron=actorMaterial('#3b3a3c','metal'),edge=actorMaterial('#96928a','metal'),gold=actorMaterial('#a68b52','metal'),bone=actorMaterial('#d1c3a1'),black=actorMaterial('#15151b','metal'),flesh=actorMaterial('#6a6252');
 const glow=c=>material(c,'metal',{emissive:c,emissiveIntensity:1.1});
 const ember=glow('#ff6722'),acid=glow('#9adb4b'),eye=glow('#d9fc85');
 const chest=new THREE.LatheGeometry([new THREE.Vector2(.25,0),new THREE.Vector2(.34,.16),new THREE.Vector2(.46,.47),new THREE.Vector2(.39,.65)],14);
@@ -15,7 +15,7 @@ const axeShape=new THREE.Shape();axeShape.moveTo(.03,.26);axeShape.bezierCurveTo
 const axeBlade=new THREE.ExtrudeGeometry(axeShape,{depth:.095,bevelEnabled:true,bevelSize:.025,bevelThickness:.025,bevelSegments:1,steps:1});
 const crownShape=new THREE.Shape();crownShape.moveTo(-.4,0);for(let i=0;i<7;i++){crownShape.lineTo(-.4+i*.133,.16+(i%2?.14:.02));}crownShape.lineTo(.4,0);crownShape.closePath();const crownGeometry=new THREE.ExtrudeGeometry(crownShape,{depth:.06,bevelEnabled:true,bevelSize:.015,bevelThickness:.015,bevelSegments:1,steps:1});
 const cloakGeometry=new THREE.PlaneGeometry(.95,1.6,8,10);{const a=cloakGeometry.attributes.position;for(let i=0;i<a.count;i++){a.setZ(i,Math.cos(a.getX(i)*24)*.045+Math.max(0,-a.getY(i))*.25);if(a.getY(i)<-.7)a.setY(i,a.getY(i)+Math.sin(i*5.1)*.14);}cloakGeometry.computeVertexNormals();}
-const cloth=material('#26202b','fabric',{side:THREE.DoubleSide});
+const cloth=actorMaterial('#26202b','fabric',{side:THREE.DoubleSide});
 function pivot(parent,x,y,z){const g=new THREE.Group();g.position.set(x,y,z);parent.add(g);return g;}
 function keep(m){m.userData.keep=true;return m;}
 function curved(parent,points,r,mat){const geometry=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p))),12,r,6,false),m=mesh(parent,geometry,mat,0,0,0);m.userData.ownedGeometry=true;return m;}
@@ -44,17 +44,17 @@ function makeSerpent(root){
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(positions,3).setUsage(THREE.DynamicDrawUsage));geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2));geometry.setIndex(indices);const tube=mesh(body,geometry,skin,0,0,0);tube.frustumCulled=false;tube.userData.ownedGeometry=true;
  const head=pivot(root,0,1.42,-.24),jaw=pivot(head,0,-.08,-.04);
  mesh(head,serpentHead,skin,0,0,0);mesh(head,skull,black,0,-.065,-.3,.28,.045,.3);
- mesh(jaw,skull,material('#b5b585'),0,-.025,-.25,.26,.055,.32);
+ mesh(jaw,skull,actorMaterial('#b5b585'),0,-.025,-.25,.26,.055,.32);
  for(const side of [-1,1]){const lid=mesh(head,skull,skin,side*.23,.2,-.25,.14,.045,.11);lid.rotation.z=-side*.23;mesh(head,skull,eye,side*.23,.155,-.32,.065,.045,.04);mesh(head,shapes.box,black,side*.23,.155,-.356,.012,.045,.01);
  curved(head,[[side*.16,-.015,-.43],[side*.18,-.2,-.51],[side*.12,-.33,-.49]],.04,bone);mesh(head,shapes.sphere,acid,side*.16,-.18,-.48,.027,.07,.027);
  for(let i=0;i<3;i++){const crest=mesh(head,plateGeometry,skin,side*(.23-i*.035),.17+i*.035,.04+i*.055,.13,.16,.18);crest.rotation.y=side*.7;}}
 
- const tongue=mesh(jaw,shapes.box,material('#5e3442'),0,-.04,-.59,.035,.015,.2);u.bossRig={kind:'serpent',body,head,jaw,tongue,tube,rings,sides};
+ const tongue=mesh(jaw,shapes.box,actorMaterial('#5e3442'),0,-.04,-.59,.035,.015,.2);u.bossRig={kind:'serpent',body,head,jaw,tongue,tube,rings,sides};
  consolidate(head);consolidate(jaw);
 }
 function makeHumanoid(root,id){
  const king=id==='king',u=root.userData,body=pivot(root,0,1.08,0),head=pivot(body,0,1.12,0),arms=[],legs=[];
- const armour=king?iron:material('#292729','metal'),trim=king?gold:material('#6e5b47','metal');
+ const armour=king?iron:actorMaterial('#292729','metal'),trim=king?gold:actorMaterial('#6e5b47','metal');
  mesh(body,chest,king?black:flesh,0,-.05,.02,1,1,.65);mesh(body,shapes.cylinder,bone,0,.5,.04,.055,.9,.055);
  for(let i=0;i<5;i++){const r=mesh(body,rib,bone,0,.15+i*.115,-.15,1-i*.045,.8,.8);r.rotation.z=.25;}
  // Open breastplate and layered gorget expose anatomy instead of a block torso.
@@ -128,7 +128,7 @@ export function setBossQuality(quality){if(scales){scales.mat.bumpMap=quality===
 export {flameMaterial};
 
 export function createRitualCandle(){
- const g=new THREE.Group();mesh(g,shapes.cylinder,black,0,.12,0,.32,.24,.32);mesh(g,shapes.cylinder,gold,0,.26,0,.25,.06,.25);mesh(g,shapes.cylinder,iron,0,.42,0,.075,.35,.075);mesh(g,shapes.cylinder,gold,0,.59,0,.18,.055,.18);mesh(g,shapes.cylinder,material('#d9c8a0'),0,.73,0,.09,.25,.09);
+ const g=new THREE.Group();mesh(g,shapes.cylinder,black,0,.12,0,.32,.24,.32);mesh(g,shapes.cylinder,gold,0,.26,0,.25,.06,.25);mesh(g,shapes.cylinder,iron,0,.42,0,.075,.35,.075);mesh(g,shapes.cylinder,gold,0,.59,0,.18,.055,.18);mesh(g,shapes.cylinder,actorMaterial('#d9c8a0'),0,.73,0,.09,.25,.09);
  for(const side of [-1,1]){const brace=mesh(g,shapes.cone,gold,side*.18,.35,0,.045,.3,.045);brace.rotation.z=-side*.4;}
  consolidate(g);const flame=pivot(g,0,.87,0);for(const a of [0,Math.PI/2]){const f=mesh(flame,shapes.plane,flameMaterial,0,.18,0,.3,.65,1);f.rotation.y=a;}
  const halo=mesh(g,shapes.disk,new THREE.MeshBasicMaterial({color:'#edba6a',transparent:true,opacity:.14,depthWrite:false,blending:THREE.AdditiveBlending}),0,.018,0,.5,.5,1);halo.rotation.x=-Math.PI/2;halo.userData.ownedMaterial=true;g.userData.flame=flame;g.userData.halo=halo;return g;

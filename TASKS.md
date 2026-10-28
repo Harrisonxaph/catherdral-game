@@ -19,6 +19,12 @@ performance-risk analysis in [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md
 with baseline captures. Spec approved by the owner on 2026-10-27 with the default
 decisions in SPEC.md section 9; increments 1–7 follow as one PR each, each based on
 the previous branch. No merge or deployment.
+Progress: increment 1 (tooling and budgets) in PR #20; increment 2 (light and value
+pass) in PR #21; increment 3 (architecture and floor identities) in PR #22; increment 4 (effects)
+in PR #23; increment 5 (characters) in PR #24; increment 6 (loot, icons, HUD) in PR #25;
+increment 7 (camera, fade, culling) on `development/graphics-v2-camera` with the
+final results in docs/graphics-v2/RESULTS.md. Next: owner review of PRs #19 to #26 in
+order and the physical-device checklist; nothing is merged or deployed.
 
 ## Previous task — merged in PR #17
 

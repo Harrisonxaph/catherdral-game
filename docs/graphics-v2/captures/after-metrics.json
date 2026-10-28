@@ -1,0 +1,483 @@
+{
+  "phase": "after",
+  "set": "v2",
+  "baseline": null,
+  "renderer": "Chromium software WebGL; timings are not physical-device FPS",
+  "scenes": [
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2.7,
+      "p95Ms": 4.3,
+      "drawCalls": 270,
+      "triangles": 80584,
+      "geometries": 88,
+      "textures": 8,
+      "lights": 2,
+      "worldDigest": 3023877664,
+      "meanLuma": 44.9,
+      "lumaSpread": 69
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2.1,
+      "p95Ms": 5,
+      "drawCalls": 264,
+      "triangles": 71088,
+      "geometries": 90,
+      "textures": 8,
+      "lights": 2,
+      "worldDigest": 1742031521,
+      "meanLuma": 37.8,
+      "lumaSpread": 60.7
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2.7,
+      "p95Ms": 3.7,
+      "drawCalls": 256,
+      "triangles": 70684,
+      "geometries": 90,
+      "textures": 9,
+      "lights": 2,
+      "worldDigest": 2277637447,
+      "meanLuma": 25.4,
+      "lumaSpread": 58.5
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2.9,
+      "p95Ms": 6.7,
+      "drawCalls": 263,
+      "triangles": 86120,
+      "geometries": 91,
+      "textures": 9,
+      "lights": 2,
+      "worldDigest": 1947583002,
+      "meanLuma": 34.1,
+      "lumaSpread": 57.3
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 1.9,
+      "p95Ms": 5.9,
+      "drawCalls": 283,
+      "triangles": 91554,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 2,
+      "worldDigest": 608026395,
+      "meanLuma": 26.6,
+      "lumaSpread": 53.2
+    },
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 2.1,
+      "p95Ms": 4.2,
+      "drawCalls": 297,
+      "triangles": 84672,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 3023877664,
+      "meanLuma": 45.4,
+      "lumaSpread": 68.8
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 2.3,
+      "p95Ms": 8.8,
+      "drawCalls": 289,
+      "triangles": 74048,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 1742031521,
+      "meanLuma": 38.3,
+      "lumaSpread": 60.6
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 2.3,
+      "p95Ms": 5.8,
+      "drawCalls": 276,
+      "triangles": 74432,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 2277637447,
+      "meanLuma": 25.9,
+      "lumaSpread": 58.4
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 2.1,
+      "p95Ms": 8.3,
+      "drawCalls": 266,
+      "triangles": 71656,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 1947583002,
+      "meanLuma": 34.6,
+      "lumaSpread": 57.5
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 2.6,
+      "p95Ms": 6,
+      "drawCalls": 276,
+      "triangles": 68422,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 608026395,
+      "meanLuma": 27.2,
+      "lumaSpread": 53.6
+    },
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 2.8,
+      "p95Ms": 4.4,
+      "drawCalls": 237,
+      "triangles": 66740,
+      "geometries": 86,
+      "textures": 7,
+      "lights": 0,
+      "worldDigest": 3023877664,
+      "meanLuma": 32.6,
+      "lumaSpread": 42.4
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 1.9,
+      "p95Ms": 5.4,
+      "drawCalls": 243,
+      "triangles": 66216,
+      "geometries": 88,
+      "textures": 7,
+      "lights": 0,
+      "worldDigest": 1742031521,
+      "meanLuma": 31.3,
+      "lumaSpread": 42.7
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 2.1,
+      "p95Ms": 5.6,
+      "drawCalls": 229,
+      "triangles": 64052,
+      "geometries": 88,
+      "textures": 8,
+      "lights": 0,
+      "worldDigest": 2277637447,
+      "meanLuma": 22.3,
+      "lumaSpread": 43.1
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 1.5,
+      "p95Ms": 2.2,
+      "drawCalls": 220,
+      "triangles": 41708,
+      "geometries": 89,
+      "textures": 8,
+      "lights": 0,
+      "worldDigest": 1947583002,
+      "meanLuma": 30.6,
+      "lumaSpread": 45.5
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 1.9,
+      "p95Ms": 2.5,
+      "drawCalls": 234,
+      "triangles": 45714,
+      "geometries": 91,
+      "textures": 8,
+      "lights": 0,
+      "worldDigest": 608026395,
+      "meanLuma": 25.2,
+      "lumaSpread": 44.1
+    },
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2,
+      "p95Ms": 6.2,
+      "drawCalls": 284,
+      "triangles": 102244,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 2,
+      "worldDigest": 3023877664,
+      "meanLuma": 39.1,
+      "lumaSpread": 52.9
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 1.9,
+      "p95Ms": 2.2,
+      "drawCalls": 279,
+      "triangles": 80104,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 2,
+      "worldDigest": 1742031521,
+      "meanLuma": 37.4,
+      "lumaSpread": 52.1
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 3.2,
+      "p95Ms": 4,
+      "drawCalls": 274,
+      "triangles": 84860,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 2,
+      "worldDigest": 2277637447,
+      "meanLuma": 27.5,
+      "lumaSpread": 55.7
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2.1,
+      "p95Ms": 6.4,
+      "drawCalls": 254,
+      "triangles": 65012,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 2,
+      "worldDigest": 1947583002,
+      "meanLuma": 36.4,
+      "lumaSpread": 56.6
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2.1,
+      "p95Ms": 6.6,
+      "drawCalls": 259,
+      "triangles": 66760,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 2,
+      "worldDigest": 608026395,
+      "meanLuma": 31.5,
+      "lumaSpread": 54.4
+    },
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 2,
+      "p95Ms": 8.1,
+      "drawCalls": 289,
+      "triangles": 78548,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 3023877664,
+      "meanLuma": 39.5,
+      "lumaSpread": 52.7
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.8,
+      "p95Ms": 2.1,
+      "drawCalls": 287,
+      "triangles": 74188,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 1742031521,
+      "meanLuma": 37.6,
+      "lumaSpread": 52.5
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.9,
+      "p95Ms": 5.8,
+      "drawCalls": 286,
+      "triangles": 93880,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 2277637447,
+      "meanLuma": 27.7,
+      "lumaSpread": 56
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.8,
+      "p95Ms": 2.5,
+      "drawCalls": 268,
+      "triangles": 70572,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 1947583002,
+      "meanLuma": 36.6,
+      "lumaSpread": 57
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 2,
+      "p95Ms": 2.5,
+      "drawCalls": 288,
+      "triangles": 75660,
+      "geometries": 93,
+      "textures": 9,
+      "lights": 3,
+      "worldDigest": 608026395,
+      "meanLuma": 31.7,
+      "lumaSpread": 54.6
+    }
+  ]
+}
