@@ -266,8 +266,10 @@ unverified, one stacked PR per increment, no external art). Increments:
    Fixed existing decorations that sat on walkable cells (window tracery on the
    wall/floor boundary; banners and High vault ribs across doorways); the graphics
    suite now fails any decoration taller than 0.2 centred on a walkable cell.
-   Remaining budget after increment 3: Medium triangles about 4k in the tightest
-   scene, Low textures at the 8 limit.
+   Owner decision 2026-10-28 (option 1): quarter, half and cracked slab splits are
+   High-only; Medium keeps border courses, sunken slabs and worn paths. Remaining
+   budget after increment 3: Medium triangles about 9.9k in the tightest scene
+   (floor 2 desktop; 15–21k elsewhere, was 4.2k), Low textures at the 8 limit.
 
 Measurements are software WebGL, not phone FPS; physical-device checks remain
 outstanding for every increment.

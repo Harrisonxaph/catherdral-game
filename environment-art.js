@@ -20,7 +20,7 @@ export function buildEnvironment(world,torches,stair,theme,preset){
  const stone=material(theme.stone),floorMat=n===3?material(theme.floor,'marble'):material(theme.floor,'flagstone',{roughnessMap:null,roughness:.55,bumpScale:.02}),relief=material(theme.stone,'relief'),water=material('#1a2b20','stone',{roughness:.18,metalness:.25}),ash=material('#4f4b47'),trim=material(theme.trim),metal=material(theme.metal,'metal'),iron=material('#554a40','metal'),cloth=material(theme.cloth,'fabric',{side:THREE.DoubleSide}),black=material('#1b2025');
  const glow=material(theme.accent,'stone',{emissive:theme.accent,emissiveIntensity:.6}),fire=new THREE.MeshBasicMaterial({color:world.config.number===4?'#93d5ef':'#ffba65'});fire.userData.floorOwned=true;
  function add(g,mat,x,y,z,sx,sy,sz,rz=0,ry=0,wall=false,ao=1){const cx=Math.floor(x/chunkSize),cz=Math.floor(z/chunkSize),key=[cx,cz,g.id,mat.id,wall].join(':');if(!batches.has(key))batches.set(key,{g,mat,rows:[],cx,cz,wall});batches.get(key).rows.push([x,y,z,sx,sy,sz,rz,ry,ao]);}
- const block=preset.detail?bevel:shapes.box,walk=world.walk,rich=preset.detail>0;
+ const block=preset.detail?bevel:shapes.box,walk=world.walk,rich=preset.detail>0,dense=preset.detail===2;
  // Worn walkways along each room's centre lines and through corridors (lighter instance colour only).
  const inRoom=new Set(),worn=new Set();for(const r of world.rooms)for(let yy=r.y;yy<r.y+r.h;yy++)for(let xx=r.x;xx<r.x+r.w;xx++){inRoom.add(xx+','+yy);if(Math.abs(xx-r.cx)<=0||Math.abs(yy-r.cy)<=0)worn.add(xx+','+yy);}
  for(let y=1;y<world.H-1;y++)for(let x=1;x<world.W-1;x++){
@@ -29,11 +29,12 @@ export function buildEnvironment(world,torches,stair,theme,preset){
    const k=x+','+y,ao=G.occlusion(walk,x,y)*(worn.has(k)?1.12:inRoom.has(k)?1:1.06),base=-.1-h*.018,p=hash(x,y,3);
    const wallX=!walk(x-1,y)||!walk(x+1,y),wallY=!walk(x,y-1)||!walk(x,y+1);
    // Slab layout varies by cell; every piece is the shared floor batch, flush and non-colliding.
+   // Quarter/half/cracked splits are High-only to keep Medium triangle headroom for later increments (owner decision, 2026-10-28).
    if(hash(x,y,5)>.975)add(block,floorMat,x+.5,base-.05,y+.5,.94,.15,.94,0,0,false,ao*.55);
    else if(wallX!==wallY)for(const s of [-.25,.25])add(block,floorMat,x+.5+(wallX?s:0),base-(s>0?.004:0),y+.5+(wallX?0:s),wallX?.475:.985,.15,wallX?.985:.475,0,0,false,ao*(s<0?1:.93));
-   else if(rich&&p<.1)for(const [dx,dz]of [[-.25,-.25],[.25,-.25],[-.25,.25],[.25,.25]])add(block,floorMat,x+.5+dx,base-hash(x+dx,y+dz)*.012,y+.5+dz,.475,.15,.475,0,0,false,ao*(.9+hash(x+dx,y+dz,2)*.18));
-   else if(rich&&p<.22){const along=p<.16;for(const s of [-.25,.25])add(block,floorMat,x+.5+(along?s:0),base,y+.5+(along?0:s),along?.475:.985,.15,along?.985:.475,0,0,false,ao*(s<0?1:.94));}
-   else if(rich&&hash(x,y,4)>.93){add(block,floorMat,x+.3,base-.006,y+.5,.58,.15,.985,0,.03,false,ao*.95);add(block,floorMat,x+.8,base-.016,y+.5,.385,.15,.985,0,-.04,false,ao*.86);}
+   else if(dense&&p<.1)for(const [dx,dz]of [[-.25,-.25],[.25,-.25],[-.25,.25],[.25,.25]])add(block,floorMat,x+.5+dx,base-hash(x+dx,y+dz)*.012,y+.5+dz,.475,.15,.475,0,0,false,ao*(.9+hash(x+dx,y+dz,2)*.18));
+   else if(dense&&p<.22){const along=p<.16;for(const s of [-.25,.25])add(block,floorMat,x+.5+(along?s:0),base,y+.5+(along?0:s),along?.475:.985,.15,along?.985:.475,0,0,false,ao*(s<0?1:.94));}
+   else if(dense&&hash(x,y,4)>.93){add(block,floorMat,x+.3,base-.006,y+.5,.58,.15,.985,0,.03,false,ao*.95);add(block,floorMat,x+.8,base-.016,y+.5,.385,.15,.985,0,-.04,false,ao*.86);}
    else add(block,floorMat,x+.5,base,y+.5,.985,.15,.985,0,(Math.floor(h*4))*Math.PI/2,false,ao);
    // Floor identity details, all flush (under 0.06 high).
    if(n===2&&hash(x,y,7)>.93&&!wallX&&!wallY)add(puddle,water,x+.5,.004,y+.5,.22+hash(x,y,8)*.24,.16+hash(x,y,9)*.2,1);
