@@ -33,6 +33,11 @@ const scorchMaterial=new THREE.MeshBasicMaterial({map:poolTexture,color:'#000000
 const puffMaterial=new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:.55,depthWrite:false});
 const ribbonMaterial=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
 const puffGeometry=new THREE.IcosahedronGeometry(1,0),tipWorld=new THREE.Vector3(),baseWorld=new THREE.Vector3();
+// Loot rarity light (W5): open beam whose vertex colours fade to black at the top (additive), plus ring and glint glows.
+const beamGeometry=(()=>{const g=new THREE.CylinderGeometry(.15,.24,1,10,1,true);g.translate(0,.5,0);const p=g.attributes.position,c=new Float32Array(p.count*3);for(let i=0;i<p.count;i++){const k=Math.pow(1-p.getY(i),1.6);c.set([k,k,k],i*3);}g.setAttribute('color',new THREE.BufferAttribute(c,3));return g;})();
+const beamMaterial=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+const lootRingMaterial=new THREE.MeshBasicMaterial({map:poolTexture,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,polygonOffset:true,polygonOffsetFactor:-3});
+const lootStyle=Object.freeze({common:{beam:.8,ring:.75,glow:.35},rare:{beam:1.35,ring:.95,glow:.55},legendary:{beam:2.2,ring:1.25,glow:.8}});
 function progressMaterial(color){const m=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});return m;}
 const heroPosition=new THREE.Vector3(),rimWhite=new THREE.Color('#ffffff');const trailMaterials=new Map();const fadingMaterials=new Map();
 function trailMaterial(color){if(!trailMaterials.has(color))trailMaterials.set(color,new THREE.MeshBasicMaterial({color,transparent:true,opacity:.7,depthWrite:false,blending:THREE.AdditiveBlending}));return trailMaterials.get(color);}
@@ -73,6 +78,8 @@ class CastleView {
     this.ribbon=new THREE.Mesh(ribbon,ribbonMaterial);this.ribbon.frustumCulled=false;this.ribbon.renderOrder=6;this.ribbon.visible=false;this.scene.add(this.ribbon);
     this.impactBatch=new THREE.InstancedMesh(shapes.plane,impactMaterial,max.impacts);this.scorchBatch=new THREE.InstancedMesh(shapes.plane,scorchMaterial,max.scorch);this.puffBatch=new THREE.InstancedMesh(puffGeometry,puffMaterial,max.puffs*5);
     for(const b of [this.impactBatch,this.scorchBatch,this.puffBatch]){b.instanceMatrix.setUsage(THREE.DynamicDrawUsage);b.frustumCulled=false;b.count=0;b.visible=false;this.scene.add(b);}this.impactBatch.renderOrder=7;
+    this.lootBeams=new THREE.InstancedMesh(beamGeometry,beamMaterial,48);this.lootRings=new THREE.InstancedMesh(shapes.plane,lootRingMaterial,40);this.lootGlints=new THREE.InstancedMesh(shapes.plane,impactMaterial,40);this.lootSeen=new Map();
+    for(const b of [this.lootBeams,this.lootRings,this.lootGlints]){b.instanceMatrix.setUsage(THREE.DynamicDrawUsage);b.frustumCulled=false;b.count=0;b.visible=false;this.scene.add(b);}this.lootBeams.renderOrder=5;this.lootGlints.renderOrder=7;
     window.addEventListener('vesper-graphics-change',()=>this.setQuality(window.VesperGraphics.current));
     this.renderer.domElement.addEventListener('webglcontextlost', e => {
       e.preventDefault(); this.enabled = false; this.renderer.domElement.hidden = true; this.grade.hidden = true;
@@ -80,7 +87,7 @@ class CastleView {
     });
     this.renderer.domElement.addEventListener('webglcontextrestored', () => { this.enabled = true; });
   }
-  resetEffects(){const V=window.VesperVFX,b=V.budgets[this.quality];this.vfx={trail:V.createTrail(b.trail),impacts:V.createPool(b.impacts),scorch:V.createPool(b.scorch),puffs:V.createPool(b.puffs),hits:new WeakMap(),dead:new WeakSet()};}
+  resetEffects(){const V=window.VesperVFX,b=V.budgets[this.quality];this.vfx={trail:V.createTrail(b.trail),impacts:V.createPool(b.impacts),scorch:V.createPool(b.scorch),puffs:V.createPool(b.puffs),pickups:V.createPool(8),hits:new WeakMap(),dead:new WeakSet()};this.lootSeen?.clear();}
   setQuality(value){
     this.quality=value;this.preset=window.VesperGraphics.presets[value];this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,this.preset.pixelRatio));this.width=0;this.world=null;this.resetEffects();settingsMaterials(this.preset.bump);setBossQuality(this.quality);for(const [base,m]of fadingMaterials){m.bumpMap=this.preset.bump?base.map:null;m.needsUpdate=true;}
   }
@@ -111,9 +118,21 @@ class CastleView {
       if(e.dead&&!fx.dead.has(e)){fx.dead.add(e);if(e.type!=='boss'&&Math.hypot(e.x-player.x,e.y-player.y)<13)V.spawn(fx.puffs,{x:e.x,y:e.y,life:.7,color:e.type==='wraith'?'#a9cdd6':e.type==='plague'?'#8f9a6c':'#8f8a84'});}
     }
     const draw=(batch,items,place)=>{let n=0;for(const item of items)n=place(item,n,1-item.age/item.life);batch.count=n;batch.visible=n>0;batch.instanceMatrix.needsUpdate=true;if(batch.instanceColor)batch.instanceColor.needsUpdate=true;};
-    draw(this.impactBatch,V.advance(fx.impacts,dt),(i,n,k)=>{d.position.set(i.x,.75,i.y);d.quaternion.copy(this.camera.quaternion);d.scale.setScalar(i.size*(1.2-.6*k));d.updateMatrix();this.impactBatch.setMatrixAt(n,d.matrix);this.impactBatch.setColorAt(n,this.effectColor.set(i.heavy?'#ffb36b':'#fff0d0').multiplyScalar(k));return n+1;});
+    draw(this.impactBatch,V.advance(fx.impacts,dt),(i,n,k)=>{d.position.set(i.x,.75,i.y);d.quaternion.copy(this.camera.quaternion);d.scale.setScalar(i.size*(1.2-.6*k));d.updateMatrix();this.impactBatch.setMatrixAt(n,d.matrix);this.impactBatch.setColorAt(n,this.effectColor.set(i.color||(i.heavy?'#ffb36b':'#fff0d0')).multiplyScalar(k));return n+1;});
     draw(this.scorchBatch,V.advance(fx.scorch,dt),(i,n,k)=>{d.position.set(i.x,.012,i.y);d.rotation.set(-Math.PI/2,0,0);d.scale.setScalar(i.size*(.6+.4*k));d.updateMatrix();this.scorchBatch.setMatrixAt(n,d.matrix);return n+1;});
     draw(this.puffBatch,V.advance(fx.puffs,dt),(i,n,k)=>{for(let m=0;m<5;m++){const a=m*2.4+i.x,r=.15+(1-k)*.45;d.position.set(i.x+Math.cos(a)*r,.2+(1-k)*1.1+m*.05,i.y+Math.sin(a)*r);d.rotation.set(0,a,0);d.scale.setScalar(.03+.09*k);d.updateMatrix();this.puffBatch.setMatrixAt(n,d.matrix);this.puffBatch.setColorAt(n,this.effectColor.set(i.color));n++;}return n;});
+  }
+  updateLoot(loots,player,time){
+    // Rarity light on visible equipment drops, and a short collapse/flash when a drop disappears (collected).
+    const E=window.VesperEquipment,V=window.VesperVFX,d=this.fxDummy,fx=this.vfx,c=this.effectColor,now=new Set();let beams=0,rings=0,glints=0;
+    for(const l of loots){if(l.kind!=='equipment'||l.gone||Math.hypot(l.x-player.x,l.y-player.y)>13)continue;now.add(l);const rarity=E.definition(l.item).rarity,st=lootStyle[rarity]||lootStyle.common,pulse=rarity==='legendary'?.82+Math.sin(time*2.4+l.x)*.18:1;
+      this.lootSeen.set(l,{x:l.x,y:l.y,color:l.color,rarity});
+      d.position.set(l.x,0,l.y);d.rotation.set(0,0,0);d.scale.set(1,st.beam*pulse,1);d.updateMatrix();this.lootBeams.setMatrixAt(beams,d.matrix);this.lootBeams.setColorAt(beams++,c.set(l.color).multiplyScalar(st.glow*pulse));
+      d.position.set(l.x,.013,l.y);d.rotation.set(-Math.PI/2,0,0);d.scale.setScalar(st.ring);d.updateMatrix();this.lootRings.setMatrixAt(rings,d.matrix);this.lootRings.setColorAt(rings++,c.set(l.color).multiplyScalar(.7));
+      if(E.modifiers(l.item).length){const k=.6+.4*Math.sin(time*5+l.y*3);d.position.set(l.x,.62+Math.sin(time*2+l.x)*.04,l.y);d.quaternion.copy(this.camera.quaternion);d.scale.setScalar(.32*k);d.updateMatrix();this.lootGlints.setMatrixAt(glints,d.matrix);this.lootGlints.setColorAt(glints++,c.set(l.color).lerp(rimWhite,.5).multiplyScalar(k));}}
+    for(const [l,info] of this.lootSeen)if(!now.has(l)){this.lootSeen.delete(l);if(l.gone){V.spawn(fx.pickups,{...info,life:.45});V.spawn(fx.impacts,{x:info.x,y:info.y,life:.22,size:1.6,color:info.color});}}
+    for(const p of V.advance(fx.pickups,this.visualDt)){const k=1-p.age/p.life,st=lootStyle[p.rarity]||lootStyle.common;d.position.set(p.x,p.age*1.4,p.y);d.rotation.set(0,0,0);d.scale.set(.6+k*.4,st.beam*(.4+k*.8),.6+k*.4);d.updateMatrix();this.lootBeams.setMatrixAt(beams,d.matrix);this.lootBeams.setColorAt(beams++,c.set(p.color).multiplyScalar(st.glow*1.6*k));}
+    for(const [b,n] of [[this.lootBeams,beams],[this.lootRings,rings],[this.lootGlints,glints]]){b.count=n;b.visible=n>0;b.instanceMatrix.needsUpdate=true;if(b.instanceColor)b.instanceColor.needsUpdate=true;}
   }
   damageLabel(text) {
     const canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;
@@ -243,10 +262,10 @@ class CastleView {
         const group=new THREE.Group();
         if(l.kind==='potion'){part(group,cylinder,colorMaterial('#db5769'),0,.17,0,.12,.26,.12);part(group,cylinder,gold,0,.34,0,.05,.09,.05);}
         else{
-          const E=window.VesperEquipment,spec=E.definition(l.item),mat=colorMaterial(l.color);
-          part(group,cylinder,mat,0,.015,0,.4,.025,.4);
-          if(spec.kind==='shield'){const shield=part(group,cylinder,steel,0,.2,0,.23,.08,.23);shield.rotation.x=.6;}
-          else{const blade=part(group,box,steel,0,.22,0,.07,.65,.07);blade.rotation.z=-.65;part(group,box,gold,-.15,.07,0,.25,.05,.1);}
+          const E=window.VesperEquipment,spec=E.definition(l.item),mat=colorMaterial(l.color),axe=['graveaxe','executioner','ashbringer'].includes(l.item.key);
+          if(spec.kind==='shield'){const shield=part(group,cylinder,steel,0,.2,0,.23,.08,.23);shield.rotation.x=.6;part(group,sphere,gold,0,.24,.06,.06,.06,.04);}
+          else if(axe){const haft=part(group,cylinder,dark,0,.2,0,.025,spec.hands===2?.85:.62,.025);haft.rotation.z=-.65;const head=part(group,box,steel,spec.hands===2?.3:.22,spec.hands===2?.42:.34,0,.2,.18,.04);head.rotation.z=-.65;}
+          else{const long=spec.hands===2,blade=part(group,box,steel,0,.24,0,.07,long?.85:.62,.06);blade.rotation.z=-.65;part(group,box,gold,long?-.2:-.15,.07,0,long?.32:.25,.05,.1);}
           if(spec.rarity==='legendary')for(const side of [-1,1])part(group,cone,mat,side*.32,.25,0,.05,.12,.05);
         }
         return group;
@@ -254,6 +273,7 @@ class CastleView {
       m.position.set(l.x,l.kind==='ash'?.3+Math.sin(time*3+l.phase)*.05:0,l.y);
       if(l.kind==='ash'){m.scale.setScalar(.12);m.rotation.y=time;}else if(l.kind==='equipment')m.rotation.y=Math.sin(time+l.phase)*.15;
     }
+    this.updateLoot(loots,player,time);
     for(const [items,batch,limit,y]of [[particles,this.particleBatch,this.preset.particles,.45],[bullets,this.projectileBatch,48,.65]]){let count=0;for(let i=items.length-1;i>=0&&count<limit;i--){const a=items[i];if(Math.hypot(a.x-player.x,a.y-player.y)>13)continue;const size=batch===this.particleBatch?(a.size||.055)*Math.max(.2,a.life/(a.max||.65)):(a.r||.14);this.effectDummy.position.set(a.x,y,a.y);this.effectDummy.scale.setScalar(size);this.effectDummy.updateMatrix();batch.setMatrixAt(count,this.effectDummy.matrix);batch.setColorAt(count,this.effectColor.set(a.color||'#d8b4fa'));count++;}batch.count=count;batch.instanceMatrix.needsUpdate=true;if(batch.instanceColor)batch.instanceColor.needsUpdate=true;}
 
     for(const f of flashes){const m=this.object(f,()=>{const g=new THREE.Group(),color=f.color||'#ffe0a5';for(let i=0;i<(this.quality==='high'?2:1);i++){const geometry=new THREE.TorusGeometry(f.range*(f.fullCircle?1:.8)-i*.06,i?.018:.045,4,32,f.fullCircle?Math.PI*2:(f.arc??player.arc)*2),mesh=new THREE.Mesh(geometry,trailMaterial(color));mesh.userData.ownedGeometry=true;g.add(mesh);}g.rotation.x=Math.PI/2;return g;},active);m.position.set(f.x,.5,f.y);m.rotation.z=f.a-(f.arc??player.arc);m.scale.setScalar(1-f.t/f.duration*.3);}

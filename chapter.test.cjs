@@ -5,7 +5,7 @@ const vm=require('node:vm');
 function game(){
   const elements=new Map(),events=[],handlers={};
   const context2d=new Proxy({}, {get:()=>()=>{}});
-  const element=()=>({style:{},classList:{add(){},remove(){},toggle(){}},addEventListener(){},getContext:()=>context2d,querySelectorAll:()=>[],textContent:'',innerHTML:'',width:130,height:130});
+  const element=()=>({style:{},classList:{add(){},remove(){},toggle(){}},dataset:{},addEventListener(){},getContext:()=>context2d,querySelectorAll:()=>[],textContent:'',innerHTML:'',width:130,height:130});
   const story={paused:false,objects:[],connect(a){this.adapter=a},setup(){},update(){},emit(name,detail){events.push({name,detail})},canLeave:()=>true};
   const sandbox={document:{hidden:false,addEventListener(name,fn){handlers[name]=fn},getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)}},localStorage:{getItem(){return null},setItem(){}},innerWidth:393,innerHeight:852,devicePixelRatio:1,addEventListener(name,fn){handlers[name]=fn},requestAnimationFrame(){},VesperStory:story,VesperFloors:require('./floors.js'),VesperEnemies:require('./enemy-system.js'),VesperAbilities:require('./abilities.js'),VesperBosses:require('./boss-system.js'),VesperEquipment:require('./equipment.js'),VesperInventoryUI:{create(adapter){this.adapter=adapter;return {isOpen:false}}}};sandbox.window=sandbox;
   const script=fs.readFileSync('index.html','utf8').match(/<script>\s*'use strict';([\s\S]*?)<\/script>/)[1];
