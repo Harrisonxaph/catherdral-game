@@ -21,6 +21,8 @@
  // Fixed-length trail of blade samples: newest first, ages advance with presentation time and old samples expire.
  function createTrail(length){return {length,points:[],life:.16};}
  function pushTrail(trail,tip,base,dt,active){
+  // No simulation time elapsed (paused, inventory, repeated redraw): freeze both sampling and ageing.
+  if(!(dt>0))return trail.points;
   for(const p of trail.points)p.age+=dt;
   if(active)trail.points.unshift({tip:{...tip},base:{...base},age:0});
   while(trail.points.length>trail.length||trail.points.length&&trail.points.at(-1).age>trail.life)trail.points.pop();
