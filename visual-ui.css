@@ -8,3 +8,10 @@
 html:has(#paused:not(.hidden)),body:has(#paused:not(.hidden)){touch-action:pan-y}
 #paused,#paused .panel{touch-action:pan-y;overscroll-behavior:contain}
 @media(max-height:450px){#paused h1{font-size:30px!important}#paused .lore{margin:6px 0}#paused .graphics-label{margin:9px 0}#paused .primary{padding:11px}}
+/* Graphics v2 (W5): ornament only. No size, padding, margin or offset changes to any hit target or panel. */
+.inventory-slot.rarity-rare .item-icon svg{filter:drop-shadow(0 0 3px #4f9dff80)}.inventory-slot.rarity-legendary .item-icon svg{filter:drop-shadow(0 0 4px #f2bf5aa8)}
+#toast[data-rarity=common]{color:#e7e1d4}#toast[data-rarity=rare]{color:#a6d4ff;text-shadow:0 0 12px #2f74c8,0 2px 12px #000}#toast[data-rarity=legendary]{color:#f6d38c;text-shadow:0 0 14px #c98b2a,0 2px 12px #000,0 0 26px #8a5a15}
+.bar>span{background-image:repeating-linear-gradient(90deg,#ffffff12 0 1px,transparent 1px 6px),linear-gradient(#e79686,#a43e53 48%,#71283e)}.xp>span{background-image:linear-gradient(90deg,#947045,#f2cf8b)}
+.hud-stats{position:relative}.hud-stats::before,.hud-stats::after{content:'';position:absolute;width:9px;height:9px;pointer-events:none;border:1px solid #d4b37a8c}.hud-stats::before{top:3px;left:3px;border-right:0;border-bottom:0}.hud-stats::after{right:3px;bottom:3px;border-left:0;border-top:0}
+.ability::after,.action::after,.iconbtn::after{content:'';position:absolute;inset:3px;border:1px solid #d7b98022;border-radius:inherit;pointer-events:none}.action,.iconbtn{position:relative}
+.ability.ready::after{border-color:#e6c48a40}

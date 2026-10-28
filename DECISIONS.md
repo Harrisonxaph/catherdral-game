@@ -4,6 +4,17 @@ PROJECT.md already records the existing game-design decisions and source
 precedence; reuse that record rather than reconstructing a competing history.
 Dates of earlier choices are not inferred from stage numbers.
 
+## 2026-10-28 — graphics v2: Medium triangle headroom
+
+- Decision (owner chose option 1 of 3): make quarter/half/cracked floor slab splits
+  High-only, rather than raising the Medium triangle budget or squeezing later
+  increments. Medium keeps border courses, sunken slabs and worn paths.
+- Reason: increment 3 left about 4.2k triangles of Medium headroom against the
+  +30% budget, too little for effects, characters and loot work.
+- Result: tightest Medium scene 9.9k headroom (15–21k elsewhere); all 25 scenes
+  within budget and readability floor. Alternatives not taken: raise Medium to
+  +40% (more phone risk), or keep limits and constrain later increments.
+
 ## 2026-10-27 — experimental rolled bonus modifiers (pending review)
 
 - Decision: add per-instance rolled modifiers (`mods` on the frozen item instance)

@@ -35,7 +35,8 @@ specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 | `abilities.js`, `abilities.css` | Three simulation-time player abilities, cooldowns, temporary Aegis and targeting helpers |
 | `boss-system.js`, `bosses.css` | Boss encounter state machines, candles, protected actions, sequence lifecycle and boss UI |
 | `castle-view.js` | Three.js renderer, orthographic camera, entity-to-model integration, culling, effects and resource lifecycle |
-| `graphics.js`, `visual-ui.css` | Quality presets/preferences, floor palettes and gothic UI styling |
+| `graphics.js`, `visual-ui.css` | Quality presets/preferences, floor palettes, baked-light helpers and gothic UI styling |
+| `vfx-state.js` | Pure effect budgets, telegraph progress, trail and impact pools used by `castle-view.js` |
 | `art-materials.js`, `environment-art.js`, `character-art.js` | Shared procedural materials/geometry, dungeon scenery and articulated regular characters |
 | `boss-art.js`, `boss-presentation.js`, `boss-effects.js` | Procedural boss models, pure presentation clocks/budgets, signature VFX and visual collapse |
 | `story-content.js`, `narrative.js`, `narrative.css` | Narrative content, journal/interactions, reading pause and first-floor story gating |
@@ -134,6 +135,8 @@ npm run test:inventory-browser
 npm run test:abilities-browser
 npm run test:bosses-browser
 npm run test:graphics-browser
+npm run test:effects-browser
+npm run test:hud-layout-browser
 npm run test:boss-art-browser
 npm run test:offline-browser
 ```
@@ -149,6 +152,20 @@ CAPTURE_PHASE=before npm run capture:visuals
 CAPTURE_PHASE=after npm run capture:visuals
 npm run capture:bosses
 ```
+
+For the graphics v2 work ([docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md)), capture
+`after` and run the deterministic budget check against the main baseline:
+
+```sh
+CAPTURE_PHASE=after npm run capture:graphics-v2
+npm run test:graphics-budget
+```
+
+`CAPTURE_PHASE=before` regenerates the baseline from `CAPTURE_BASELINE` (default
+`387a900`); only do that when deliberately moving the baseline. The budget check fails
+unless every baseline scene is measured exactly once. The PR workflow's
+`graphics-budget` job captures both phases on the same runner (`CAPTURE_SAMPLES=4`,
+timings advisory) and enforces the budgets on the current head.
 
 Capture scripts overwrite tracked gallery files and need the historical commits
 available locally: `3b9b40e` for the floor baseline and `3bf7fb5` for the boss

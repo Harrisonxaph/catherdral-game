@@ -124,6 +124,7 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
 <link rel="stylesheet" href="./abilities.css" />
 <link rel="stylesheet" href="./visual-ui.css" />
 <script src="./graphics.js"></script>
+<script src="./vfx-state.js"></script>
 <script src="./abilities.js"></script>
 <script src="./boss-system.js"></script>
 <script src="./boss-presentation.js"></script>
@@ -156,7 +157,7 @@ function reconcileEquipment(){player.shield=Math.min(player.shield||0,equipmentS
 function dropEquipment(item,x,y){if(!item)return;const spec=equipment.definition(item);loots.push({x,y,kind:'equipment',item,color:equipment.rarities[spec.rarity].color,phase:0,pickAt:time+.4});}
 function checkEncounter(){if(!encounter||encounter.completed||!encounter.members.every(e=>e.dead))return;encounter.completed=true;const item=equipment.encounterReward(encounter,floor,rand);if(item)dropEquipment(item,stair.x,stair.y);story.emit('encounter-complete',{id:encounter.id,floor,kind:encounter.kind});}
 function nearestEquipment(){return loots.filter(l=>l.kind==='equipment'&&!l.gone&&time>=(l.pickAt||0)&&dist(l.x,l.y,player.x,player.y)<1.6).sort((a,b)=>dist(a.x,a.y,player.x,player.y)-dist(b.x,b.y,player.x,player.y))[0];}
-function collectEquipment(){if(state!=='playing'||story.paused)return;const loot=nearestEquipment();if(!loot)return;const result=equipment.collect(runEquipment,loot.item);if(!result.ok){showToast('BACKPACK FULL',result.error);return;}loot.gone=true;showToast('RELIC ACQUIRED',[equipment.definition(loot.item).name,...equipment.modifiers(loot.item).map(equipment.describeModifier)].join(' · '));sfx('collect');updateHUD();}
+function collectEquipment(){if(state!=='playing'||story.paused)return;const loot=nearestEquipment();if(!loot)return;const result=equipment.collect(runEquipment,loot.item);if(!result.ok){showToast('BACKPACK FULL',result.error);return;}loot.gone=true;showToast('RELIC ACQUIRED',[equipment.definition(loot.item).name,...equipment.modifiers(loot.item).map(equipment.describeModifier)].join(' · '),equipment.definition(loot.item).rarity);sfx('collect');updateHUD();}
 const inventoryUI=window.VesperInventoryUI.create({run:()=>runEquipment,base:()=>player,canOpen:()=>state==='playing'&&!story.paused,pause(){clearInput();state='inventory';updateAbilityHUD();$('descend').style.display='none';$('pickup-loot').hidden=true;},resume(){clearInput();last=0;if(document.hidden){state='paused';showOverlay('paused');}else state='playing';updateAbilityHUD();},changed:reconcileEquipment,drop(item){if(loots.filter(l=>l.kind==='equipment'&&!l.gone).length>=40)return false;for(const [dx,dy]of [[0,.8],[.8,0],[-.8,0],[0,-.8]]){if(free(player.x+dx,player.y+dy,.2)){dropEquipment(item,player.x+dx,player.y+dy);return true;}}return false;}});
 $('pickup-loot').addEventListener('click',collectEquipment);
 function clearInput(){key={};holdAttack=false;joy.x=joy.y=0;joy.id=null;$('knob').style.transform='translate(0,0)';$('attack').classList.remove('down');}
@@ -168,7 +169,7 @@ function hash(x,y,n=0){const v=Math.sin(x*127.1+y*311.7+n*74.7)*43758.5453;retur
 function resize(){dpr=Math.min(devicePixelRatio||1,2);width=innerWidth;height=innerHeight;canvas.width=Math.max(1,Math.round(width*dpr));canvas.height=Math.max(1,Math.round(height*dpr));canvas.style.width=width+'px';canvas.style.height=height+'px';tileSize=clamp(width/10.7,34,59);if(width>650)tileSize=clamp(width/19,44,62);}
 window.addEventListener('resize',resize);resize();
 function sfx(type){if(!soundOn)return;try{audio=audio||new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();let f={strike:250,hit:150,kill:100,dash:440,collect:650,hurt:95,level:850,potion:500,door:180,shoot:300,execution:110,aegis:720,stunning:390}[type]||250;const osc=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;osc.type=type==='collect'||type==='level'?'sine':type==='hurt'?'sawtooth':'triangle';osc.frequency.setValueAtTime(f,now);osc.frequency.exponentialRampToValueAtTime(Math.max(40,f*(type==='level'?1.5:.52)),now+.14);g.gain.setValueAtTime(.065,now);g.gain.exponentialRampToValueAtTime(.001,now+.17);osc.connect(g);g.connect(audio.destination);osc.start(now);osc.stop(now+.18);}catch(e){}}
-function showToast(a,b=''){const t=$('toast');t.innerHTML=a+(b?'<small>'+b+'</small>':'');t.classList.add('visible');messageTimeout=2.1;}
+function showToast(a,b='',rarity=''){const t=$('toast');t.innerHTML=a+(b?'<small>'+b+'</small>':'');t.dataset.rarity=rarity;t.classList.add('visible');messageTimeout=2.1;}
 function showOverlay(id){for(const name of ['home','upgrade','dead','paused','complete'])$(name).classList.toggle('hidden',name!==id);}
 function hideOverlays(){for(const name of ['home','upgrade','dead','paused','complete'])$(name).classList.add('hidden');}
 function uiPlaying(on){if(!on)$('pickup-loot').hidden=true;$('abilities').style.display=on?'flex':'none';$('hud').style.display=on?'block':'none';$('obj').style.display=on?'block':'none';$('controls').style.display=on?'flex':'none';$('topbuttons').style.display=on?'flex':'none';$('descend').style.display='none';}
