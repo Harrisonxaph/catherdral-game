@@ -298,5 +298,19 @@ unverified, one stacked PR per increment, no external art). Increments:
    death for regular enemies (`VesperVFX.deathDuration`; was 0.4 s; visual only).
    Still procedural pivot rigs, not skinned or sculpted assets.
 
+6. Loot, inventory icons and HUD (branch `development/graphics-v2-loot-hud`):
+   item-shaped ground drops (shield, axe, two-handed or one-handed blade); three
+   instanced batches for rarity light (beam taller for Rare, tallest and pulsing for
+   Legendary), rune-ring glow and a glint for rolled-bonus items, drawn only while
+   loot is visible; a beam collapse and rarity-coloured flash on pickup and a
+   rarity-coloured "RELIC ACQUIRED" toast (`showToast` gained an optional rarity).
+   Twelve original line-art inventory icons (one per item) with rarity glows. HUD
+   ornament only (health striations, panel corner brackets, inner button frames):
+   `tests/hud-layout-browser.cjs` renders main `387a900` and the current tree in
+   the same browser at four viewports and compares 23 HUD/control/inventory
+   rectangles (a stored snapshot failed on other machines' fonts), and requires
+   44px touch targets. No item rules, rarity tables or
+   equipment logic changed.
+
 Measurements are software WebGL, not phone FPS; physical-device checks remain
 outstanding for every increment.

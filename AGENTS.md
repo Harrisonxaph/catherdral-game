@@ -136,6 +136,7 @@ npm run test:abilities-browser
 npm run test:bosses-browser
 npm run test:graphics-browser
 npm run test:effects-browser
+npm run test:hud-layout-browser
 npm run test:boss-art-browser
 npm run test:offline-browser
 ```

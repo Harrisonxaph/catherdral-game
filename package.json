@@ -10,6 +10,7 @@
     "test:abilities-browser": "node tests/abilities-browser.cjs",
     "test:graphics-browser": "node tests/graphics-browser.cjs",
     "test:effects-browser": "node tests/effects-browser.cjs",
+    "test:hud-layout-browser": "node tests/hud-layout-browser.cjs",
     "capture:visuals": "node tests/visual-capture.cjs",
     "test:offline-browser": "node tests/offline-browser.cjs",
     "test:bosses-browser": "node tests/bosses-browser.cjs",
