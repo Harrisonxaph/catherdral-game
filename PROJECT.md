@@ -255,8 +255,7 @@ hydration/reservation and native IndexedDB revision storage with tests, not wire
 into gameplay. Proposed balance, death/revisit/resource rules, migration and
 single-character scope await approval. Current run reset behaviour still applies.
 
-**Phase 1A, part 1 (2026-10-28, branch `development/arpg-character-foundation`, stacked on
-PR #27; in review, not merged).** Owner asked to start the persistent-character
+**Phase 1A, part 1 (2026-10-28, PR #29, merged into main `652b000`).** Owner asked to start the persistent-character
 foundation and await approval before gameplay changes. Added pure `character-state.js`
 (proposed save schema 1: allowlisted validation, one-owner item graph across hands,
 backpack, 24-slot stash, ground drops and reward escrow; XP/level/point consistency;
@@ -267,7 +266,7 @@ keep their IDs and the allocator never falls below the durable high-water mark.
 gameplay change. Proposed balance values (cap 30, +5 HP/+1 damage per level, four
 passives) are encoded for validation only and still await approval. Schema 1 is
 amended in place until Phase 2 enables persistence, because no save can exist yet.
-Part 2 (branch `development/arpg-save-store`, stacked on part 1): `save-store.js`,
+Part 2 (PR #30, merged into main `88da282`; final head `6712d37`): `save-store.js`,
 an IndexedDB repository (database `vesper-arpg` v1: characters, backups, meta, leases,
 quarantine). Commits are compare-and-swap on revision and a fenced writer lease in one
 transaction, signed with SHA-256 over the canonical envelope (corruption detection,
@@ -278,6 +277,13 @@ in-memory adapter with failure injection at every write; `tests/save-store-brows
 checks real IndexedDB (reopen, real abort, second tab, corruption recovery, version
 upgrade) and that the game itself never opens the database. Not wired into gameplay.
 Untested here: real quota exhaustion, OS kills, Safari/iOS storage and eviction.
+Codex reviewed every head of #29 and #30; its findings were fixed before merge except
+one raised on `6712d37` after #30 merged: the candidate snapshot was a JSON round-trip,
+so `NaN`, `undefined` or an array hole was silently stored as `null` even though
+validation rejects it. Follow-up `development/arpg-save-store-strict-snapshot` takes a
+strict snapshot that refuses every non-JSON value before validation (Phase 1A fix,
+not Phase 2). Phase 2 (New/Continue, permanent XP, checkpoint respawn) still awaits
+owner approval of SPEC section 10.
 ## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
 
 Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and

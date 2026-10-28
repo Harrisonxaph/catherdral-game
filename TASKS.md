@@ -29,13 +29,19 @@ implementation PRs independently reviewed by Codex. Numeric policies and future
 features in the spec are proposals, not approved tasks. Device testing remains open.
 
 2026-10-28 — owner request: start the architecture and persistent-character
-foundation, then await approval for gameplay changes. Phase 1A part 1 on
-`development/arpg-character-foundation` (stacked on PR #27): `character-state.js`,
-`equipment.js` restore/reserve, `character-state.test.cjs` and the fixture
-`tests/fixtures/save-v1-full.json`. Not wired into the game. Next: part 2, the
-IndexedDB repository with real-browser tests (`save-store.js`, branch
-`development/arpg-save-store`, stacked on part 1). Phase 2 (New/Continue, permanent XP,
-checkpoint respawn) changes gameplay and needs owner approval first.
+foundation, then await approval for gameplay changes. Phase 1A is merged: PR #29
+(`character-state.js`, `equipment.js` restore/reserve, fixture) and PR #30
+(`save-store.js`, IndexedDB repository with real-browser tests); main `88da282`.
+Neither is loaded by the game.
+
+Current: Phase 1A follow-up on `development/arpg-save-store-strict-snapshot` for
+Codex's post-merge finding on `6712d37` (non-JSON candidate values were normalised to
+`null` instead of refused). Proposed next (awaiting approval): Phase 2 as small PRs —
+1 reproducible floors with stable spawn/chest IDs (keep the current seeded draw order;
+budget world digests must not change), 2 pure world/reward ledger, 3 command
+coordinator (atomic potion spend+heal, cooldown reservation, death record, save-failure
+pause), 4 emergency export and backup selection, 5 New/Continue and checkpoint respawn.
+Phase 2 gameplay changes need owner approval of SPEC section 10 first.
 
 ## Previous graphics specification task
 
