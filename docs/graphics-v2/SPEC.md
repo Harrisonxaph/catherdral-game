@@ -194,7 +194,9 @@ it does not claim professional sculpted or skinned quality.
 Acceptance budgets, measured with the capture harness in the same seeded scenes
 against `captures/before-metrics.json` (software WebGL as a relative signal only).
 `npm run test:graphics-budget` enforces draw calls, triangles, real-time lights,
-texture counts and unchanged world digests per scene. Timings are reported but
+texture counts and unchanged world digests per scene, and fails unless every baseline
+scene is measured exactly once. CI recaptures the baseline and the current head on the
+same runner before checking. Timings are reported but
 only advisory: on identical code, repeated software-WebGL p50 samples differed by
 up to 2.7× (1.4 → 3.8 ms), so they cannot gate a change.
 

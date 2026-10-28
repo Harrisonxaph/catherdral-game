@@ -159,7 +159,10 @@ npm run test:graphics-budget
 ```
 
 `CAPTURE_PHASE=before` regenerates the baseline from `CAPTURE_BASELINE` (default
-`387a900`); only do that when deliberately moving the baseline.
+`387a900`); only do that when deliberately moving the baseline. The budget check fails
+unless every baseline scene is measured exactly once. The PR workflow's
+`graphics-budget` job captures both phases on the same runner (`CAPTURE_SAMPLES=4`,
+timings advisory) and enforces the budgets on the current head.
 
 Capture scripts overwrite tracked gallery files and need the historical commits
 available locally: `3b9b40e` for the floor baseline and `3bf7fb5` for the boss
