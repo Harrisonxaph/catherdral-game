@@ -88,6 +88,8 @@
   const guard=fn=>serial(async()=>{try{return await fn();}catch(e){return failure(storageCode(e),e?.message||String(e));}});
   const iso=()=>new Date(clock()).toISOString();
   const sign=async env=>({...env,integrity:{algorithm:'SHA-256',digest:await digest(schema.canonical(unsigned(env)))}});
+  // The checksum alone, for records of any version (older ones are validated by their own migration step).
+  async function checksumOk(raw){if(!raw||typeof raw!=='object'||!raw.integrity||typeof raw.integrity.digest!=='string')return false;try{return await digest(schema.canonical(unsigned(raw)))===raw.integrity.digest;}catch{return false;}}
   // Integrity first (accidental corruption, not anti-cheat), then the schema's own validation.
   async function inspect(raw){
    if(!raw||typeof raw!=='object')return {status:'corrupt',errors:[{path:'',message:'not a save record'}]};
@@ -115,7 +117,8 @@
 
   // Compare-and-swap write: lease, expected revision and candidate are checked in one transaction, which also moves the
   // previous revision into backups. Validation and signing (WebCrypto) finish before the IndexedDB transaction opens.
-  async function commitPayload(id,payload,options,createdAt){
+  async function commitPayload(id,input,options,createdAt){
+   const payload=clone(input);// repository-owned snapshot: later caller mutations cannot reach the signed record
    const now=iso(),rev=Math.max(options.expectedRevision,options.revisionFloor||0)+1;
    const env=schema.envelope(payload,{characterId:id,revision:rev,createdAt:createdAt||now,savedAt:now,sessionId,leaseEpoch:options.epoch});
    const check=schema.validate(env);if(!check.ok)return failure(check.code||'invalid','the candidate save is invalid',{errors:check.errors});
@@ -123,6 +126,7 @@
    return adapter.transact(ALL,'readwrite',async tx=>{
     const lease=await tx.get('leases',id);if(!leaseOk(lease,options.epoch))return failure('fenced','the writer lease was lost; reload before saving');
     const current=await tx.get('characters',id);
+    if(options.quarantineCurrent&&schema.canonical(current??null)!==options.quarantineCurrent)return failure('conflict','the save changed during recovery; reload and choose again');
     if(!options.quarantineCurrent){
      if(current&&options.expectedRevision===0)return failure('exists','a character already exists; it is never replaced silently');
      if(current&&current.revision!==options.expectedRevision)return failure('conflict','the save changed since it was loaded',{revision:current.revision});
@@ -172,12 +176,13 @@
    const currentState=current?await inspect(current):null;
    if(currentState?.status==='unsupported')return failure('unsupported','a newer save is never overwritten');
    const corrupt=currentState?.status==='corrupt',floor=Math.max(backup.revision,Number.isSafeInteger(current?.revision)?current.revision:0);
-   return commitPayload(id,backup.envelope.payload,{expectedRevision:corrupt?floor:current?current.revision:0,epoch,quarantineCurrent:corrupt,revisionFloor:floor},backup.envelope.createdAt);
+   return commitPayload(id,backup.envelope.payload,{expectedRevision:corrupt?floor:current?current.revision:0,epoch,quarantineCurrent:corrupt?schema.canonical(current):false,revisionFloor:floor},backup.envelope.createdAt);
   });
   // Persist a pure migration: the pre-migration record is pinned and outlives rotation. Repeating it is a no-op.
   const migrateStored=(id,epoch)=>guard(async()=>{
    const raw=await readCurrent(id);if(!raw)return failure('missing','no saved character');
-   const result=schema.migrate(raw);if(!result.ok)return failure(result.code||'invalid','migration failed; the original save is unchanged',{errors:result.errors});
+   // A corrupt record is never migrated: re-signing it would launder the damage into a valid-looking save.
+   const result=schema.migrate(raw);if(result.code!=='unsupported'&&!await checksumOk(raw))return failure('corrupt','the latest save failed its checks; restore a backup before migrating');if(!result.ok)return failure(result.code||'invalid','migration failed; the original save is unchanged',{errors:result.errors});
    if(!result.migrated)return {ok:true,migrated:false,revision:raw.revision};
    const committed=await commitPayload(id,result.envelope.payload,{expectedRevision:raw.revision,epoch,pinPrevious:true},raw.createdAt);
    return committed.ok?{...committed,migrated:true}:committed;

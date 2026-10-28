@@ -137,3 +137,35 @@ test('Stored migrations pin the pre-migration backup, survive rotation and are i
  const broken=S.createStore({adapter,sessionId:'tab-a',clock:()=>time.now,schema:{...schema,migrate:()=>({ok:false,code:'invalid',errors:[{path:'',message:'boom'}]})}});
  const before=snapshot(adapter);assert.equal((await broken.migrateStored(ID,lease.epoch)).ok,false);assert.equal(snapshot(adapter),before);
 });
+
+test('Review: a corrupt record is never migrated or re-signed',async()=>{
+ const {adapter,time,store}=setup(),plain=store('tab-a'),lease=await plain.acquireLease(ID);assert.ok((await plain.create(ID,basePayload(),lease.epoch)).ok);
+ const validate=e=>e?.schemaVersion===2?C.validate({...e,schemaVersion:1}):C.validate(e);
+ const plan={target:2,steps:{1:e=>{e.schemaVersion=2;return e;}},validators:{1:C.validate,2:validate}};
+ const v2=S.createStore({adapter,sessionId:'tab-a',clock:()=>time.now,schema:{...C,validate,migrate:e=>C.migrate(e,plan),envelope:(p,m)=>({...C.envelope(p,m),schemaVersion:2})}});
+ adapter.data.get('characters').get(ID).payload.character.ash=777;const before=snapshot(adapter);
+ assert.equal((await v2.load(ID)).code,'corrupt');
+ const m=await v2.migrateStored(ID,lease.epoch);assert.equal(m.code,'corrupt');assert.equal(snapshot(adapter),before);
+});
+
+test('Review: corruption recovery is compare-and-swap; a stale restore cannot replace newer progress',async()=>{
+ const adapter=S.memoryAdapter({latency:true}),clock=()=>Date.parse('2026-10-28T12:00:00Z'),a=S.createStore({adapter,sessionId:'tab-a',clock}),a2=S.createStore({adapter,sessionId:'tab-a',clock});
+ const {epoch}=await a.acquireLease(ID);assert.ok((await a.create(ID,basePayload(),epoch)).ok);
+ for(let rev=1;rev<3;rev++)assert.ok((await a.commit(ID,withAsh(basePayload(),rev*100),{expectedRevision:rev,epoch})).ok);
+ adapter.data.get('characters').get(ID).payload.character.ash=999999;
+ const {backups}=await a.listBackups(ID);
+ const results=await Promise.all([a.restoreBackup(ID,backups[0].key,epoch),a2.restoreBackup(ID,backups[1].key,epoch)]);
+ assert.deepEqual(results.map(r=>r.ok).sort(),[false,true]);assert.equal(results.find(r=>!r.ok).code,'conflict');
+ assert.equal((await a.quarantined(ID)).records.length,1,'only the corrupt record is quarantined');
+ // A recovered save that then progresses is never overwritten by a restore that inspected the old corrupt bytes.
+ const winner=results.find(r=>r.ok),progressed=await a.commit(ID,withAsh(basePayload(),4242),{expectedRevision:winner.revision,epoch});assert.ok(progressed.ok);
+ assert.equal((await a.load(ID)).envelope.payload.character.ash,4242);
+});
+
+test('Review: the stored record is a snapshot; caller mutations during signing cannot desynchronise its checksum',async()=>{
+ const adapter=S.memoryAdapter(),clock=()=>Date.parse('2026-10-28T12:00:00Z');let release;const gate=new Promise(r=>release=r);
+ const slow=async text=>{await gate;return S.sha256(text);};
+ const a=S.createStore({adapter,sessionId:'tab-a',clock,digest:slow}),{epoch}=await a.acquireLease(ID),payload=basePayload();
+ const pending=a.create(ID,payload,epoch);await new Promise(r=>setTimeout(r,0));payload.character.ash+=1;release();
+ assert.ok((await pending).ok);const loaded=await a.load(ID);assert.ok(loaded.ok,JSON.stringify(loaded.errors));assert.equal(loaded.envelope.payload.character.ash,basePayload().character.ash);
+});
