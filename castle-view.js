@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.min.js';
-import {material,shapes,mesh,settingsMaterials,contactMaterial,resourceInfo} from './art-materials.js';
+import {material,shapes,mesh,settingsMaterials,contactMaterial,resourceInfo,rimUniforms} from './art-materials.js';
 import {buildEnvironment,updateEnvironment,disposeEnvironment,poolTexture} from './environment-art.js';
 import {createCharacter,animateCharacter,disposeCharacter} from './character-art.js';
 import {createBoss,animateBoss,disposeBoss,createRoyalAxe,setBossQuality,createRitualCandle,animateRitualCandle,createAcidProjectile} from './boss-art.js';
@@ -34,7 +34,7 @@ const puffMaterial=new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true
 const ribbonMaterial=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
 const puffGeometry=new THREE.IcosahedronGeometry(1,0),tipWorld=new THREE.Vector3(),baseWorld=new THREE.Vector3();
 function progressMaterial(color){const m=new THREE.MeshBasicMaterial({color,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});return m;}
-const heroPosition=new THREE.Vector3();const trailMaterials=new Map();const fadingMaterials=new Map();
+const heroPosition=new THREE.Vector3(),rimWhite=new THREE.Color('#ffffff');const trailMaterials=new Map();const fadingMaterials=new Map();
 function trailMaterial(color){if(!trailMaterials.has(color))trailMaterials.set(color,new THREE.MeshBasicMaterial({color,transparent:true,opacity:.7,depthWrite:false,blending:THREE.AdditiveBlending}));return trailMaterials.get(color);}
 function fadedMaterial(original){if(!fadingMaterials.has(original)){const m=original.clone();m.transparent=true;m.opacity=.24;m.depthWrite=false;fadingMaterials.set(original,m);}return fadingMaterials.get(original);}
 const materials = new Map();
@@ -94,7 +94,7 @@ class CastleView {
     disposeEnvironment(this.environment);if(this.bossEffects)disposeBossEffects(this.bossEffects);this.bossEffects=createBossEffects();this.scene.add(this.bossEffects);
     for(const object of this.dynamic.values())this.release(object,false);this.dynamic.clear();for(const pool of this.actorPool.values())for(const m of pool)disposeCharacter(m);this.actorPool.clear();
     this.resetEffects();this.world=world;this.theme=window.VesperGraphics.themes[world.config.number-1];this.environment=buildEnvironment(world,torches,stair,this.theme,this.preset);this.structure=this.environment.root;this.scene.add(this.structure);this.flames=this.environment.flames;this.portalRing=this.environment.portalRing;
-    this.renderer.setClearColor(this.theme.fog);this.scene.fog=new THREE.FogExp2(this.theme.fog,this.theme.fogDensity);this.renderer.toneMappingExposure=this.theme.exposure;this.grade.style.setProperty('--grade',this.theme.grade);this.ambient.color.set(this.theme.ambient);this.moon.color.set(this.theme.ambient);settingsMaterials(this.preset.bump);setBossQuality(this.quality);
+    this.renderer.setClearColor(this.theme.fog);this.scene.fog=new THREE.FogExp2(this.theme.fog,this.theme.fogDensity);this.renderer.toneMappingExposure=this.theme.exposure;rimUniforms.rimColor.value.set(this.theme.accent).lerp(rimWhite,.45);this.grade.style.setProperty('--grade',this.theme.grade);this.ambient.color.set(this.theme.ambient);this.moon.color.set(this.theme.ambient);settingsMaterials(this.preset.bump);setBossQuality(this.quality);
   }
   updateEffects({player,enemies,abilityState,equipment,flashes=[]},hero){
     // Presentation only: reads simulation state (attack timer, hit flash, death flag) and never writes it.
@@ -161,7 +161,9 @@ class CastleView {
       if(off){u.offhand.material=colorMaterial(E.rarities[off.rarity].color);u.offSword.material=colorMaterial(E.rarities[off.rarity].color);}
     }
     hero.userData.heavy=abilityState?.cast?.id==='execution'||hero.userData.heavy&&attackTimer>0;
-    animateCharacter(hero,player,time,{attacking:attackTimer>0&&!abilityState?.cast,preparing:!!abilityState?.cast,dodging:!!data.dodging,heavy:hero.userData.heavy,blocking:invul>0&&window.VesperEquipment?.definition(equipment?.off)?.kind==='shield',reacting:invul>0,twoHanded:window.VesperEquipment?.definition(equipment?.main)?.hands===2,dual:window.VesperEquipment?.definition(equipment?.off)?.kind==='weapon'});
+    // Hero swing progress comes from the newest melee flash; ability wind-up from the cast's remaining windup time.
+    let heroFlash=null;for(const f of flashes)if(!f.fullCircle&&(!heroFlash||f.t<heroFlash.t))heroFlash=f;const castDef=abilityState?.cast&&window.VesperAbilities.definitions[abilityState.cast.id];
+    animateCharacter(hero,player,time,{swing:heroFlash?heroFlash.t/heroFlash.duration:null,windup:castDef?.windup?1-abilityState.cast.remaining/castDef.windup:null,attacking:attackTimer>0&&!abilityState?.cast,preparing:!!abilityState?.cast,dodging:!!data.dodging,heavy:hero.userData.heavy,blocking:invul>0&&window.VesperEquipment?.definition(equipment?.off)?.kind==='shield',reacting:invul>0,twoHanded:window.VesperEquipment?.definition(equipment?.main)?.hands===2,dual:window.VesperEquipment?.definition(equipment?.off)?.kind==='weapon'});
     if(abilityState?.cast){hero.rotation.y=-abilityState.cast.facing-Math.PI/2;hero.userData.sword.rotation.x=-.8;}else hero.userData.sword.rotation.x=attackTimer>0?-2.1:-.5;hero.userData.offSword.rotation.x=attackTimer>0?-2.1:-.5;
     if(abilityState?.barrier.capacity>0&&abilityState.barrier.remaining>0){
       const barrier=abilityState.barrier,m=this.object(barrier,()=>{
@@ -170,16 +172,16 @@ class CastleView {
       m.position.set(player.x,0,player.y);m.userData.shell.material=barrier.hit>0?aegisHitMaterial:aegisMaterial;
     }
     for(const e of enemies){
-      const victory=e===bossState?.boss&&bossState?.sequence?.kind==='victory',deathDuration=e.type==='boss'?window.VesperBossPresentation.definitions[e.bossId]?.deathDuration||.4:.4,dying=e.dead&&time-(e.deadAt||0)<deathDuration;if(e.dead&&!dying&&!victory||Math.hypot(e.x-player.x,e.y-player.y)>13&&!bossState?.sequence)continue;
+      const victory=e===bossState?.boss&&bossState?.sequence?.kind==='victory',deathDuration=e.type==='boss'?window.VesperBossPresentation.definitions[e.bossId]?.deathDuration||.4:window.VesperVFX.deathDuration,dying=e.dead&&time-(e.deadAt||0)<deathDuration;if(e.dead&&!dying&&!victory||Math.hypot(e.x-player.x,e.y-player.y)>13&&!bossState?.sequence)continue;
       const contact=this.object('contact:'+enemies.indexOf(e),()=>{const m=new THREE.Mesh(shapes.plane,contactMaterial);m.rotation.x=-Math.PI/2;return m;},active);contact.position.set(e.x,.012,e.y);contact.scale.set(e.type==='brute'?1.3:.8,e.type==='brute'?1.05:.65,1);
       const m=this.object(e,()=>this.actor(false,e.type,e.bossId),active);
       const prep=e.state==='preparing',attack=e.state==='attacking';
       m.position.set(e.x,0,e.y);m.rotation.y=e.bossId==='king'&&e.action==='whirlwind'&&attack&&!e.dead?time*8:-e.aim-Math.PI/2;
       if(e.type==='boss')animateBoss(m,e,time,e===bossState?.boss?bossState.action:null,e===bossState?.boss?bossState.sequence:null,this.quality);
       else{
-        animateCharacter(m,e,time,{preparing:prep,attacking:attack,deadProgress:dying?Math.min(1,(time-e.deadAt)/.4):0});
-        m.position.y=dying?-.3*Math.min(1,(time-e.deadAt)/.4):e.type==='wraith'?.13+Math.sin(time*3)*.1:attack?.12:0;
-        m.rotation.z=dying?-Math.PI*.45*Math.min(1,(time-e.deadAt)/.4):e.state==='stunned'?Math.sin(time*40)*.09:0;
+        const v=m.userData;if(v.st!==e.state){v.st=e.state;v.stDur=Math.max(.01,e.stateTime||0);}const progress=1-Math.max(0,e.stateTime||0)/v.stDur;
+        if(!dying){m.position.y=e.type==='wraith'?.13+Math.sin(time*3)*.1:attack?.12:0;m.rotation.z=0;}
+        animateCharacter(m,e,time,{preparing:prep,attacking:attack,windup:prep?progress:null,swing:attack?progress:null,deadProgress:dying?Math.min(1,(time-e.deadAt)/deathDuration):0});
         if(m.userData.sword)m.userData.sword.rotation.x=prep?-.8:attack?-2.1:-.5;
       }
       if(m.userData.flash)m.userData.flash.visible=e.hit>0;if(m.userData.stunIndicator){m.userData.stunIndicator.visible=e.state==='stunned';m.userData.stunIndicator.rotation.y=time*3;}

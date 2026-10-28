@@ -34,12 +34,23 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    out.telegraph=H.map((spec,i)=>{const h={id:'fx'+i,x:q.player.x+(i-1.5)*3,y:q.player.y+2,age:0,warning:1,duration:1,color:'#e2643d',kind:'fire',...spec};q.combat.hazards.push(h);q.draw();const m=v.dynamic.get('hazard:'+h.id),pg=m.userData.progress,early={visible:pg.visible,scale:pg.scale.x,opacity:pg.children[0].material.opacity};
     h.age=.999;q.draw();const late={scale:pg.scale.x,opacity:pg.children[0].material.opacity};h.age=1.2;q.draw();const after=pg.visible;q.combat.hazards.splice(q.combat.hazards.indexOf(h),1);
     return {shape:spec.shape,early,late,hiddenWhenActive:!after};});
+   // Characters (W3): rim materials, swing sweep, enemy wind-up, cape motion and the two-phase death.
+   q.combat.hazards.length=0;q.clearEnemies();q.draw();const hero=v.dynamic.get(q.player),rig=hero.userData.rig;let rim=0,total=0;hero.traverse(o=>{if(o.isMesh&&o.visible&&o.material?.isMeshStandardMaterial){total++;if(o.material.userData.rim)rim++;}});
+   out.rim=total>0&&rim/total>.8;
+   out.cape=rig.cape.userData.keep===true&&rig.cape.parent===rig.body;const capeIdle=rig.cape.rotation.x;
+   const target=q.spawnEnemy(q.player.x,q.player.y-1,'brute');target.hp=target.maxHp=9999;q.setAttackTimer(0);for(let i=0;i<20;i++)q.tick(.05);q.setAttackTimer(0);q.attemptAttack();const arm=[];for(let i=0;i<6;i++){q.tick(.02);q.draw();arm.push(+rig.arms[1].upper.rotation.x.toFixed(3));}
+   out.swing=new Set(arm).size>=4&&arm[arm.length-1]>arm[0];out.swingSamples=arm;
+   const foe=q.spawnEnemy(q.player.x+3,q.player.y,'bone');foe.hp=foe.maxHp=9999;foe.state='preparing';foe.action='melee';foe.stateTime=.6;q.draw();const foeRig=v.dynamic.get(foe).userData.rig,r0=foeRig.arms[1].upper.rotation.x;foe.stateTime=.1;q.draw();out.windup=foeRig.arms[1].upper.rotation.x<r0-.5;
+   foe.state='chasing';const px=q.player.x;q.player.x+=.3;q.draw();q.player.x+=.3;q.draw();out.capeMoves=Math.abs(rig.cape.rotation.x-capeIdle)>.15;q.player.x=px;
+   q.killEnemy(foe);const t0=q.time;let mid=null;while(q.time-t0<.32){q.tick(.04);q.draw();}mid=v.dynamic.get(foe);out.deathMid=!!mid&&mid.userData.rig.legs[0].lower.rotation.x>.5;
+   while(q.time-t0<VesperVFX.deathDuration+.08){q.tick(.04);q.draw();}out.deathEnds=!v.dynamic.has(foe);
    q.draw();return out;
   });
   const t=report.telegraph,grow=t.filter(x=>x.shape!=='wall'),wall=t.find(x=>x.shape==='wall');
   const checks={halos:report.halos,trail:report.trail&&report.trailEnds,impact:report.impact&&report.impactEnds,puff:report.puff&&report.puffEnds,pauseFrozen:report.pauseFrozen,trailFrozen:report.trailFrozen,
    scorchBudget:report.scorch<=report.scorchBudget&&(report.scorchBudget===0?report.scorch===0:report.scorch>=1),
-   telegraphGrow:grow.every(x=>x.early.visible&&x.early.scale<.1&&x.late.scale>.99&&x.hiddenWhenActive),telegraphWall:wall.early.scale===1&&wall.late.scale===1&&wall.late.opacity>wall.early.opacity&&wall.hiddenWhenActive};
+   telegraphGrow:grow.every(x=>x.early.visible&&x.early.scale<.1&&x.late.scale>.99&&x.hiddenWhenActive),telegraphWall:wall.early.scale===1&&wall.late.scale===1&&wall.late.opacity>wall.early.opacity&&wall.hiddenWhenActive,
+   rim:report.rim,cape:report.cape&&report.capeMoves,swing:report.swing,windup:report.windup,death:report.deathMid&&report.deathEnds};
   for(const [k,ok] of Object.entries(checks))if(!ok)throw Error(`${quality} effect check failed: ${k} ${JSON.stringify(report)}`);
   if(errors.length)throw Error(JSON.stringify(errors));
   console.log(JSON.stringify({viewport,quality,...checks,scorch:report.scorch,errors}));await context.close();

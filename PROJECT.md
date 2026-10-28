@@ -284,5 +284,19 @@ unverified, one stacked PR per increment, no external art). Increments:
    texture slot), per-actor dissolve (character materials are shared; ash puffs
    instead) and new acid visuals (existing acid streams/motes kept).
 
+5. Characters (branch `development/graphics-v2-characters`): `actorMaterial` in
+   `art-materials.js` adds a shared fresnel rim (strength 0.42, floor accent mixed
+   45% toward white) to character and boss materials through `onBeforeCompile`,
+   with one program cache key and no extra draw calls; environment materials are
+   unchanged. Hero layered pauldrons, gauntlet cuffs, armoured skirt and helm brim;
+   brute shoulder spikes, ghoul spine ridges, skull crack, plague boils, robe hood
+   folds and wraith wisps, each reusing a material already on its bone. Animation
+   reads existing timers: hero swing from the melee flash, ability wind-up from the
+   cast's remaining windup, enemy wind-up/attack from `stateTime`; breathing idle,
+   turn lean, hit flinch, stun sway with head droop, cape secondary motion (cape
+   kept as its own mesh: one draw call per caped actor) and a 0.7 s two-phase
+   death for regular enemies (`VesperVFX.deathDuration`; was 0.4 s; visual only).
+   Still procedural pivot rigs, not skinned or sculpted assets.
+
 Measurements are software WebGL, not phone FPS; physical-device checks remain
 outstanding for every increment.
