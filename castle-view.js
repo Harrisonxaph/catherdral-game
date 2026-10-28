@@ -124,13 +124,17 @@ class CastleView {
   updateLoot(loots,player,time){
     // Rarity light on visible equipment drops, and a short collapse/flash when a drop disappears (collected).
     const E=window.VesperEquipment,V=window.VesperVFX,d=this.fxDummy,fx=this.vfx,c=this.effectColor,now=new Set();let beams=0,rings=0,glints=0;
-    for(const l of loots){if(l.kind!=='equipment'||l.gone||Math.hypot(l.x-player.x,l.y-player.y)>13)continue;now.add(l);const rarity=E.definition(l.item).rarity,st=lootStyle[rarity]||lootStyle.common,pulse=rarity==='legendary'?.82+Math.sin(time*2.4+l.x)*.18:1;
-      this.lootSeen.set(l,{x:l.x,y:l.y,color:l.color,rarity});
+    // Writes are bounded by each instance buffer; the beam buffer keeps room for pickup collapses. When more drops are
+    // nearby than fit, the nearest get rarity effects. Gameplay loot itself is never removed or capped here.
+    const ringCap=this.lootRings.instanceMatrix.count,glintCap=this.lootGlints.instanceMatrix.count,beamCap=this.lootBeams.instanceMatrix.count,dropCap=Math.min(ringCap,beamCap-fx.pickups.capacity),nearby=[];
+    for(const l of loots){if(l.kind!=='equipment'||l.gone||Math.hypot(l.x-player.x,l.y-player.y)>13)continue;now.add(l);this.lootSeen.set(l,{x:l.x,y:l.y,color:l.color,rarity:E.definition(l.item).rarity});nearby.push(l);}
+    if(nearby.length>dropCap)nearby.sort((a,b)=>Math.hypot(a.x-player.x,a.y-player.y)-Math.hypot(b.x-player.x,b.y-player.y)).length=dropCap;
+    for(const l of nearby){const rarity=E.definition(l.item).rarity,st=lootStyle[rarity]||lootStyle.common,pulse=rarity==='legendary'?.82+Math.sin(time*2.4+l.x)*.18:1;
       d.position.set(l.x,0,l.y);d.rotation.set(0,0,0);d.scale.set(1,st.beam*pulse,1);d.updateMatrix();this.lootBeams.setMatrixAt(beams,d.matrix);this.lootBeams.setColorAt(beams++,c.set(l.color).multiplyScalar(st.glow*pulse));
       d.position.set(l.x,.013,l.y);d.rotation.set(-Math.PI/2,0,0);d.scale.setScalar(st.ring);d.updateMatrix();this.lootRings.setMatrixAt(rings,d.matrix);this.lootRings.setColorAt(rings++,c.set(l.color).multiplyScalar(.7));
-      if(E.modifiers(l.item).length){const k=.6+.4*Math.sin(time*5+l.y*3);d.position.set(l.x,.62+Math.sin(time*2+l.x)*.04,l.y);d.quaternion.copy(this.camera.quaternion);d.scale.setScalar(.32*k);d.updateMatrix();this.lootGlints.setMatrixAt(glints,d.matrix);this.lootGlints.setColorAt(glints++,c.set(l.color).lerp(rimWhite,.5).multiplyScalar(k));}}
+      if(glints<glintCap&&E.modifiers(l.item).length){const k=.6+.4*Math.sin(time*5+l.y*3);d.position.set(l.x,.62+Math.sin(time*2+l.x)*.04,l.y);d.quaternion.copy(this.camera.quaternion);d.scale.setScalar(.32*k);d.updateMatrix();this.lootGlints.setMatrixAt(glints,d.matrix);this.lootGlints.setColorAt(glints++,c.set(l.color).lerp(rimWhite,.5).multiplyScalar(k));}}
     for(const [l,info] of this.lootSeen)if(!now.has(l)){this.lootSeen.delete(l);if(l.gone){V.spawn(fx.pickups,{...info,life:.45});V.spawn(fx.impacts,{x:info.x,y:info.y,life:.22,size:1.6,color:info.color});}}
-    for(const p of V.advance(fx.pickups,this.visualDt)){const k=1-p.age/p.life,st=lootStyle[p.rarity]||lootStyle.common;d.position.set(p.x,p.age*1.4,p.y);d.rotation.set(0,0,0);d.scale.set(.6+k*.4,st.beam*(.4+k*.8),.6+k*.4);d.updateMatrix();this.lootBeams.setMatrixAt(beams,d.matrix);this.lootBeams.setColorAt(beams++,c.set(p.color).multiplyScalar(st.glow*1.6*k));}
+    for(const p of V.advance(fx.pickups,this.visualDt)){if(beams>=beamCap)break;const k=1-p.age/p.life,st=lootStyle[p.rarity]||lootStyle.common;d.position.set(p.x,p.age*1.4,p.y);d.rotation.set(0,0,0);d.scale.set(.6+k*.4,st.beam*(.4+k*.8),.6+k*.4);d.updateMatrix();this.lootBeams.setMatrixAt(beams,d.matrix);this.lootBeams.setColorAt(beams++,c.set(p.color).multiplyScalar(st.glow*1.6*k));}
     for(const [b,n] of [[this.lootBeams,beams],[this.lootRings,rings],[this.lootGlints,glints]]){b.count=n;b.visible=n>0;b.instanceMatrix.needsUpdate=true;if(b.instanceColor)b.instanceColor.needsUpdate=true;}
   }
   updateCutaway(player,enemies,cam=player){

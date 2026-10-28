@@ -306,9 +306,10 @@ unverified, one stacked PR per increment, no external art). Increments:
    rarity-coloured "RELIC ACQUIRED" toast (`showToast` gained an optional rarity).
    Twelve original line-art inventory icons (one per item) with rarity glows. HUD
    ornament only (health striations, panel corner brackets, inner button frames):
-   `tests/hud-layout-browser.cjs` compares 23 HUD/control/inventory rectangles at
-   four viewports with a baseline recorded on, and verified against, main
-   `387a900`, and requires 44px touch targets. No item rules, rarity tables or
+   `tests/hud-layout-browser.cjs` renders main `387a900` and the current tree in
+   the same browser at four viewports and compares 23 HUD/control/inventory
+   rectangles (a stored snapshot failed on other machines' fonts), and requires
+   44px touch targets. No item rules, rarity tables or
    equipment logic changed.
 
 7. Camera, fade and culling (branch `development/graphics-v2-camera`): wall-capable

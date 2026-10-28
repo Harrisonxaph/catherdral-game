@@ -73,12 +73,33 @@ Frame-time samples are advisory only: identical code varied by up to 2.7×.
   and mote tests in `graphics.test.cjs`.
 - Browser: `tests/effects-browser.cjs` (halos, trails, impacts, puffs, pause freeze,
   scorch budget, telegraph growth, rim, swing, wind-up, cape, death, loot, icons,
-  cutaway, frustum culling; Low and High) and `tests/hud-layout-browser.cjs` (23
-  HUD/control/inventory rectangles at four viewports, verified identical to main,
-  and 44px touch targets). The graphics suite gained baked-light, grade and the
+  cutaway, frustum culling; Low and High) and `tests/hud-layout-browser.cjs` (main
+  `387a900` and the head rendered in the same browser at four viewports, 23
+  HUD/control/inventory rectangles compared, and 44px touch targets). The graphics suite gained baked-light, grade and the
   walkable-cell decoration rule. Each new check was verified to fail when its
   feature was deliberately broken.
 - Capture and budget: `npm run capture:graphics-v2`, `npm run test:graphics-budget`.
+
+## Review fixes (2026-10-28)
+
+Applied on the owning branch and merged forward through the stack:
+
+1. **#20, budget coverage:** `check()` fails on missing, duplicate or unknown scenes
+   and empty inputs (an after-capture with 1 of 25 scenes now fails). The PR
+   workflow's `graphics-budget` job captures the baseline and the current head on
+   the same runner and runs the check; the unit job checks the committed captures.
+2. **#23, paused trails:** `pushTrail()` adds no samples and ages nothing when no
+   simulation time elapsed. Repeated paused redraws during a swing leave the trail
+   identical (unit and browser tests).
+3. **#25, loot instance buffers:** ring, glint and beam writes and draw counts are
+   bounded by capacity (beams keep room for pickups); the nearest drops get effects
+   and no gameplay loot is removed. Tested with 60 drops and 8 simultaneous pickups.
+4. **#25, HUD layout:** the stored snapshot (font- and machine-dependent; it failed
+   on unchanged main in CI) is replaced by a same-browser comparison against the
+   baseline commit. Under forced different fonts the old test fails (47 mismatches)
+   and the new one passes; a 6px shift and a 40px attack button are both caught.
+
+Each new check was verified to fail with its fix removed.
 
 ## Known limitations
 
@@ -108,7 +129,7 @@ re-planned.
 Start on **Low**, then repeat key checks on Medium and High, in portrait and landscape.
 
 1. Load online once, then reload offline; confirm the game starts (cache
-   `vesper-cathedral-v19-graphics-camera`).
+   `vesper-cathedral-v19-graphics-camera-r2`).
 2. On every floor: torch pools visible, rooms without torches still readable, wall
    tops dark, floor variety present, nothing standing in doorways.
 3. Characters render (rim light visible, no missing or black materials) and bosses

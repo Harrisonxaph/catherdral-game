@@ -5,7 +5,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
  for(const [viewport,quality] of [[{width:393,height:852},'low'],[{width:960,height:720},'high']]){
   const context=await browser.newContext({viewport,serviceWorkers:'block'}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(q=>{requestAnimationFrame=()=>0;localStorage.setItem('vesperGraphics',q);},quality);
-  await page.route('**/index.html',r=>{let h=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');h=h.replace("const stick=$('stick')","window.fxQA={get world(){return world},get cam(){return cam},startGame,tick,draw,dropEquipment,clearLoot(){loots=[]},collectEquipment,get run(){return runEquipment},attemptAttack,activateAbility,spawnEnemy,killEnemy,combat,abilities,setAttackTimer(v){attackTimer=v},get player(){return player},get enemies(){return enemies},clearEnemies(){enemies=[]},get torches(){return torches},get time(){return time},get state(){return state},setState(s){state=s}};const stick=$('stick')");r.fulfill({body:h,contentType:'text/html'});});
+  await page.route('**/index.html',r=>{let h=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');h=h.replace("const stick=$('stick')","window.fxQA={get world(){return world},get cam(){return cam},startGame,tick,draw,dropEquipment,clearLoot(){loots=[]},get loot(){return loots},collectEquipment,get run(){return runEquipment},attemptAttack,activateAbility,spawnEnemy,killEnemy,combat,abilities,setAttackTimer(v){attackTimer=v},get player(){return player},get enemies(){return enemies},clearEnemies(){enemies=[]},get torches(){return torches},get time(){return time},get state(){return state},setState(s){state=s}};const stick=$('stick')");r.fulfill({body:h,contentType:'text/html'});});
   await page.goto((process.env.BASE_URL||'http://127.0.0.1:3011')+'/index.html');await page.waitForFunction(()=>window.fxQA&&window.castleView);
   await page.evaluate(async()=>{window.__cut=(await import('./art-materials.js')).cutUniforms;});
   const report=await page.evaluate(()=>{
@@ -22,8 +22,11 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    // Death puff: five motes per puff, removed after its life; bosses are excluded elsewhere.
    q.killEnemy(e);q.draw();out.puff=v.puffBatch.count===5;for(let i=0;i<30;i++){q.tick(.03);q.draw();}out.puffEnds=v.puffBatch.count===0;
    // Paused simulation time freezes effects: spawn an impact, pause, redraw, nothing advances.
-   const e2=q.spawnEnemy(q.player.x,q.player.y-1,'bone');e2.hp=e2.maxHp=9999;q.setAttackTimer(0);q.attemptAttack();q.tick(.02);q.draw();const frozen=v.vfx.impacts.items.map(i=>i.age).join();
-   q.setState('inventory');for(let i=0;i<5;i++){q.tick(.1);q.draw();}out.pauseFrozen=frozen!==''&&v.vfx.impacts.items.map(i=>i.age).join()===frozen;q.setState('playing');
+   const e2=q.spawnEnemy(q.player.x,q.player.y-1,'bone');e2.hp=e2.maxHp=9999;q.setAttackTimer(0);q.attemptAttack();for(let i=0;i<3;i++){q.tick(.02);q.draw();}const frozen=v.vfx.impacts.items.map(i=>i.age).join();
+   const trailNow=()=>JSON.stringify(v.vfx.trail.points.map(p=>[p.tip,p.base,p.age]));const trailBefore=trailNow(),trailCount=v.vfx.trail.points.length;
+   q.setState('inventory');for(let i=0;i<5;i++){q.tick(.1);q.draw();}out.pauseFrozen=frozen!==''&&v.vfx.impacts.items.map(i=>i.age).join()===frozen;
+   // Repeated paused redraws must not add samples to the swing trail or age it.
+   for(let i=0;i<6;i++)q.draw();out.trailFrozen=trailCount>1&&trailNow()===trailBefore;q.setState('playing');
    // Heavy hit scorch follows the preset budget (none on Low).
    q.setAttackTimer(0);for(let i=0;i<40;i++){q.tick(.25);}q.abilities.reset?.();e2.x=q.player.x;e2.y=q.player.y-1;q.activateAbility('execution');for(let i=0;i<12;i++){q.tick(.03);q.draw();}
    out.scorch=v.vfx.scorch.items.length;out.scorchBudget=VesperVFX.budgets[v.quality].scorch;
@@ -48,6 +51,13 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    out.lootGlow=v.lootBeams.count===1&&v.lootRings.count===1&&v.lootGlints.count===1;
    q.player.x+=.4;q.tick(.04);q.collectEquipment();q.tick(.04);q.draw();out.pickup=v.vfx.pickups.items.length===1&&v.lootBeams.count===1&&v.lootRings.count===0&&document.getElementById('toast').dataset.rarity==='rare';
    for(let i=0;i<20;i++){q.tick(.04);q.draw();}out.pickupEnds=v.lootBeams.count===0&&v.vfx.pickups.items.length===0;
+   // Instance buffers: 60 nearby drops (enemy/chest drops bypass the manual-drop cap) plus 8 simultaneous pickups.
+   q.clearLoot();const P2=q.player,many=[];for(let i=0;i<60;i++){const it=E.item('duskdagger',[{stat:'speed',value:.05}]);many.push(it);q.dropEquipment(it,P2.x+(i%10)*.5-2.25,P2.y+Math.floor(i/10)*.5-1.25);}q.tick(.5);q.draw();
+   const within=b=>b.count<=b.instanceMatrix.count,ringPos=()=>{const a=v.lootRings.instanceMatrix.array,out=[];for(let i=0;i<v.lootRings.count;i++)out.push([a[i*16+12],a[i*16+14]]);return out;};
+   const nearest=q.loot.filter(l=>l.kind==='equipment').sort((a,b)=>Math.hypot(a.x-P2.x,a.y-P2.y)-Math.hypot(b.x-P2.x,b.y-P2.y))[0];
+   out.lootCap={rings:within(v.lootRings),glints:within(v.lootGlints),beams:within(v.lootBeams),nearestShown:ringPos().some(([x,z])=>Math.abs(x-nearest.x)<1e-6&&Math.abs(z-nearest.y)<1e-6),lootKept:q.loot.filter(l=>l.kind==='equipment').length===60};
+   for(const l of q.loot.filter(l=>l.kind==='equipment').slice(0,8))l.gone=true;q.tick(.02);q.draw();out.lootCap.afterPickups=within(v.lootBeams)&&within(v.lootRings)&&v.vfx.pickups.items.length===8&&q.loot.filter(l=>l.kind==='equipment'&&!l.gone).length===52;
+   q.clearLoot();for(let i=0;i<20;i++){q.tick(.04);q.draw();}
    // Inventory icons: every item renders its own icon.
    const keys=Object.keys(E.definitions),seen={};for(let batch=0;batch<2;batch++){q.run.bag=Array(6).fill(null);for(const k of keys.slice(batch*6,batch*6+6))E.collect(q.run,E.item(k));document.getElementById('inventory-button').click();for(const svg of document.querySelectorAll('#backpack-slots svg[data-icon]'))seen[svg.dataset.icon]=svg.innerHTML;document.getElementById('inventory-close').click();}
    out.icons=keys.every(k=>seen[k])&&new Set(Object.values(seen)).size===keys.length;
@@ -66,11 +76,11 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
    q.draw();return out;
   });
   const t=report.telegraph,grow=t.filter(x=>x.shape!=='wall'),wall=t.find(x=>x.shape==='wall');
-  const checks={halos:report.halos,trail:report.trail&&report.trailEnds,impact:report.impact&&report.impactEnds,puff:report.puff&&report.puffEnds,pauseFrozen:report.pauseFrozen,
+  const checks={halos:report.halos,trail:report.trail&&report.trailEnds,impact:report.impact&&report.impactEnds,puff:report.puff&&report.puffEnds,pauseFrozen:report.pauseFrozen,trailFrozen:report.trailFrozen,
    scorchBudget:report.scorch<=report.scorchBudget&&(report.scorchBudget===0?report.scorch===0:report.scorch>=1),
    telegraphGrow:grow.every(x=>x.early.visible&&x.early.scale<.1&&x.late.scale>.99&&x.hiddenWhenActive),telegraphWall:wall.early.scale===1&&wall.late.scale===1&&wall.late.opacity>wall.early.opacity&&wall.hiddenWhenActive,
    rim:report.rim,cape:report.cape&&report.capeMoves,swing:report.swing,windup:report.windup,death:report.deathMid&&report.deathEnds,
-   loot:report.lootGlow&&report.pickup&&report.pickupEnds,icons:report.icons,
+   loot:report.lootGlow&&report.pickup&&report.pickupEnds,lootCap:Object.values(report.lootCap).every(Boolean),icons:report.icons,
    cutaway:report.cutLegs>3&&report.cutFar<.5,frontBand:report.frontBand>3&&report.backBand<.5,frustum:report.frustum.shown>0&&report.frustum.shown<=report.frustum.oldRule&&report.frustum.heroChunk};
   for(const [k,ok] of Object.entries(checks))if(!ok)throw Error(`${quality} effect check failed: ${k} ${JSON.stringify(report)}`);
   if(errors.length)throw Error(JSON.stringify(errors));
