@@ -1,0 +1,433 @@
+{
+  "phase": "after",
+  "set": "v2",
+  "baseline": null,
+  "renderer": "Chromium software WebGL; timings are not physical-device FPS",
+  "scenes": [
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2.9,
+      "p95Ms": 6.2,
+      "drawCalls": 272,
+      "triangles": 89602,
+      "geometries": 87,
+      "textures": 5,
+      "lights": 2,
+      "worldDigest": 3023877664
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 3.8,
+      "p95Ms": 8.8,
+      "drawCalls": 256,
+      "triangles": 79018,
+      "geometries": 88,
+      "textures": 5,
+      "lights": 2,
+      "worldDigest": 1742031521
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2.2,
+      "p95Ms": 5.5,
+      "drawCalls": 250,
+      "triangles": 88206,
+      "geometries": 88,
+      "textures": 6,
+      "lights": 2,
+      "worldDigest": 2277637447
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 2.2,
+      "p95Ms": 5.1,
+      "drawCalls": 253,
+      "triangles": 82442,
+      "geometries": 88,
+      "textures": 6,
+      "lights": 2,
+      "worldDigest": 1947583002
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 1.5,
+      "p95Ms": 3.1,
+      "drawCalls": 263,
+      "triangles": 83990,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 2,
+      "worldDigest": 608026395
+    },
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.6,
+      "p95Ms": 1.8,
+      "drawCalls": 298,
+      "triangles": 89618,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 3023877664
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 3.3,
+      "p95Ms": 6.8,
+      "drawCalls": 279,
+      "triangles": 79546,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 1742031521
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.6,
+      "p95Ms": 2.1,
+      "drawCalls": 265,
+      "triangles": 83066,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 2277637447
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.6,
+      "p95Ms": 4.8,
+      "drawCalls": 263,
+      "triangles": 80794,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 1947583002
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 960,
+        "height": 720
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.6,
+      "p95Ms": 1.8,
+      "drawCalls": 282,
+      "triangles": 87026,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 608026395
+    },
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 2.1,
+      "p95Ms": 2.8,
+      "drawCalls": 233,
+      "triangles": 61222,
+      "geometries": 85,
+      "textures": 5,
+      "lights": 0,
+      "worldDigest": 3023877664
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 1.3,
+      "p95Ms": 1.9,
+      "drawCalls": 236,
+      "triangles": 60526,
+      "geometries": 86,
+      "textures": 5,
+      "lights": 0,
+      "worldDigest": 1742031521
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 1.2,
+      "p95Ms": 2.6,
+      "drawCalls": 221,
+      "triangles": 58394,
+      "geometries": 86,
+      "textures": 6,
+      "lights": 0,
+      "worldDigest": 2277637447
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 1.2,
+      "p95Ms": 2.4,
+      "drawCalls": 226,
+      "triangles": 58694,
+      "geometries": 86,
+      "textures": 6,
+      "lights": 0,
+      "worldDigest": 1947583002
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "low",
+      "pixelRatio": 0.85,
+      "p50Ms": 1.5,
+      "p95Ms": 2.2,
+      "drawCalls": 242,
+      "triangles": 68218,
+      "geometries": 87,
+      "textures": 6,
+      "lights": 0,
+      "worldDigest": 608026395
+    },
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 1.4,
+      "p95Ms": 1.7,
+      "drawCalls": 271,
+      "triangles": 90350,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 2,
+      "worldDigest": 3023877664
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 1.6,
+      "p95Ms": 4,
+      "drawCalls": 269,
+      "triangles": 84054,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 2,
+      "worldDigest": 1742031521
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 1.6,
+      "p95Ms": 2.7,
+      "drawCalls": 256,
+      "triangles": 87362,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 2,
+      "worldDigest": 2277637447
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 1.5,
+      "p95Ms": 3.1,
+      "drawCalls": 262,
+      "triangles": 89590,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 2,
+      "worldDigest": 1947583002
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "medium",
+      "pixelRatio": 1,
+      "p50Ms": 1.9,
+      "p95Ms": 3.3,
+      "drawCalls": 268,
+      "triangles": 100224,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 2,
+      "worldDigest": 608026395
+    },
+    {
+      "floor": 1,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.5,
+      "p95Ms": 5.9,
+      "drawCalls": 286,
+      "triangles": 80142,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 3023877664
+    },
+    {
+      "floor": 2,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.7,
+      "p95Ms": 3.2,
+      "drawCalls": 281,
+      "triangles": 82726,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 1742031521
+    },
+    {
+      "floor": 3,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 2.4,
+      "p95Ms": 3,
+      "drawCalls": 269,
+      "triangles": 83390,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 2277637447
+    },
+    {
+      "floor": 4,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 1.7,
+      "p95Ms": 3.5,
+      "drawCalls": 276,
+      "triangles": 84014,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 1947583002
+    },
+    {
+      "floor": 5,
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "quality": "high",
+      "pixelRatio": 1,
+      "p50Ms": 2,
+      "p95Ms": 2.8,
+      "drawCalls": 273,
+      "triangles": 68302,
+      "geometries": 89,
+      "textures": 6,
+      "lights": 3,
+      "worldDigest": 608026395
+    }
+  ]
+}
