@@ -33,7 +33,9 @@ foundation, then await approval for gameplay changes. Phase 1A part 1 on
 `development/arpg-character-foundation` (stacked on PR #27): `character-state.js`,
 `equipment.js` restore/reserve, `character-state.test.cjs` and the fixture
 `tests/fixtures/save-v1-full.json`. Not wired into the game. Next: part 2, the
-IndexedDB repository with real-browser tests; then Phase 2 needs owner approval.
+IndexedDB repository with real-browser tests (`save-store.js`, branch
+`development/arpg-save-store`, stacked on part 1). Phase 2 (New/Continue, permanent XP,
+checkpoint respawn) changes gameplay and needs owner approval first.
 
 ## Previous graphics specification task
 

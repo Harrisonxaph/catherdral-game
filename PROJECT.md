@@ -267,7 +267,17 @@ keep their IDs and the allocator never falls below the durable high-water mark.
 gameplay change. Proposed balance values (cap 30, +5 HP/+1 damage per level, four
 passives) are encoded for validation only and still await approval. Schema 1 is
 amended in place until Phase 2 enables persistence, because no save can exist yet.
-Next: part 2, the IndexedDB revision repository (backups, leases, recovery).
+Part 2 (branch `development/arpg-save-store`, stacked on part 1): `save-store.js`,
+an IndexedDB repository (database `vesper-arpg` v1: characters, backups, meta, leases,
+quarantine). Commits are compare-and-swap on revision and a fenced writer lease in one
+transaction, signed with SHA-256 over the canonical envelope (corruption detection,
+not anti-cheat); the previous revision moves to five rotating backups, and migrations
+pin the pre-migration record. Future-version saves are read-only; corrupt records are
+reported, exported as-is and quarantined on restore, never deleted. Node tests use an
+in-memory adapter with failure injection at every write; `tests/save-store-browser.cjs`
+checks real IndexedDB (reopen, real abort, second tab, corruption recovery, version
+upgrade) and that the game itself never opens the database. Not wired into gameplay.
+Untested here: real quota exhaustion, OS kills, Safari/iOS storage and eviction.
 ## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
 
 Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and
