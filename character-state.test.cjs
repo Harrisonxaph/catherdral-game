@@ -152,3 +152,29 @@ test('Canonical form is independent of key order',()=>{
  assert.equal(C.canonical({b:1,a:[{d:2,c:3}]}),C.canonical({a:[{c:3,d:2}],b:1}));
  assert.equal(C.canonical({a:null,b:'x'}),'{"a":null,"b":"x"}');
 });
+
+test('Review: a once-only reward is held exactly once across escrow and ground drops',()=>{
+ const env=fixture('save-v1-full.json'),key=env.payload.campaign.rewardEscrow[0].rewardKey;
+ rejects(variant(env,p=>{Object.values(p.world.instances)[0].groundDrops.find(d=>d.kind==='item').rewardKey=key;}),/also held/);
+ rejects(variant(env,p=>{Object.values(p.world.instances)[0].groundDrops.find(d=>d.kind==='ash').rewardKey=key;}),/also held/);
+ rejects(variant(env,p=>{p.campaign.rewardLedger['campaign:plague-halls:chest:1:item']='escrow';}),/must be held in escrow or on the ground/);
+ // Moving the reward from escrow to the ground keeps exactly one holder and stays valid.
+ assert.ok(C.validate(variant(env,p=>{const e=p.campaign.rewardEscrow.pop(),drops=Object.values(p.world.instances)[0].groundDrops;drops.push({dropId:'drop-boss',kind:'item',itemId:e.itemId,amount:1,x:0,y:0,rewardKey:e.rewardKey});})).ok);
+});
+
+test('Review: inherited property names are never item keys or record keys',()=>{
+ const env=fixture('save-v1-full.json');
+ for(const key of ['toString','constructor','__proto__','hasOwnProperty'])rejects(variant(env,p=>{p.items.find(i=>i.key==='kingsmercy').key=key;}),/unknown item/);
+ rejects(variant(env,p=>{p.items[0].key=7;}),/unknown item/);
+ // An own __proto__ instance key (as JSON.parse creates it) would vanish on re-serialisation, orphaning its items.
+ rejects(JSON.parse(JSON.stringify(env).replace('"campaign-forgotten-crypt-1":','"__proto__":').replace('"currentInstanceId":"campaign-forgotten-crypt-1"','"currentInstanceId":null')),/invalid key/);
+ rejects(variant(env,p=>{p.character.passiveRanks={toString:1,vigor:1,edge:1};}),/invalid key/);
+ rejects(variant(env,p=>{p.campaign.questStates.constructor='complete';}),/invalid key/);
+});
+
+test('Review: allocator states near the safe-integer limit are refused before any reservation',()=>{
+ const env=fixture('save-v1-full.json'),before=E.nextId();
+ for(const next of [Number.MAX_SAFE_INTEGER,C.limits.itemId+1])assert.equal(C.hydrate(variant(env,p=>{p.character.nextItemId=next;})).ok,false);
+ assert.equal(E.nextId(),before,'a refused save never moves the allocator');
+ rejects(variant(env,p=>{p.items[0].id=C.limits.itemId;p.character.nextItemId=C.limits.itemId;}),/item ID range/);
+});

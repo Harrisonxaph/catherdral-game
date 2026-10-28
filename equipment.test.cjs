@@ -136,3 +136,10 @@ test('Saved instances restore with their own IDs and the allocator only moves up
  // A restored item behaves like any other instance in atomic run transactions.
  const r=E.createRun();assert.ok(E.collect(r,restored).ok);assert.equal(E.collect(r,restored).ok,false);assert.ok(E.valid(r));
 });
+test('Review: inherited names are not items, and an exhausted allocator throws instead of reusing IDs',()=>{
+ for(const key of ['toString','constructor','__proto__'])assert.throws(()=>E.item(key),RangeError);
+ assert.throws(()=>E.restore({id:9,key:'toString',mods:[]}),RangeError);assert.equal(E.validModifiers('constructor',[]),false);assert.deepEqual(E.eligibleModifiers('toString'),[]);
+ // Kept last in this file: it exhausts the process-wide allocator.
+ E.reserve(Number.MAX_SAFE_INTEGER);const last=E.item('rustbound');assert.equal(last.id,Number.MAX_SAFE_INTEGER);
+ assert.throws(()=>E.item('rustbound'),/exhausted/);assert.throws(()=>E.item('rustbound'),/exhausted/);assert.equal(E.nextId(),Number.MAX_SAFE_INTEGER+1);
+});
