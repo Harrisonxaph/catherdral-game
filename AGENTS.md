@@ -194,8 +194,13 @@ reviewer-driven cycles per PR; the owner alone approves merges and
 starting the next stage.** Missing explicit approval for the product
 decisions in `docs/arpg/SPEC.md` §10 is a STOP condition for Phase 2
 gameplay changes. Updating documentation/issue tickets does not grant
-implementation permission. Existing CI runs tests but does not
-automatically invoke either coding agent.
+implementation permission; approval counts only as the approval record
+defined in `PHASE2-LOOP.md`. Existing CI runs tests but does not
+automatically invoke either coding agent. Exact pushed head SHAs and
+reviewer verdicts are recorded in PR comments, not in tracked files. For
+these loop sessions, the core/targeted context strategy in `PHASE2-LOOP.md`
+satisfies the "Start here" reading: read the current-status sections of
+PROJECT.md, TASKS.md and DECISIONS.md, and older history only when needed.
 
 ## Shared assistant handover
 

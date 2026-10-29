@@ -57,7 +57,9 @@ New/Continue and checkpoint integration.
 
 Claude Code remains implementation developer; Codex independently reviews each
 pushed PR and each correction. Limit to three reviewer-driven correction cycles
-per PR, with exact-SHA handoff and existing GitHub CI evidence. The owner must
+per PR, counted in PHASE2-STATUS.md; exact head SHAs and review verdicts are
+posted as PR comments after each push, with existing GitHub CI evidence. One
+reusable developer prompt selects the earliest open, authorised stage. The owner must
 approve SPEC §10 defaults, each PR merge and the start of the next PR. These
 coordination documents do not launch Claude or Codex automatically, approve
 gameplay changes, merge PRs or deploy. Current P2 PR1 state: **NEEDS_OWNER_APPROVAL**.
