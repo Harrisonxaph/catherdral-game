@@ -43,6 +43,25 @@ coordinator (atomic potion spend+heal, cooldown reservation, death record, save-
 pause), 4 emergency export and backup selection, 5 New/Continue and checkpoint respawn.
 Phase 2 gameplay changes need owner approval of SPEC section 10 first.
 
+## Phase 2 persistent loop setup — 2026-10-29 (planning, NOT code approval)
+
+Prepared a branch/PR for the owner to review a five-PR development loop:
+`docs/arpg/PHASE2-LOOP.md`, `docs/arpg/PHASE2-STATUS.md`, and
+`docs/arpg/PHASE2-PROMPTS.md`. Work items are GitHub issues:
+[#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) stable
+floor/spawn/chest identities; [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33)
+pure campaign/reward ledger; [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34)
+atomic potion/cooldown/death commands; [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35)
+emergency export and recovery; [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36)
+New/Continue and checkpoint integration.
+
+Claude Code remains implementation developer; Codex independently reviews each
+pushed PR and each correction. Limit to three reviewer-driven correction cycles
+per PR, with exact-SHA handoff and existing GitHub CI evidence. The owner must
+approve SPEC §10 defaults, each PR merge and the start of the next PR. These
+coordination documents do not launch Claude or Codex automatically, approve
+gameplay changes, merge PRs or deploy. Current P2 PR1 state: **NEEDS_OWNER_APPROVAL**.
+
 ## Previous graphics specification task
 
 2026-10-27 — owner request: graphical overhaul v2 ("Ash and candlelight") on
