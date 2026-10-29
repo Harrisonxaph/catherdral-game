@@ -183,6 +183,25 @@ Browser emulation/software WebGL does not establish physical iPhone/Android
 performance, thermal behaviour or Safari compatibility. Keep that uncertainty
 explicit until device testing is recorded.
 
+## Phase 2 ARPG persistent development loop
+
+For Phase 2 PR1–PR5, also read `docs/arpg/PHASE2-LOOP.md`,
+`docs/arpg/PHASE2-STATUS.md` and `docs/arpg/PHASE2-PROMPTS.md` before
+modifying related code. These files define a strictly sequential,
+owner-gated five-PR process: **Claude Code develops; Codex independently
+reviews the actual pushed PR head; Claude can correct at most three
+reviewer-driven cycles per PR; the owner alone approves merges and
+starting the next stage.** Missing explicit approval for the product
+decisions in `docs/arpg/SPEC.md` §10 is a STOP condition for Phase 2
+gameplay changes. Updating documentation/issue tickets does not grant
+implementation permission; approval counts only as the approval record
+defined in `PHASE2-LOOP.md`. Existing CI runs tests but does not
+automatically invoke either coding agent. Exact pushed head SHAs and
+reviewer verdicts are recorded in PR comments, not in tracked files. For
+these loop sessions, the core/targeted context strategy in `PHASE2-LOOP.md`
+satisfies the "Start here" reading: read the current-status sections of
+PROJECT.md, TASKS.md and DECISIONS.md, and older history only when needed.
+
 ## Shared assistant handover
 
 This is the authoritative instruction source for Codex, Claude Code, Copilot and
