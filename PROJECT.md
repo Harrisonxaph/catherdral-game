@@ -308,7 +308,7 @@ leaves its input untouched. Save schema 1 is amended in place: area instances ga
 generator version, layout hash, epoch, killed and opened, keyed by their PR1 identity.
 Not loaded by the game. Merged as PR #39 (`562f4e7`).
 
-P2 PR3 (in review, not merged; [approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324))
+P2 PR3 ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324))
 adds `command-coordinator.js`: each critical command (potion, ability reservation, death,
 and the PR2 ledger commands) is computed as a pure transition, committed to the save store
 in one compare-and-swap write, and only then published. A potion's belt decrement and heal
@@ -316,7 +316,20 @@ are one change; an ability's full cooldown is reserved before its wind-up; a dea
 recorded once per death ID with no progress lost and blocks potions and abilities until
 respawn; a second command while one is saving is refused; a failed save pauses further
 commands until retried; a fenced or conflicting session becomes stale. Not wired into the
-game (Save/Continue stays disabled until PR5).
+game (Save/Continue stays disabled until PR5). Merged as PR #40 (`2e3d810`).
+
+P2 PR4 (in review, not merged; [approval](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869))
+adds emergency export and backup recovery selection to `save-store.js` and the coordinator.
+Exports are versioned, bounded to 16 MiB and labelled as stored or NOT SAVED. Each says that
+this version cannot import files and that the checksum detects accidental damage only.
+Unsaved in-memory state must pass the save schema to be exported, and its export never
+touches storage, so it still works when storage is denied, hung or held by another tab.
+`verifyExport` checks a file without importing it. `recoveryOptions` reports saved,
+recovery-required, read-only or missing, and recommends only the newest backup that passes
+its checks. Restoring over a good save must name the revision the player compared against,
+so a save that has progressed since is never rolled back. The coordinator keeps a refused
+candidate as exportable unsaved progress and labels Saved / Not saved / Recovery required /
+Read-only distinctly. Full import tooling remains Phase 6. Not wired into the game.
 ## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
 
 Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and

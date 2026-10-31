@@ -100,10 +100,13 @@ test('A corrupt latest save is reported, kept and quarantined on restore; backup
 });
 
 test('Restoring a valid backup rolls back as a new revision; items are not appended to the current save',async()=>{
- const {a,epoch}=await created(),less=basePayload();
+ const {adapter,a,epoch}=await created(),less=basePayload();
  const id=less.character.backpack[2];less.character.backpack[2]=null;less.items=less.items.filter(i=>i.id!==id);
  assert.ok((await a.commit(ID,less,{expectedRevision:1,epoch})).ok);
- const {backups}=await a.listBackups(ID),restored=await a.restoreBackup(ID,backups[0].key,epoch);
+ const {backups}=await a.listBackups(ID),before=snapshot(adapter);
+ assert.equal((await a.restoreBackup(ID,backups[0].key,epoch)).code,'invalid','restoring over a good save must name the revision compared against');
+ assert.equal((await a.restoreBackup(ID,backups[0].key,epoch,{expectedRevision:1})).code,'conflict');assert.equal(snapshot(adapter),before);
+ const restored=await a.restoreBackup(ID,backups[0].key,epoch,{expectedRevision:2});
  assert.equal(restored.revision,3);const now=(await a.load(ID)).envelope.payload;assert.equal(now.items.length,12);assert.equal(new Set(now.items.map(i=>i.id)).size,12);
  assert.deepEqual((await a.listBackups(ID)).backups.map(b=>b.revision),[2,1]);
 });
@@ -180,7 +183,7 @@ test('Review: backups from before a schema upgrade are migrated when restored; a
  assert.ok((await v2.migrateStored(ID,lease.epoch)).ok);
  const {backups}=await v2.listBackups(ID),pinned=backups.find(b=>b.pinned);
  assert.equal(pinned.status,'valid');assert.equal(pinned.summary.migrated,true);
- const restored=await v2.restoreBackup(ID,pinned.key,lease.epoch);assert.ok(restored.ok,JSON.stringify(restored));assert.equal(restored.revision,3);
+ const restored=await v2.restoreBackup(ID,pinned.key,lease.epoch,{expectedRevision:2});assert.ok(restored.ok,JSON.stringify(restored));assert.equal(restored.revision,3);
  const loaded=await v2.load(ID);assert.ok(loaded.ok);assert.equal(loaded.envelope.schemaVersion,2);assert.equal(loaded.envelope.payload.character.title,'Penitent');
  // A backup whose migration fails is reported and never restored.
  const broken=S.createStore({adapter,sessionId:'tab-a',clock:()=>time.now,schema:{...schema,migrate:e=>e.schemaVersion===2?C.migrate(e,{...plan,target:2}):{ok:false,code:'invalid',errors:[{path:'',message:'boom'}]}}});
@@ -203,4 +206,110 @@ test('Review: non-JSON candidate values are refused, never normalised into a sav
  // Existing records are protected the same way on commit.
  assert.ok((await a.create(ID,basePayload(),epoch)).ok);const before=snapshot(adapter),p=basePayload();p.character.stash[10]=NaN;
  assert.equal((await a.commit(ID,p,{expectedRevision:1,epoch})).code,'invalid');assert.equal(snapshot(adapter),before);
+});
+
+// ---- Phase 2 PR4: emergency export and backup recovery selection
+const resign=async env=>({...env,integrity:{algorithm:'SHA-256',digest:await S.sha256(C.canonical({...env,integrity:null}))}});
+
+test('PR4: stored and unsaved exports are labelled, schema-validated, verifiable and never write',async()=>{
+ const {adapter,a}=await created();
+ const stored=await a.exportLatest(ID),file=JSON.parse(stored.text);
+ assert.deepEqual([stored.source,stored.saved,stored.status,stored.revision],['stored',true,'valid',1]);
+ assert.deepEqual([file.format,file.version,file.source,file.saved,file.characterId,file.revision],[S.EXPORT_FORMAT,1,'stored',true,ID,1]);
+ assert.match(file.notice,/cannot import/);assert.match(file.notice,/does not guarantee/);assert.doesNotMatch(file.notice,/NOT SAVED/);
+ const checked=await a.verifyExport(stored.text);assert.deepEqual([checked.ok,checked.source,checked.saved,checked.status,checked.revision],[true,'stored',true,'valid',1]);
+ // Unsaved in-memory progress: validated, labelled unsaved, and storage is untouched.
+ const before=snapshot(adapter),unsaved=await a.exportUnsaved(ID,withAsh(basePayload(),777),{baseRevision:1});
+ assert.ok(unsaved.ok,JSON.stringify(unsaved));assert.deepEqual([unsaved.source,unsaved.saved,unsaved.revision],['unsaved',false,2]);
+ const uf=JSON.parse(unsaved.text);assert.match(uf.notice,/NOT SAVED in this browser/);assert.equal(uf.envelope.payload.character.ash,777);
+ assert.equal(snapshot(adapter),before,'export never writes');assert.equal((await a.load(ID)).envelope.payload.character.ash,basePayload().character.ash);
+ const uv=await a.verifyExport(unsaved.text);assert.deepEqual([uv.source,uv.saved,uv.status,uv.revision],['unsaved',false,'valid',2]);
+ // Invalid in-memory state is refused, never exported as if it were a usable save.
+ const dup=basePayload();dup.items.push({...dup.items[0]});
+ assert.equal((await a.exportUnsaved(ID,dup,{baseRevision:1})).code,'invalid');
+ assert.equal((await a.exportUnsaved(ID,withAsh(basePayload(),NaN),{baseRevision:1})).code,'invalid');
+ assert.equal((await a.exportUnsaved(ID,basePayload(),{baseRevision:-1})).code,'invalid');
+ // Damaged, mislabelled, foreign, future and oversized files are reported for what they are.
+ const tampered=JSON.parse(unsaved.text);tampered.envelope.payload.character.ash=1;
+ assert.equal((await a.verifyExport(JSON.stringify(tampered))).status,'corrupt');
+ assert.equal((await a.verifyExport(JSON.stringify({...uf,saved:true}))).code,'invalid-export');
+ assert.equal((await a.verifyExport(JSON.stringify({...uf,characterId:'someone-else'}))).status,'corrupt');
+ assert.equal((await a.verifyExport(JSON.stringify({...uf,version:2}))).code,'unsupported');
+ assert.equal((await a.verifyExport(JSON.stringify({...uf,envelope:await resign({...uf.envelope,schemaVersion:2})}))).status,'unsupported');
+ assert.equal((await a.verifyExport('{nope')).code,'invalid-export');assert.equal((await a.verifyExport('[]')).code,'invalid-export');assert.equal((await a.verifyExport(null)).code,'invalid-export');
+ assert.equal((await a.verifyExport(' '.repeat(S.MAX_EXPORT_BYTES+1))).code,'too-large');
+ // A corrupt stored record is exported as it is (labelled corrupt) unless it exceeds the bound, which is refused.
+ adapter.data.get('characters').get(ID).junk='x'.repeat(S.MAX_EXPORT_BYTES);
+ const big=await a.exportLatest(ID);assert.equal(big.code,'too-large');assert.ok(big.bytes>S.MAX_EXPORT_BYTES);
+});
+
+test('PR4: unsaved export works when storage is denied or a write never finishes',async()=>{
+ const clock=()=>Date.parse('2026-10-28T12:00:00Z');
+ const denied=S.createStore({adapter:{transact(){const e=new Error('denied');e.name='SecurityError';throw e;}},sessionId:'tab-a',clock});
+ assert.equal((await denied.load(ID)).code,'storage');assert.equal((await denied.recoveryOptions(ID)).ok,false);
+ const r=await denied.exportUnsaved(ID,basePayload(),{baseRevision:0});assert.ok(r.ok,JSON.stringify(r));assert.equal(r.saved,false);assert.equal(r.revision,1);
+ const unavailable=S.createStore({adapter:S.indexedDBAdapter({indexedDB:null}),sessionId:'tab-a',clock});
+ assert.equal((await unavailable.load(ID)).code,'unavailable');assert.ok((await unavailable.exportUnsaved(ID,basePayload())).ok);
+ const hung=S.createStore({adapter:{transact:()=>new Promise(()=>{})},sessionId:'tab-a',clock});void hung.commit(ID,basePayload(),{expectedRevision:1,epoch:1});
+ assert.ok((await hung.exportUnsaved(ID,basePayload(),{baseRevision:1})).ok,'not queued behind a pending write');
+});
+
+test('PR4: recovery options distinguish saved, recovery-required, read-only and missing, and recommend only a good backup',async()=>{
+ const {adapter,store}=setup(),fresh=store('tab-a');
+ assert.deepEqual(await fresh.recoveryOptions(ID),{ok:true,state:'missing',current:null,expectedRevision:0,backups:[],recommended:null});
+ const {adapter:ad,a,epoch}=await created();void adapter;
+ for(let rev=1;rev<=3;rev++)assert.ok((await a.commit(ID,withAsh(basePayload(),rev*100),{expectedRevision:rev,epoch})).ok);
+ const saved=await a.recoveryOptions(ID);assert.equal(saved.state,'saved');assert.equal(saved.recommended,null);assert.equal(saved.expectedRevision,4);
+ assert.deepEqual(saved.current,{revision:4,status:'valid',savedAt:'2026-10-28T12:00:00.000Z'});assert.deepEqual(saved.backups.map(b=>b.revision),[3,2,1]);
+ // Corrupt latest; the newest backup is damaged and the next one is from a newer game version: neither is recommended.
+ const backups=ad.data.get('backups'),key=r=>[...backups.keys()].find(k=>backups.get(k).revision===r);
+ ad.data.get('characters').get(ID).payload.character.ash=999999;
+ backups.get(key(3)).envelope.payload.character.ash=5;
+ backups.get(key(2)).envelope=await resign({...backups.get(key(2)).envelope,schemaVersion:2});
+ const before=snapshot(ad),need=await a.recoveryOptions(ID);
+ assert.equal(need.state,'recovery-required');assert.deepEqual(need.current,{revision:4,status:'corrupt',savedAt:'2026-10-28T12:00:00.000Z'});
+ assert.deepEqual(need.backups.map(b=>[b.revision,b.status]),[[3,'corrupt'],[2,'unsupported'],[1,'valid']]);assert.equal(need.recommended,key(1));
+ assert.equal(snapshot(ad),before,'inspecting recovery writes nothing');
+ assert.equal((await a.restoreBackup(ID,key(3),epoch,{expectedRevision:4})).code,'corrupt');
+ assert.equal((await a.restoreBackup(ID,key(2),epoch,{expectedRevision:4})).code,'unsupported');assert.equal(snapshot(ad),before,'a bad backup never replaces anything');
+ const restored=await a.restoreBackup(ID,need.recommended,epoch,{expectedRevision:need.expectedRevision});assert.ok(restored.ok,JSON.stringify(restored));
+ const after=await a.recoveryOptions(ID);assert.equal(after.state,'saved');assert.equal(after.current.revision,5);assert.equal((await a.load(ID)).envelope.payload.character.ash,basePayload().character.ash);
+ assert.equal((await a.quarantined(ID)).records[0].raw.payload.character.ash,999999,'the corrupt bytes are kept');
+ // A save from a newer version is read-only: nothing is recommended and nothing restores over it.
+ ad.data.get('characters').set(ID,await resign({...ad.data.get('characters').get(ID),schemaVersion:2}));
+ const ro=await a.recoveryOptions(ID),frozen=snapshot(ad);assert.equal(ro.state,'read-only');assert.equal(ro.recommended,null);
+ assert.equal((await a.restoreBackup(ID,key(1),epoch,{expectedRevision:5})).code,'unsupported');assert.equal(snapshot(ad),frozen);
+ // A damaged record whose revision is not even an integer can still be recovered with the choice it reports.
+ const odd=await created();assert.ok((await odd.a.commit(ID,withAsh(basePayload(),100),{expectedRevision:1,epoch:odd.epoch})).ok);
+ odd.adapter.data.get('characters').get(ID).revision='junk';const oddOptions=await odd.a.recoveryOptions(ID);
+ assert.equal(oddOptions.state,'recovery-required');assert.equal(oddOptions.expectedRevision,null);
+ assert.equal((await odd.a.restoreBackup(ID,oddOptions.recommended,odd.epoch,{expectedRevision:2})).code,'conflict');
+ assert.ok((await odd.a.restoreBackup(ID,oddOptions.recommended,odd.epoch,{expectedRevision:oddOptions.expectedRevision})).ok);
+ // A missing latest record with backups left still needs an explicit recovery choice.
+ ad.data.get('characters').delete(ID);const gone=await a.recoveryOptions(ID);assert.equal(gone.state,'recovery-required');assert.equal(gone.expectedRevision,0);assert.ok(gone.recommended);
+});
+
+test('PR4: a failed restore leaves storage unchanged at every write; stale writers and stale choices are rejected',async()=>{
+ for(const corruptLatest of [true,false]){
+  for(let n=0;n<3;n++){
+   const {adapter,a,epoch}=await created();
+   for(let rev=1;rev<=2;rev++)assert.ok((await a.commit(ID,withAsh(basePayload(),rev*100),{expectedRevision:rev,epoch})).ok);
+   if(corruptLatest)adapter.data.get('characters').get(ID).payload.character.ash=999999;
+   const options=await a.recoveryOptions(ID),choice=options.backups[0].key,before=snapshot(adapter);
+   adapter.failAfter(n);const r=await a.restoreBackup(ID,choice,epoch,{expectedRevision:options.expectedRevision});adapter.clearFailure();
+   assert.equal(r.ok,false,'aborted after '+n+' writes');assert.equal(snapshot(adapter),before,'nothing partially restored');
+   assert.equal((await a.recoveryOptions(ID)).state,corruptLatest?'recovery-required':'saved');
+   assert.ok((await a.restoreBackup(ID,choice,epoch,{expectedRevision:options.expectedRevision})).ok,'the same choice succeeds once storage works');
+  }
+ }
+ // Stale choice: the save progressed after the backups were compared, so the old choice is refused and progress kept.
+ const {adapter,a,epoch,time,store}=await created();
+ assert.ok((await a.commit(ID,withAsh(basePayload(),100),{expectedRevision:1,epoch})).ok);
+ const seen=await a.recoveryOptions(ID);assert.ok((await a.commit(ID,withAsh(basePayload(),4242),{expectedRevision:2,epoch})).ok);
+ const before=snapshot(adapter),stale=await a.restoreBackup(ID,seen.backups[0].key,epoch,{expectedRevision:seen.expectedRevision});
+ assert.equal(stale.code,'conflict');assert.equal(stale.revision,3);assert.equal(snapshot(adapter),before);assert.equal((await a.load(ID)).envelope.payload.character.ash,4242);
+ // Stale writer: after another tab takes the lease, this tab's restore is fenced.
+ time.now+=10001;const b=store('tab-b');assert.ok((await b.acquireLease(ID)).ok);
+ const latest=await a.recoveryOptions(ID),fenced=await a.restoreBackup(ID,latest.backups[0].key,epoch,{expectedRevision:latest.expectedRevision});
+ assert.equal(fenced.code,'fenced');assert.equal((await a.load(ID)).envelope.payload.character.ash,4242);
 });
