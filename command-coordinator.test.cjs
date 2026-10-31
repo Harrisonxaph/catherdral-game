@@ -10,12 +10,12 @@ const {loadGame}=require('./tests/generation-harness.cjs');
 const ID='0f1e2d3c-aaaa-4bbb-8ccc-123456789abc';
 const fixture=()=>JSON.parse(fs.readFileSync(path.join(__dirname,'tests/fixtures/save-v1-full.json'),'utf8')).payload;
 // A stored character (the full fixture: 96.5/140 HP, 2 potions, execution 3.5 s and stunning 11.25 s on cooldown).
-async function setup(payload=fixture()){
+async function setup(payload=fixture(),onStatus=null){
  const adapter=S.memoryAdapter(),time={now:Date.parse('2026-11-01T00:00:00Z')},clock=()=>time.now;
  const store=S.createStore({adapter,sessionId:'tab-a',clock,leaseMs:10000}),{epoch}=await store.acquireLease(ID);
  assert.ok((await store.create(ID,payload,epoch)).ok);
  const statuses=[],envelope=(await store.load(ID)).envelope;
- const k=K.createCoordinator({store,characterId:ID,epoch,envelope,onStatus:s=>statuses.push(s.status)});
+ const k=K.createCoordinator({store,characterId:ID,epoch,envelope,onStatus:s=>{statuses.push(s.status);if(onStatus)onStatus(s);}});
  const reload=async()=>C.hydrate((await store.load(ID)).envelope).state;
  return {adapter,store,epoch,time,clock,k,statuses,reload};
 }
@@ -109,4 +109,38 @@ test('Ledger commands commit through the same path; replayed IDs after reload wr
  assert.equal(r.applied,false);assert.equal((await stored(store)).revision,revision);
  assert.equal((await reload()).character.lifetimeXp,payload.character.lifetimeXp+30);
  assert.equal((await k.ledger('startGame',{})).code,'invalid','only the listed ledger commands exist');
+});
+
+test('A throwing status observer never changes a save outcome, causes a second spend or leaves a command pending',async()=>{
+ const low=()=>{const p=fixture();p.character.resources.hp=1;return p;};
+ const thrower=on=>s=>{if(s.status===on)throw new Error('observer failed on '+on);};
+ // Observer throws while saving or after a completed commit: the commit stands, exactly once.
+ for(const on of ['saving','saved']){
+  const {k,reload,statuses,store}=await setup(low(),thrower(on));
+  const r=await k.drinkPotion();assert.ok(r.ok,on+': '+JSON.stringify(r));
+  assert.equal(k.status,'saved');assert.equal(k.pending,false);assert.deepEqual(statuses,['saving','saved']);
+  assert.equal(k.state.run.potions,1);assert.equal((await reload()).run.potions,1,on+': committed once');
+  const revision=(await stored(store)).revision;
+  assert.equal((await k.retry()).code,'nothing-to-retry',on+': a completed commit is never retried');
+  assert.equal((await stored(store)).revision,revision);assert.equal((await reload()).run.potions,1,on+': no second potion spent');
+  // Not stuck busy: the next deliberate command runs and spends exactly one more potion.
+  assert.ok((await k.drinkPotion()).ok);assert.equal((await reload()).run.potions,0);assert.equal(k.pending,false);
+ }
+ // Observer throws on a failed save: still failed, nothing acknowledged, and one retry applies it once.
+ {
+  const {k,adapter,reload}=await setup(low(),thrower('failed'));
+  adapter.failAfter(0);const r=await k.drinkPotion();adapter.clearFailure();
+  assert.equal(r.ok,false);assert.equal(r.status,'failed');assert.equal(k.status,'failed');assert.equal(k.pending,false);
+  assert.equal(k.state.run.potions,2);assert.equal((await reload()).run.potions,2);
+  assert.ok((await k.retry()).ok);assert.equal((await reload()).run.potions,1);assert.equal((await k.retry()).code,'nothing-to-retry');
+  assert.equal((await reload()).run.potions,1);
+ }
+ // Observer throws on a stale session: still stale, nothing acknowledged or stored, nothing pending.
+ {
+  const {k,adapter,time,clock,reload}=await setup(low(),thrower('stale'));
+  time.now+=10001;assert.ok((await S.createStore({adapter,sessionId:'tab-b',clock}).acquireLease(ID)).ok);
+  const r=await k.drinkPotion();assert.equal(r.code,'fenced');assert.equal(k.status,'stale');assert.equal(k.pending,false);
+  assert.equal(k.state.run.potions,2);assert.equal((await reload()).run.potions,2);
+  assert.equal((await k.drinkPotion()).code,'stale');assert.equal((await k.retry()).code,'nothing-to-retry');
+ }
 });

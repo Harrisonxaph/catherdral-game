@@ -39,7 +39,7 @@ Do not replace this with an AI assumption.
 |---|---|---|---|---|---|---|---|
 | P2 PR1 | [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) | MERGED_BY_OWNER | `ef177df` | [#38](https://github.com/Harrisonxaph/catherdral-game/pull/38) | 0 / 3 | `0ab4890` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)); merged by owner |
 | P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | MERGED_BY_OWNER | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | `562f4e7` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge approved ([record](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823)) |
-| P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | AWAITING_INDEPENDENT_REVIEW | `562f4e7` | draft PR linked from #34 | 0 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merge pending |
+| P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | AWAITING_INDEPENDENT_REVIEW | `562f4e7` | [#40](https://github.com/Harrisonxaph/catherdral-game/pull/40) | 1 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merge pending |
 | P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | WAITING_FOR_PR3 | unset | none | 0 / 3 | — | pending |
 | P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | WAITING_FOR_PR4 | unset | none | 0 / 3 | — | pending |
 
@@ -124,6 +124,13 @@ Copy the following section under this heading **for each new PR and each review 
 - Open blockers / data-loss risk: none known; nothing is wired into the game.
 - Rollback: revert the PR; no stored data exists.
 - Status: AWAITING_INDEPENDENT_REVIEW.
+
+### 2026-10-31 — P2 PR3 — correction 1
+- Finding: [Codex review of `2932a8f`](https://github.com/Harrisonxaph/catherdral-game/pull/40#issuecomment-6550629986), BLOCKING: `onStatus` ran inside the storage error path. An observer throwing on `saved` turned a completed commit into a retryable storage failure, so a retry spent a second potion. An observer throwing on `saving` ran outside the try/finally and left the coordinator permanently `busy`.
+- Fix: observer notifications are contained, so their errors are ignored and never reach the save path. Only the store commit is inside the try; `pending` is cleared in `finally` before the outcome is published; a completed commit is always acknowledged and never kept for retry.
+- Regression test: observers throwing at `saving`, `saved`, `failed` and `stale` leave the honest status, matching in-memory and stored state, no second potion spend, nothing to retry after a completed commit, and no stuck `busy`. Fails on `2932a8f` and when the observer containment alone is removed.
+- Correction cycles consumed: 1 / 3.
+- Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 1" handoff comment).
 
 ## Setup event — 2026-10-29
 

@@ -49,27 +49,28 @@
  function createCoordinator({store,characterId,epoch,envelope,onStatus=()=>{}}){
   const loaded=C.hydrate(envelope);if(!loaded.ok)throw new RangeError('cannot coordinate an invalid save: '+loaded.code);
   let state=loaded.state,revision=envelope.revision,status='saved',pending=false,failed=null;
-  const setStatus=(next,detail)=>{status=next;onStatus({status,...detail});};
+  // Observers are notified after the outcome is settled; a throwing observer never changes a save result, never turns
+  // a completed commit into a retryable failure and never leaves a command pending.
+  const setStatus=(next,detail)=>{status=next;try{onStatus({status,...detail});}catch(_){/* observer errors are ignored */}};
   async function execute(name,args,transitionFn){
    if(pending)return fail('busy','another command is still saving');
    if(status==='stale')return fail('stale','this session can no longer save; reload');
    if(status==='failed')return fail('save-failed','saving failed; retry before continuing');
    const r=transitionFn(state);
    if(!r.ok||!r.applied)return r; // refused or a no-op: nothing to save, nothing changes
-   pending=true;setStatus('saving',{command:name});
+   pending=true;let saved;
    try{
-    const saved=await store.commit(characterId,C.dehydrate(r.state),{expectedRevision:revision,epoch});
-    if(!saved.ok){
-     failed={name,args};
-     setStatus(STALE.has(saved.code)?'stale':'failed',{command:name,code:saved.code,message:saved.message});
-     return {ok:false,code:saved.code,message:saved.message,status};
-    }
-    state=r.state;revision=saved.revision;failed=null;setStatus('saved',{command:name,revision});
-    const {state:_,...extra}=r;return {...extra,state};
-   }catch(e){
-    failed={name,args};setStatus('failed',{command:name,code:'storage',message:e?.message});
-    return {ok:false,code:'storage',message:e?.message,status};
-   }finally{pending=false;}
+    setStatus('saving',{command:name});
+    saved=await store.commit(characterId,C.dehydrate(r.state),{expectedRevision:revision,epoch});
+   }catch(e){saved={ok:false,code:'storage',message:e?.message};}
+   finally{pending=false;}
+   if(!saved.ok){
+    failed={name,args};
+    setStatus(STALE.has(saved.code)?'stale':'failed',{command:name,code:saved.code,message:saved.message});
+    return {ok:false,code:saved.code,message:saved.message,status};
+   }
+   state=r.state;revision=saved.revision;failed=null;setStatus('saved',{command:name,revision});
+   const {state:_,...extra}=r;return {...extra,state};
   }
   const commands={
    drinkPotion:()=>execute('drinkPotion',[],s=>drinkPotion(s)),
