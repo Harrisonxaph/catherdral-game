@@ -294,7 +294,19 @@ P2 PR1 (in review, not merged) gives every initial enemy and chest a stable ID
 (`<location>:s<seed>:spawn|chest:<n>`) and keeps an in-memory area manifest per floor;
 IDs are computed without drawing random numbers, and a golden fixture proves layouts,
 positions, counts and RNG draw order equal main `ef177df` for 5 floors x 100 seeds.
-Nothing is saved yet; the current run-reset lifecycle still applies.
+Nothing is saved yet; the current run-reset lifecycle still applies. P2 PR1 merged as
+PR #38 (`0ab4890`).
+
+P2 PR2 (in review, not merged; [approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332))
+adds the pure `campaign-state.js` world-state and once-only reward ledger: area instances
+from PR1 manifests (refused if the saved layout hash or generator version differs), kills,
+chests and pick-ups applied at most once, XP with multi-level and skill-point grants, drops
+with IDs derived from their source, once-only rewards held as ground drops or escrow until
+claimed (a full bag never loses or rerolls them), and first clears unlocking the next
+location. Every operation validates the whole resulting state against the save schema and
+leaves its input untouched. Save schema 1 is amended in place: area instances gain seed,
+generator version, layout hash, epoch, killed and opened, keyed by their PR1 identity.
+Not loaded by the game.
 ## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
 
 Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and

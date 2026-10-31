@@ -3,7 +3,7 @@
 (() => {
  'use strict';
  const node=typeof module!=='undefined';
- const E=node?require('./equipment.js'):window.VesperEquipment,A=node?require('./abilities.js'):window.VesperAbilities;
+ const E=node?require('./equipment.js'):window.VesperEquipment,A=node?require('./abilities.js'):window.VesperAbilities,F=node?require('./floors.js'):window.VesperFloors;
  const SCHEMA_VERSION=1,CONTENT_VERSION='campaign-1',PROGRESSION_VERSION=1;
  const deepFreeze=o=>{Object.values(o).forEach(v=>v&&typeof v==='object'&&deepFreeze(v));return Object.freeze(o);};
  // Bounds refuse oversized candidates before hydration; exceeding them never discards data.
@@ -11,6 +11,10 @@
  const locations=Object.freeze(['forgotten-crypt','plague-halls','crimson-chapel','hollow-sanctum','throne-of-ash']);
  const bossLocations=Object.freeze(['forgotten-crypt','crimson-chapel','throne-of-ash']),eliteLocations=Object.freeze(['plague-halls','hollow-sanctum']);
  const abilityIds=Object.freeze(Object.keys(A.definitions));
+ // Area instances (ARPG Phase 2 PR2) are keyed by their Phase 2 PR1 identity: the campaign instance of a floor and seed
+ // is "<location>:s<seed>", a later replay or repopulation epoch adds ":<mode>:e<epoch>". Killed, opened and dropped IDs
+ // must belong to that identity, so an ID from another area can never be applied here.
+ const instanceKey=(locationId,seed,mode,epoch)=>F.instanceId(locations.indexOf(locationId)+1,seed)+(mode==='campaign'&&epoch===0?'':':'+mode+':e'+epoch);
  // Proposed defaults awaiting owner balance approval (SPEC section 8). The core profile equals startGame()'s current hero.
  const progression=deepFreeze({
   version:PROGRESSION_VERSION,levelCap:30,firstThreshold:48,growth:1.24,step:16,hpPerLevel:5,damagePerLevel:1,pointsPerLevel:1,maxSpeed:5.2,
@@ -110,12 +114,23 @@
   if(!plain(w.locations)||Object.keys(w.locations).length)k.fail('world.locations','must be empty in schema v1');
   const dropIds=new Set();
   k.map(w.instances,'world.instances',limits.instances,(id,inst,p)=>{
-   if(!k.shape(inst,p,['locationId','mode','groundDrops']))return;
+   if(!k.shape(inst,p,['locationId','mode','seed','generatorVersion','layoutHash','epoch','killed','opened','groundDrops']))return;
    if(!unlocked.includes(inst.locationId))k.fail(p+'.locationId','must be an unlocked location');
    if(!['campaign','replay'].includes(inst.mode))k.fail(p+'.mode','must be campaign or replay');
+   if(!safeInt(inst.seed,0,0xffffffff))k.fail(p+'.seed','must be a 32-bit floor seed');
+   // A save made by a different generator would place entities differently: never reinterpret its IDs.
+   if(inst.generatorVersion!==F.GENERATOR_VERSION)k.fail(p+'.generatorVersion','does not match the current floor generator');
+   if(typeof inst.layoutHash!=='string'||!/^[0-9a-f]{8}$/.test(inst.layoutHash))k.fail(p+'.layoutHash','invalid');
+   if(!safeInt(inst.epoch,0,1e6))k.fail(p+'.epoch','invalid');
+   if(!locations.includes(inst.locationId)||!safeInt(inst.seed,0,0xffffffff)||!['campaign','replay'].includes(inst.mode)||!safeInt(inst.epoch,0,1e6))return;
+   if(id!==instanceKey(inst.locationId,inst.seed,inst.mode,inst.epoch))k.fail(p,'instance key must equal its area identity');
+   const identity=F.instanceId(locations.indexOf(inst.locationId)+1,inst.seed);
+   const entity=kind=>v=>{if(typeof v!=='string')return false;const m=v.startsWith(identity+':'+kind+':')&&v.slice(identity.length+kind.length+2);return typeof m==='string'&&/^(0|[1-9][0-9]*)$/.test(m)&&+m<F.MAX_ENTITIES;};
+   k.uniqueStrings(inst.killed,p+'.killed',F.MAX_ENTITIES,entity('spawn'));
+   k.uniqueStrings(inst.opened,p+'.opened',F.MAX_ENTITIES,entity('chest'));
    k.list(inst.groundDrops,p+'.groundDrops',limits.groundDrops,(d,dp)=>{
     if(!k.shape(d,dp,['dropId','kind','itemId','amount','x','y','rewardKey']))return;
-    if(!idText(d.dropId))k.fail(dp+'.dropId','invalid');else if(dropIds.has(d.dropId))k.fail(dp+'.dropId','duplicate drop ID');else dropIds.add(d.dropId);
+    if(!idText(d.dropId))k.fail(dp+'.dropId','invalid');else if(!d.dropId.startsWith(identity+':'))k.fail(dp+'.dropId','must belong to this area');else if(dropIds.has(d.dropId))k.fail(dp+'.dropId','duplicate drop ID');else dropIds.add(d.dropId);
     if(!finite(d.x,-1024,1024)||!finite(d.y,-1024,1024))k.fail(dp,'position out of range');
     if(d.rewardKey!==null&&!idText(d.rewardKey))k.fail(dp+'.rewardKey','invalid');else if(d.rewardKey!==null)rewards.push({key:d.rewardKey,path:dp+'.rewardKey'});
     if(d.rewardKey!==null&&(!plain(rewardLedger)||own(rewardLedger,d.rewardKey)!=='escrow'))k.fail(dp+'.rewardKey','ledger must mark a dropped reward as escrow');
@@ -203,7 +218,7 @@
   const c=state.character,run=state.run;
   const character={level:c.level,lifetimeXp:c.lifetimeXp,xpIntoLevel:c.xpIntoLevel,unspentSkillPoints:c.unspentSkillPoints,coreProfile:c.coreProfile,passiveRanks:clone(c.passiveRanks),abilityUpgradeRanks:clone(c.abilityUpgradeRanks),resources:{hp:c.resources.hp,equipmentShield:c.resources.equipmentShield,potions:run.potions},timers:clone(c.timers),ash:c.ash,deaths:c.deaths,equipment:{main:ref(run.main,'main'),off:ref(run.off,'off')},backpack:run.bag.map((i,n)=>ref(i,'backpack '+n)),stash:state.stash.map((i,n)=>ref(i,'stash '+n)),nextItemId:0,abilityUnlocks:c.abilityUnlocks.slice()};
   const campaign={...clone({...state.campaign,rewardEscrow:[]}),rewardEscrow:state.campaign.rewardEscrow.map(e=>({rewardKey:e.rewardKey,itemId:ref(e.item,'escrow '+e.rewardKey)}))};
-  const instances={};for(const [id,inst] of Object.entries(state.world.instances))instances[id]={locationId:inst.locationId,mode:inst.mode,groundDrops:inst.groundDrops.map(d=>({dropId:d.dropId,kind:d.kind,itemId:d.kind==='item'?ref(d.item,'drop '+d.dropId):null,amount:d.amount,x:d.x,y:d.y,rewardKey:d.rewardKey}))};
+  const instances={};for(const [id,inst] of Object.entries(state.world.instances))instances[id]={locationId:inst.locationId,mode:inst.mode,seed:inst.seed,generatorVersion:inst.generatorVersion,layoutHash:inst.layoutHash,epoch:inst.epoch,killed:inst.killed.slice(),opened:inst.opened.slice(),groundDrops:inst.groundDrops.map(d=>({dropId:d.dropId,kind:d.kind,itemId:d.kind==='item'?ref(d.item,'drop '+d.dropId):null,amount:d.amount,x:d.x,y:d.y,rewardKey:d.rewardKey}))};
   const world={...clone({...state.world,instances:{}}),instances};
   const ordered=[...items.values()].map(({item:i})=>({id:i.id,key:i.key,mods:i.mods.map(m=>({stat:m.stat,value:m.value})),upgradeRank:0})).sort((a,b)=>a.id-b.id);
   character.nextItemId=Math.max(E.nextId(),...ordered.map(i=>i.id+1),1);
@@ -240,6 +255,6 @@
   return after.ok?{ok:true,envelope:current,migrated:from<target,from}:{ok:false,code:after.code||'invalid',errors:after.errors};
  }
 
- const api=Object.freeze({SCHEMA_VERSION,CONTENT_VERSION,PROGRESSION_VERSION,limits,locations,progression,thresholds,levelFor,pointsEarned,derivedStats,validate,hydrate,dehydrate,envelope,create,canonical,migrations,migrate});
+ const api=Object.freeze({instanceKey,SCHEMA_VERSION,CONTENT_VERSION,PROGRESSION_VERSION,limits,locations,progression,thresholds,levelFor,pointsEarned,derivedStats,validate,hydrate,dehydrate,envelope,create,canonical,migrations,migrate});
  if(node)module.exports=api;else window.VesperCharacter=api;
 })();

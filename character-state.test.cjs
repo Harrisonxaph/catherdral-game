@@ -159,7 +159,7 @@ test('Review: a once-only reward is held exactly once across escrow and ground d
  rejects(variant(env,p=>{Object.values(p.world.instances)[0].groundDrops.find(d=>d.kind==='ash').rewardKey=key;}),/also held/);
  rejects(variant(env,p=>{p.campaign.rewardLedger['campaign:plague-halls:chest:1:item']='escrow';}),/must be held in escrow or on the ground/);
  // Moving the reward from escrow to the ground keeps exactly one holder and stays valid.
- assert.ok(C.validate(variant(env,p=>{const e=p.campaign.rewardEscrow.pop(),drops=Object.values(p.world.instances)[0].groundDrops;drops.push({dropId:'drop-boss',kind:'item',itemId:e.itemId,amount:1,x:0,y:0,rewardKey:e.rewardKey});})).ok);
+ assert.ok(C.validate(variant(env,p=>{const e=p.campaign.rewardEscrow.pop(),drops=Object.values(p.world.instances)[0].groundDrops;drops.push({dropId:Object.keys(p.world.instances)[0]+':boss:d0',kind:'item',itemId:e.itemId,amount:1,x:0,y:0,rewardKey:e.rewardKey});})).ok);
 });
 
 test('Review: inherited property names are never item keys or record keys',()=>{
@@ -167,7 +167,7 @@ test('Review: inherited property names are never item keys or record keys',()=>{
  for(const key of ['toString','constructor','__proto__','hasOwnProperty'])rejects(variant(env,p=>{p.items.find(i=>i.key==='kingsmercy').key=key;}),/unknown item/);
  rejects(variant(env,p=>{p.items[0].key=7;}),/unknown item/);
  // An own __proto__ instance key (as JSON.parse creates it) would vanish on re-serialisation, orphaning its items.
- rejects(JSON.parse(JSON.stringify(env).replace('"campaign-forgotten-crypt-1":','"__proto__":').replace('"currentInstanceId":"campaign-forgotten-crypt-1"','"currentInstanceId":null')),/invalid key/);
+ rejects(JSON.parse(JSON.stringify(env).replace('"forgotten-crypt:s0000002a":','"__proto__":').replace('"currentInstanceId":"forgotten-crypt:s0000002a"','"currentInstanceId":null')),/invalid key/);
  rejects(variant(env,p=>{p.character.passiveRanks={toString:1,vigor:1,edge:1};}),/invalid key/);
  rejects(variant(env,p=>{p.campaign.questStates.constructor='complete';}),/invalid key/);
 });
@@ -187,4 +187,25 @@ test('Review: hostile JSON in any field is rejected through the result, never by
   const candidate=copy(env);let o=candidate;for(const k of p.slice(0,-1))o=o[k];o[p.at(-1)]=h;
   for(const fn of ['validate','hydrate','migrate']){let r;assert.doesNotThrow(()=>{r=C[fn](candidate);},fn+' threw for '+p.join('.')+' = '+JSON.stringify(h));assert.equal(typeof r.ok,'boolean');}
  }
+});
+
+test('P2 PR2: area instances carry their PR1 identity; foreign, malformed or mis-keyed records are refused',()=>{
+ const env=fixture('save-v1-full.json'),key=Object.keys(env.payload.world.instances)[0],inst=p=>p.world.instances[key];
+ assert.equal(key,'forgotten-crypt:s0000002a');assert.equal(C.instanceKey('forgotten-crypt',42,'replay',3),'forgotten-crypt:s0000002a:replay:e3');
+ rejects(variant(env,p=>{inst(p).killed.push('forgotten-crypt:s0000002b:spawn:1');}),/killed/);
+ rejects(variant(env,p=>{inst(p).killed.push('plague-halls:s0000002a:spawn:1');}),/killed/);
+ rejects(variant(env,p=>{inst(p).killed.push(key+':chest:1');}),/killed/);
+ rejects(variant(env,p=>{inst(p).killed.push(key+':spawn:4096');}),/killed/);
+ rejects(variant(env,p=>{inst(p).killed.push(key+':spawn:01');}),/killed/);
+ rejects(variant(env,p=>{inst(p).killed.push(inst(p).killed[0]);}),/duplicate values/);
+ rejects(variant(env,p=>{inst(p).opened.push(key+':spawn:2');}),/opened/);
+ rejects(variant(env,p=>{inst(p).groundDrops[1].dropId='plague-halls:s0000002a:spawn:1:d0';}),/must belong to this area/);
+ rejects(variant(env,p=>{inst(p).generatorVersion=2;}),/floor generator/);
+ rejects(variant(env,p=>{inst(p).layoutHash='xyz';}),/layoutHash/);
+ rejects(variant(env,p=>{inst(p).seed=2**32;}),/seed/);
+ rejects(variant(env,p=>{inst(p).seed=43;}),/area identity/);
+ rejects(variant(env,p=>{inst(p).epoch=1;}),/area identity/);
+ rejects(variant(env,p=>{delete inst(p).killed;}),/missing field killed/);
+ // A correctly keyed replay epoch of the same floor is a separate, valid instance.
+ assert.ok(C.validate(variant(env,p=>{p.world.instances[C.instanceKey('forgotten-crypt',42,'replay',1)]={...copy(inst(p)),mode:'replay',epoch:1,killed:[],opened:[],groundDrops:[]};})).ok);
 });

@@ -68,8 +68,13 @@ gameplay changes, merge PRs or deploy.
 record](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)).
 P2 PR1 (#32) is implemented on `development/arpg-p2-pr1-stable-identities` as a draft
 PR awaiting independent Codex review: stable, RNG-free spawn/chest/area identities with
-generation pinned to main `ef177df` by a golden fixture. PR2–PR5 still need separate
-owner authorisation after each preceding merge.
+generation pinned to main `ef177df` by a golden fixture. Merged by the owner as PR #38
+(`0ab4890`).
+
+2026-10-31 — owner authorised P2 PR2 ([approval record](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)).
+P2 PR2 (#33) is a draft PR on `development/arpg-p2-pr2-world-ledger` awaiting independent
+Codex review: pure `campaign-state.js` ledger plus area-instance fields in save schema 1.
+PR3–PR5 still need separate owner authorisation after each preceding merge.
 
 ## Previous graphics specification task
 
