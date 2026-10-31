@@ -28,7 +28,7 @@ specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 | Location | Responsibility |
 | --- | --- |
 | `index.html` | HUD, controls, game state, requestAnimationFrame loop, simulation adapters, melee/player damage, loot/floor transitions, Canvas rendering and PWA registration |
-| `floors.js` | Five immutable floor configurations, rosters, scaling, boss HP and connected procedural layouts |
+| `floors.js` | Five immutable floor configurations, rosters, scaling, boss HP, connected procedural layouts and pure RNG-free area/spawn/chest identities (ARPG Phase 2 PR1) |
 | `enemy-system.js` | Eight archetypes, state machine, navigation/separation, shields/statuses, hazard/projectile/summon budgets and exact hazard geometry |
 | `equipment.js` | Pure equipment definitions, rolled bonus modifiers, loadout/stat calculations, atomic inventory transactions and weighted loot |
 | `character-state.js`, `tests/fixtures/` | Proposed persistent-character save schema: validation, item ownership graph, hydration, derived stats and migrations (ARPG Phase 1A; not loaded by the game yet) |
@@ -44,7 +44,7 @@ specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 | `story-content.js`, `narrative.js`, `narrative.css` | Narrative content, journal/interactions, reading pause and first-floor story gating |
 | `service-worker.js`, `manifest.webmanifest`, `_headers`, `icons/` | Offline asset cache, install metadata, PWA/home-screen icons and hosting header rules |
 | `scripts/build.mjs`, `vercel.json` | Static deploy packaging into `dist/` (no bundling) and Vercel build/output/header configuration |
-| `*.test.cjs`, `tests/*.cjs` | Node tests, Playwright browser tests and capture scripts |
+| `*.test.cjs`, `tests/*.cjs` | Node tests, Playwright browser tests and capture scripts; `tests/generation-harness.cjs` runs any revision's floor generation in Node, and `tests/fixtures/p2-pr1-generation-golden.json` pins generation to main `ef177df` (regenerate only to move that baseline deliberately) |
 | `docs/visual-comparison/`, `docs/boss-presentation/` | Actual before/after screenshots and software-renderer metrics; not loaded by gameplay |
 | `assets/bosses/ASSET-REQUIREMENTS.md` | External model, rig, animation and licence handoff; no external boss models bundled |
 

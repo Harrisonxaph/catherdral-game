@@ -282,8 +282,19 @@ one raised on `6712d37` after #30 merged: the candidate snapshot was a JSON roun
 so `NaN`, `undefined` or an array hole was silently stored as `null` even though
 validation rejects it. Follow-up `development/arpg-save-store-strict-snapshot` takes a
 strict snapshot that refuses every non-JSON value before validation (Phase 1A fix,
-not Phase 2). Phase 2 (New/Continue, permanent XP, checkpoint respawn) still awaits
-owner approval of SPEC section 10.
+merged as PR #31).
+
+**Phase 2 (2026-10-31).** The owner approved the SPEC section 10 defaults (one slot,
+checkpoint Continue, no death penalties, resource/cooldown persistence, first-clear-only
+transition recovery, level cap 30 with +5 HP/+1 damage and one skill point per level,
+24-slot stash and the passive/blacksmith defaults, subject to later balancing) and
+authorised P2 PR1 only, in the [approval record](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246).
+The Phase 2 loop is in [docs/arpg/PHASE2-LOOP.md](docs/arpg/PHASE2-LOOP.md).
+P2 PR1 (in review, not merged) gives every initial enemy and chest a stable ID
+(`<location>:s<seed>:spawn|chest:<n>`) and keeps an in-memory area manifest per floor;
+IDs are computed without drawing random numbers, and a golden fixture proves layouts,
+positions, counts and RNG draw order equal main `ef177df` for 5 floors x 100 seeds.
+Nothing is saved yet; the current run-reset lifecycle still applies.
 ## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
 
 Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and

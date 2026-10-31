@@ -34,7 +34,33 @@
     link(approach,exit);
     return {W,H,g,rooms,start:rooms[0],exit,config,ix,walk:(x,y)=>x>=0&&y>=0&&x<W&&y<H&&g[ix(x,y)]===0};
   }
-  const api=Object.freeze({floors:Object.freeze(floors),get,generate});
+  // Stable identities (ARPG Phase 2 PR1). Pure and RNG-free: computing them never draws from the seeded generator, so
+  // layouts, spawn order and graphics world digests stay exactly as before. Bump GENERATOR_VERSION whenever generate() or
+  // the index.html population order changes, because saved IDs are only meaningful for the generator that produced them.
+  const GENERATOR_VERSION=1, MAX_ENTITIES=4096;
+  const locations=Object.freeze(['forgotten-crypt','plague-halls','crimson-chapel','hollow-sanctum','throne-of-ash']);
+  const entityKinds=Object.freeze(['spawn','chest']);
+  // One campaign instance per floor and seed: a different seed is a different instance, so IDs never collide across runs.
+  function instanceId(number, seed) {
+    get(number);
+    if(!Number.isInteger(seed)||seed<0||seed>0xffffffff)throw new RangeError('Invalid floor seed');
+    return locations[number-1]+':s'+seed.toString(16).padStart(8,'0');
+  }
+  // Index = creation order within the instance (deterministic for a seed); scoped by instance, so unique across areas.
+  function entityId(instance, kind, index) {
+    if(typeof instance!=='string'||!/^[a-z-]+:s[0-9a-f]{8}$/.test(instance)||!locations.includes(instance.split(':')[0]))throw new RangeError('Invalid instance ID');
+    if(!entityKinds.includes(kind))throw new RangeError('Unknown entity kind');
+    if(!Number.isInteger(index)||index<0||index>=MAX_ENTITIES)throw new RangeError('Entity index out of range');
+    return instance+':'+kind+':'+index;
+  }
+  // FNV-1a over the walk grid and room descriptors: detects any layout drift under the same seed and generator version.
+  function layoutHash(world) {
+    let h=0x811c9dc5;const mix=v=>{h^=v&0xff;h=Math.imul(h,0x01000193)>>>0;h^=(v>>>8)&0xff;h=Math.imul(h,0x01000193)>>>0;};
+    mix(world.W);mix(world.H);for(const cell of world.g)mix(cell);
+    for(const r of [...world.rooms,world.exit])for(const v of [r.x,r.y,r.w,r.h])mix(v);
+    return h.toString(16).padStart(8,'0');
+  }
+  const api=Object.freeze({floors:Object.freeze(floors),get,generate,GENERATOR_VERSION,MAX_ENTITIES,locations,entityKinds,instanceId,entityId,layoutHash});
   if(typeof module!=='undefined')module.exports=api;
   else window.VesperFloors=api;
 })();
