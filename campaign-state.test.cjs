@@ -145,3 +145,30 @@ test('Interrupted commits never half-apply: a failed save leaves the stored kill
  assert.deepEqual(reloaded.world.instances[id].killed,[m.spawns[0].id]);assert.equal(reloaded.character.lifetimeXp,60);
  const replay=G.recordKill(reloaded,{instanceId:id,spawnId:m.spawns[0].id,xp:60});assert.equal(replay.applied,false);
 });
+
+test('Review: campaign and replay epochs keep simultaneous drops from the same initial enemy, through save and reload',()=>{
+ const m=manifest(1,42),spawn=m.spawns[0].id,chest=m.chests[0].id,keys=[];let s=fresh();
+ const roundTrip=state=>{const h=C.hydrate(C.envelope(C.dehydrate(state),{characterId:ID,revision:1,createdAt:'2026-10-31T00:00:00.000Z',savedAt:'2026-10-31T00:00:00.000Z',sessionId:'t',leaseEpoch:1}));assert.ok(h.ok,JSON.stringify(h.errors));return h.state;};
+ for(const [mode,epoch] of [['campaign',0],['replay',1],['replay',2]]){
+  const r=G.enterArea(s,m,{mode,epoch});s=ok(r);keys.push(r.instanceId);
+  s=ok(G.recordKill(s,{instanceId:r.instanceId,spawnId:spawn,xp:5,drops:[{kind:'ash',amount:1,x:0,y:0},{kind:'item',item:E.item('graveaxe'),x:0,y:0}]}));
+  s=ok(G.openChest(s,{instanceId:r.instanceId,chestId:chest,drops:[{kind:'ash',amount:9,x:1,y:1}]}));
+  s=roundTrip(s);
+ }
+ assert.deepEqual(keys,['forgotten-crypt:s0000002a','forgotten-crypt:s0000002a:replay:e1','forgotten-crypt:s0000002a:replay:e2']);
+ const all=keys.flatMap(k=>s.world.instances[k].groundDrops.map(d=>d.dropId));
+ assert.equal(all.length,9);assert.equal(new Set(all).size,9,'drop IDs are distinct across the campaign and both epochs');
+ keys.forEach(k=>{for(const d of s.world.instances[k].groundDrops)assert.ok(d.dropId.startsWith(k+':'),d.dropId);});
+ assert.deepEqual(s.world.instances[keys[1]].groundDrops.map(d=>d.dropId),[keys[1]+':spawn:0:d0',keys[1]+':spawn:0:d1',keys[1]+':chest:0:d0']);
+ assert.equal(s.character.lifetimeXp,15);
+ // Each epoch's kill still counts once per instance, and picking up in one instance leaves the others' drops alone.
+ assert.equal(G.recordKill(s,{instanceId:keys[2],spawnId:spawn,xp:5}).applied,false);
+ const picked=ok(G.pickUp(s,{instanceId:keys[1],dropId:keys[1]+':spawn:0:d1'}));
+ assert.equal(picked.world.instances[keys[1]].groundDrops.length,2);assert.equal(picked.world.instances[keys[0]].groundDrops.length,3);assert.equal(picked.world.instances[keys[2]].groundDrops.length,3);
+ roundTrip(picked);
+ // Campaign reward keys remain once-only across every instance and epoch.
+ const key=G.campaignRewardKey('forgotten-crypt'),held=ok(G.grantReward(s,{rewardKey:key,item:E.item('bloodforged'),instanceId:keys[1],x:2,y:2}));
+ for(const k of keys)assert.equal(G.grantReward(held,{rewardKey:key,item:E.item('twinmoon'),instanceId:k}).applied,false,k);
+ assert.ok(held.world.instances[keys[1]].groundDrops.some(d=>d.dropId===keys[1]+':reward:'+d.dropId.slice(-8)&&d.rewardKey===key));
+ roundTrip(held);
+});

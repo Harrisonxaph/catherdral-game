@@ -159,7 +159,7 @@ test('Review: a once-only reward is held exactly once across escrow and ground d
  rejects(variant(env,p=>{Object.values(p.world.instances)[0].groundDrops.find(d=>d.kind==='ash').rewardKey=key;}),/also held/);
  rejects(variant(env,p=>{p.campaign.rewardLedger['campaign:plague-halls:chest:1:item']='escrow';}),/must be held in escrow or on the ground/);
  // Moving the reward from escrow to the ground keeps exactly one holder and stays valid.
- assert.ok(C.validate(variant(env,p=>{const e=p.campaign.rewardEscrow.pop(),drops=Object.values(p.world.instances)[0].groundDrops;drops.push({dropId:Object.keys(p.world.instances)[0]+':boss:d0',kind:'item',itemId:e.itemId,amount:1,x:0,y:0,rewardKey:e.rewardKey});})).ok);
+ assert.ok(C.validate(variant(env,p=>{const e=p.campaign.rewardEscrow.pop(),drops=Object.values(p.world.instances)[0].groundDrops;drops.push({dropId:Object.keys(p.world.instances)[0]+':reward:0000abcd',kind:'item',itemId:e.itemId,amount:1,x:0,y:0,rewardKey:e.rewardKey});})).ok);
 });
 
 test('Review: inherited property names are never item keys or record keys',()=>{
@@ -208,4 +208,16 @@ test('P2 PR2: area instances carry their PR1 identity; foreign, malformed or mis
  rejects(variant(env,p=>{delete inst(p).killed;}),/missing field killed/);
  // A correctly keyed replay epoch of the same floor is a separate, valid instance.
  assert.ok(C.validate(variant(env,p=>{p.world.instances[C.instanceKey('forgotten-crypt',42,'replay',1)]={...copy(inst(p)),mode:'replay',epoch:1,killed:[],opened:[],groundDrops:[]};})).ok);
+});
+
+test('Review: drop IDs must belong to their exact instance key, mode and epoch included',()=>{
+ const env=fixture('save-v1-full.json'),key=Object.keys(env.payload.world.instances)[0],replay=C.instanceKey('forgotten-crypt',42,'replay',1);
+ const withReplay=p=>{p.world.instances[replay]={...copy(p.world.instances[key]),mode:'replay',epoch:1,killed:[],opened:[],groundDrops:[]};return p.world.instances[replay];};
+ // A campaign drop ID inside the replay instance (and the reverse) is refused, as are malformed suffixes.
+ rejects(variant(env,p=>{withReplay(p).groundDrops.push({...copy(p.world.instances[key].groundDrops[1]),dropId:key+':spawn:5:d0'});}),/belong to this area instance|duplicate drop ID/);
+ rejects(variant(env,p=>{withReplay(p);p.world.instances[key].groundDrops[1].dropId=replay+':spawn:5:d0';}),/belong to this area instance/);
+ for(const bad of [':spawn:5',':spawn:05:d0',':spawn:4096:d0',':spawn:5:d64',':boss:d0',':reward:xyz',':reward:0000abcd:d0'])
+  rejects(variant(env,p=>{p.world.instances[key].groundDrops[1].dropId=key+bad;}),/belong to this area instance/);
+ // The same source suffix under each instance key is valid simultaneously.
+ assert.ok(C.validate(variant(env,p=>{withReplay(p).groundDrops.push({...copy(p.world.instances[key].groundDrops[1]),dropId:replay+':spawn:5:d0'});})).ok);
 });

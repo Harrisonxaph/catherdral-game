@@ -52,12 +52,15 @@
   return finish(next,{instanceId:key});
  }
  // Drops are [{kind:'item',item,x,y} | {kind:'ash',amount,x,y} | {kind:'potion',amount:1,x,y}], resolved by the caller
- // with the existing loot tables. They land on the ground with IDs derived from their source, so they exist once.
- function placeDrops(inst,sourceId,drops){
+ // with the existing loot tables. Their IDs are "<instance key>:<spawn|chest>:<n>:d<k>": scoped to the full saved
+ // instance key (mode and epoch included), so the same initial enemy killed in a campaign instance and in replay
+ // epochs leaves distinct drops that can all lie on the ground at once.
+ function placeDrops(inst,instanceId,sourceId,drops){
+  const source=sourceId.slice(identityOf(inst).length+1);
   if(!Array.isArray(drops)||drops.length>64)throw new RangeError('invalid drops');
   drops.forEach((d,n)=>{
    if(!d||!['item','ash','potion'].includes(d.kind))throw new RangeError('invalid drop kind');
-   inst.groundDrops.push({dropId:sourceId+':d'+n,kind:d.kind,item:d.kind==='item'?d.item:null,amount:d.kind==='item'?1:d.amount,x:d.x,y:d.y,rewardKey:null});
+   inst.groundDrops.push({dropId:instanceId+':'+source+':d'+n,kind:d.kind,item:d.kind==='item'?d.item:null,amount:d.kind==='item'?1:d.amount,x:d.x,y:d.y,rewardKey:null});
   });
  }
  function grantXp(c,xp){
@@ -74,7 +77,7 @@
   if(!safeInt(xp,0,1e6))return fail('invalid','XP out of range');
   const next=copy(state),target=next.world.instances[instanceId];target.killed.push(spawnId);
   const levels=grantXp(next.character,xp);
-  try{placeDrops(target,spawnId,drops);}catch(e){return fail('invalid',e.message);}
+  try{placeDrops(target,instanceId,spawnId,drops);}catch(e){return fail('invalid',e.message);}
   return finish(next,{levelsGained:levels});
  }
  function openChest(state,{instanceId,chestId,drops=[]}={}){
@@ -82,7 +85,7 @@
   if(typeof chestId!=='string')return fail('invalid','a chest ID is required');
   if(inst.opened.includes(chestId))return unchanged(state);
   const next=copy(state),target=next.world.instances[instanceId];target.opened.push(chestId);
-  try{placeDrops(target,chestId,drops);}catch(e){return fail('invalid',e.message);}
+  try{placeDrops(target,instanceId,chestId,drops);}catch(e){return fail('invalid',e.message);}
   return finish(next);
  }
  // Pick up one ground drop. The item moves to the backpack (never copied); a full bag or full potion belt leaves the
@@ -109,7 +112,7 @@
   if(instanceId===null)next.campaign.rewardEscrow.push({rewardKey,item});
   else{
    const target=instanceOf(next,instanceId);if(!target)return fail('unknown-area','no such area instance');
-   target.groundDrops.push({dropId:identityOf(target)+':reward:'+hash(rewardKey),kind:'item',item,amount:1,x,y,rewardKey});
+   target.groundDrops.push({dropId:instanceId+':reward:'+hash(rewardKey),kind:'item',item,amount:1,x,y,rewardKey});
   }
   return finish(next);
  }
