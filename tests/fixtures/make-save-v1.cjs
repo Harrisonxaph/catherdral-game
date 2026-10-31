@@ -1,6 +1,9 @@
 // Regenerates save-v1-full.json: a deterministic schema-1 character exercising every owner type and all twelve items.
 // node tests/fixtures/make-save-v1.cjs  (inspect the diff; the fixture pins the schema-1 byte form)
-const fs=require('fs'),path=require('path'),C=require('../../character-state.js');
+const fs=require('fs'),path=require('path'),C=require('../../character-state.js'),F=require('../../floors.js');
+// Area instance: floor 1 built from seed 42, keyed by its Phase 2 PR1 identity, with the layout hash the game computes.
+const SEED=42,area=F.instanceId(1,SEED);
+const layout=(()=>{let v=SEED;return F.layoutHash(F.generate(F.get(1),()=>{v=(Math.imul(1664525,v)+1013904223)>>>0;return v/4294967296;}));})();
 const keys=['duskdagger','bulwark','ashbringer','oathguard','graveaxe','rustbound','kingsmercy','executioner','mournblade','cryptshield','bloodforged','twinmoon'];
 const mods={duskdagger:[{stat:'damage',value:3},{stat:'crit',value:.04}],graveaxe:[{stat:'damage',value:2}],rustbound:[{stat:'speed',value:.04}],executioner:[{stat:'speed',value:.06}],bloodforged:[{stat:'crit',value:.05}]};
 const items=keys.map((key,i)=>({id:i+1,key,mods:mods[key]||[],upgradeRank:0})),id=key=>items.find(i=>i.key===key).id;
@@ -14,11 +17,11 @@ const payload={
  campaign:{unlockedLocations:['forgotten-crypt','plague-halls'],activeCheckpointId:'plague-halls:entrance',campaignComplete:false,bossCompletions:{'forgotten-crypt':true},eliteCompletions:{},
   questStates:{'chapter-1:crown':'complete'},storyFlags:['chapter-1:keeper-met'],journalEntries:[{id:'memory:0',title:'Death memory 1',text:'A remembered death.'}],
   rewardLedger:{[boss]:'escrow','campaign:forgotten-crypt:chest:3:item':'claimed'},rewardEscrow:[{rewardKey:boss,itemId:id('bloodforged')}]},
- world:{lifecycle:{mode:'alive',deathId:null,lastRespawnId:'respawn-2'},currentLocationId:'forgotten-crypt',currentInstanceId:'campaign-forgotten-crypt-1',pendingTransition:null,checkpoints:{},locations:{},
-  instances:{'campaign-forgotten-crypt-1':{locationId:'forgotten-crypt',mode:'campaign',groundDrops:[
-   {dropId:'drop-1',kind:'item',itemId:id('twinmoon'),amount:1,x:4.5,y:-2.25,rewardKey:null},
-   {dropId:'drop-2',kind:'ash',itemId:null,amount:12,x:5,y:-2,rewardKey:null},
-   {dropId:'drop-3',kind:'potion',itemId:null,amount:1,x:6,y:1,rewardKey:null}]}}},
+ world:{lifecycle:{mode:'alive',deathId:null,lastRespawnId:'respawn-2'},currentLocationId:'forgotten-crypt',currentInstanceId:area,pendingTransition:null,checkpoints:{},locations:{},
+  instances:{[area]:{locationId:'forgotten-crypt',mode:'campaign',seed:SEED,generatorVersion:F.GENERATOR_VERSION,layoutHash:layout,epoch:0,killed:[area+':spawn:3',area+':spawn:5'],opened:[area+':chest:1'],groundDrops:[
+   {dropId:area+':spawn:3:d0',kind:'item',itemId:id('twinmoon'),amount:1,x:4.5,y:-2.25,rewardKey:null},
+   {dropId:area+':spawn:5:d0',kind:'ash',itemId:null,amount:12,x:5,y:-2,rewardKey:null},
+   {dropId:area+':chest:1:d0',kind:'potion',itemId:null,amount:1,x:6,y:1,rewardKey:null}]}}},
  legacy:{migrationId:'legacy-import-1',bestKills:42,narrativeMemories:['A remembered death.'],sourceFingerprint:''}
 };
 const env=C.envelope(payload,{characterId:'0f1e2d3c-aaaa-4bbb-8ccc-123456789abc',revision:3,createdAt:'2026-10-28T12:00:00.000Z',savedAt:'2026-10-28T12:30:00.000Z',sessionId:'session-a',leaseEpoch:2});

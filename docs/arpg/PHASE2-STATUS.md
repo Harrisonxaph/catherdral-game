@@ -37,8 +37,8 @@ Do not replace this with an AI assumption.
 
 | Step | Issue | Status | Base SHA | PR URL (head SHAs and verdicts in its comments) | Fix cycles | Merge commit | Owner decision |
 |---|---|---|---|---|---|---|---|
-| P2 PR1 | [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) | AWAITING_INDEPENDENT_REVIEW | `ef177df` | draft PR linked from #32 | 0 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)); merge pending |
-| P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | WAITING_FOR_PR1 | unset | none | 0 / 3 | — | pending |
+| P2 PR1 | [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) | MERGED_BY_OWNER | `ef177df` | [#38](https://github.com/Harrisonxaph/catherdral-game/pull/38) | 0 / 3 | `0ab4890` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)); merged by owner |
+| P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | AWAITING_INDEPENDENT_REVIEW | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge pending |
 | P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | WAITING_FOR_PR2 | unset | none | 0 / 3 | — | pending |
 | P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | WAITING_FOR_PR3 | unset | none | 0 / 3 | — | pending |
 | P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | WAITING_FOR_PR4 | unset | none | 0 / 3 | — | pending |
@@ -86,6 +86,29 @@ Copy the following section under this heading **for each new PR and each review 
 - Rollback: revert the PR; no stored data exists.
 - Status: AWAITING_INDEPENDENT_REVIEW.
 - Next action: independent Codex review of the PR's current head; owner decides merge.
+
+### 2026-10-31 — P2 PR1 — merged by owner
+- PR [#38](https://github.com/Harrisonxaph/catherdral-game/pull/38) merged into main as `0ab48900409e8d54c3ff5a0433f0cf0510e46b3d` (head `6243c5d`). Codex review of that head: no findings ([comment](https://github.com/Harrisonxaph/catherdral-game/pull/38#issuecomment-6549644823)); all five CI checks on the head passed. The later automatic Codex run on "ready for review" reported "Failed" (a tool error with no findings posted). Correction cycles used: 0 / 3.
+
+### 2026-10-31 — P2 PR2 — initial implementation
+- Issue: [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33).
+- Approval source and scope: [`OWNER APPROVAL: P2 PR2 (#33)`](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332) (2026-10-31): #33's scope only, the pure campaign/world-state and once-only reward ledger with tests; no Save/Continue, combat, UI or unrelated changes. Merge, later stages and deployment remain owner decisions.
+- Developer: Claude Code. Reviewer: independent Codex session (pending).
+- Base: `main @ 0ab4890`. Feature branch: `development/arpg-p2-pr2-world-ledger`.
+- PR URL and exact head SHAs: the draft PR linked from #33 and its developer handoff comments.
+- Change summary: new pure `campaign-state.js` (enterArea, recordKill, openChest, pickUp, grantReward, claimEscrow, completeArea, campaignRewardKey). `character-state.js` schema 1 is amended in place (no save exists yet): area instances gain seed, generatorVersion, layoutHash, epoch, killed and opened, are keyed by their PR1 identity, and only accept IDs belonging to that area. The fixture is regenerated. Not loaded by the game; no cache bump needed.
+- Owner choice to confirm at review: the approval did not answer whether schema 1 may be amended in place; this follows the documented rule that schema 1 is amended in place until persistence is enabled.
+- Correction cycles consumed: 0 / 3.
+- Open blockers / data-loss risk: none known; nothing is wired into the game or saved by it.
+- Rollback: revert the PR; no stored data exists.
+- Status: AWAITING_INDEPENDENT_REVIEW.
+
+### 2026-10-31 — P2 PR2 — correction 1
+- Finding: [Codex review of `de58cb5`](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550295471), BLOCKING: drop IDs were built from the base spawn/chest ID without the instance mode/epoch, so the same initial enemy killed in a campaign instance and a replay epoch (drops left uncollected) collided with `duplicate drop ID`.
+- Fix: drop IDs are now `<instance key>:<spawn|chest>:<n>:d<k>` and rewards `<instance key>:reward:<hash>`, scoped to the full saved instance key (mode and epoch). The schema accepts a drop only under its exact instance key and in that grammar (spawn/chest index below 4096, drop index below 64). Campaign reward keys stay globally once-only.
+- Regression tests: campaign plus replay epochs 1 and 2 keep simultaneous drops from the same enemy and chest through save/hydrate round trips; per-instance kills still count once; picking up in one instance leaves the others alone; the campaign reward cannot be re-granted in any instance. Schema test rejects drop IDs under another instance key and malformed suffixes. Both fail on `de58cb5`.
+- Correction cycles consumed: 1 / 3.
+- Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 1" handoff comment).
 
 ## Setup event — 2026-10-29
 

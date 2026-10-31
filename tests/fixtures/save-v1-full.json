@@ -231,17 +231,28 @@
     "lastRespawnId": "respawn-2"
    },
    "currentLocationId": "forgotten-crypt",
-   "currentInstanceId": "campaign-forgotten-crypt-1",
+   "currentInstanceId": "forgotten-crypt:s0000002a",
    "pendingTransition": null,
    "checkpoints": {},
    "locations": {},
    "instances": {
-    "campaign-forgotten-crypt-1": {
+    "forgotten-crypt:s0000002a": {
      "locationId": "forgotten-crypt",
      "mode": "campaign",
+     "seed": 42,
+     "generatorVersion": 1,
+     "layoutHash": "c7a36d1d",
+     "epoch": 0,
+     "killed": [
+      "forgotten-crypt:s0000002a:spawn:3",
+      "forgotten-crypt:s0000002a:spawn:5"
+     ],
+     "opened": [
+      "forgotten-crypt:s0000002a:chest:1"
+     ],
      "groundDrops": [
       {
-       "dropId": "drop-1",
+       "dropId": "forgotten-crypt:s0000002a:spawn:3:d0",
        "kind": "item",
        "itemId": 12,
        "amount": 1,
@@ -250,7 +261,7 @@
        "rewardKey": null
       },
       {
-       "dropId": "drop-2",
+       "dropId": "forgotten-crypt:s0000002a:spawn:5:d0",
        "kind": "ash",
        "itemId": null,
        "amount": 12,
@@ -259,7 +270,7 @@
        "rewardKey": null
       },
       {
-       "dropId": "drop-3",
+       "dropId": "forgotten-crypt:s0000002a:chest:1:d0",
        "kind": "potion",
        "itemId": null,
        "amount": 1,

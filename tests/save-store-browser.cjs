@@ -4,7 +4,7 @@ const {chromium}=require('playwright');
 const fs=require('node:fs');
 const path=require('node:path');
 const base=process.env.BASE_URL||'http://127.0.0.1:3000';
-const harness='<!doctype html><meta charset="utf-8"><title>save store harness</title><script src="./equipment.js"></script><script src="./abilities.js"></script><script src="./character-state.js"></script><script src="./save-store.js"></script>';
+const harness='<!doctype html><meta charset="utf-8"><title>save store harness</title><script src="./equipment.js"></script><script src="./abilities.js"></script><script src="./floors.js"></script><script src="./character-state.js"></script><script src="./save-store.js"></script>';
 const fixture=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/save-v1-full.json'),'utf8')).payload;
 const check=(ok,message)=>{if(!ok)throw Error(message);};
 (async()=>{
