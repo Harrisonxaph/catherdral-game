@@ -74,7 +74,12 @@ generation pinned to main `ef177df` by a golden fixture. Merged by the owner as 
 2026-10-31 — owner authorised P2 PR2 ([approval record](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)).
 P2 PR2 (#33) is a draft PR on `development/arpg-p2-pr2-world-ledger` awaiting independent
 Codex review: pure `campaign-state.js` ledger plus area-instance fields in save schema 1.
-PR3–PR5 still need separate owner authorisation after each preceding merge.
+Merged by the owner as PR #39 (`562f4e7`).
+
+2026-10-31 — P2 PR3 (#34), [authorised](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)
+once PR2 merged, is a draft PR on `development/arpg-p2-pr3-commands` awaiting independent
+Codex review: `command-coordinator.js` commits potion, ability, death and ledger commands
+before they take effect. PR4–PR5 still need separate owner authorisation after each merge.
 
 ## Previous graphics specification task
 

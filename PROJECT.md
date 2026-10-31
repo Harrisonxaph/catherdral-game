@@ -306,7 +306,17 @@ claimed (a full bag never loses or rerolls them), and first clears unlocking the
 location. Every operation validates the whole resulting state against the save schema and
 leaves its input untouched. Save schema 1 is amended in place: area instances gain seed,
 generator version, layout hash, epoch, killed and opened, keyed by their PR1 identity.
-Not loaded by the game.
+Not loaded by the game. Merged as PR #39 (`562f4e7`).
+
+P2 PR3 (in review, not merged; [approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324))
+adds `command-coordinator.js`: each critical command (potion, ability reservation, death,
+and the PR2 ledger commands) is computed as a pure transition, committed to the save store
+in one compare-and-swap write, and only then published. A potion's belt decrement and heal
+are one change; an ability's full cooldown is reserved before its wind-up; a death is
+recorded once per death ID with no progress lost and blocks potions and abilities until
+respawn; a second command while one is saving is refused; a failed save pauses further
+commands until retried; a fenced or conflicting session becomes stale. Not wired into the
+game (Save/Continue stays disabled until PR5).
 ## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
 
 Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and

@@ -38,8 +38,8 @@ Do not replace this with an AI assumption.
 | Step | Issue | Status | Base SHA | PR URL (head SHAs and verdicts in its comments) | Fix cycles | Merge commit | Owner decision |
 |---|---|---|---|---|---|---|---|
 | P2 PR1 | [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) | MERGED_BY_OWNER | `ef177df` | [#38](https://github.com/Harrisonxaph/catherdral-game/pull/38) | 0 / 3 | `0ab4890` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)); merged by owner |
-| P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | AWAITING_INDEPENDENT_REVIEW | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge pending |
-| P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | WAITING_FOR_PR2 | unset | none | 0 / 3 | — | pending |
+| P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | MERGED_BY_OWNER | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | `562f4e7` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge approved ([record](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823)) |
+| P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | AWAITING_INDEPENDENT_REVIEW | `562f4e7` | draft PR linked from #34 | 0 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merge pending |
 | P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | WAITING_FOR_PR3 | unset | none | 0 / 3 | — | pending |
 | P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | WAITING_FOR_PR4 | unset | none | 0 / 3 | — | pending |
 
@@ -109,6 +109,21 @@ Copy the following section under this heading **for each new PR and each review 
 - Regression tests: campaign plus replay epochs 1 and 2 keep simultaneous drops from the same enemy and chest through save/hydrate round trips; per-instance kills still count once; picking up in one instance leaves the others alone; the campaign reward cannot be re-granted in any instance. Schema test rejects drop IDs under another instance key and malformed suffixes. Both fail on `de58cb5`.
 - Correction cycles consumed: 1 / 3.
 - Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 1" handoff comment).
+
+### 2026-10-31 — P2 PR2 — merged by owner
+- PR [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) merged into main as `562f4e77ccfc47b89a7261adea79c986056d26ea` (reviewed head `2550888`, unchanged). Codex review of that head: no findings ([comment](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550366923)); owner merge approval [recorded](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823). Correction cycles used: 1 / 3.
+
+### 2026-10-31 — P2 PR3 — initial implementation
+- Issue: [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34).
+- Approval source and scope: [`OWNER APPROVAL: P2 PR3 (#34)`](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324), effective once P2 PR2 merged (it did, above): atomic potion spend and heal, ability cooldown reservation, recorded death and save-failure pause; preserve combat timing and all three abilities; do not enable Save/Continue.
+- Developer: Claude Code. Reviewer: independent Codex session (pending).
+- Base: `main @ 562f4e7`. Feature branch: `development/arpg-p2-pr3-commands`.
+- PR URL and exact head SHAs: the draft PR linked from #34 and its developer handoff comments.
+- Change summary: new `command-coordinator.js` (pure transitions `drinkPotion`, `reserveAbility`, `recordDeath`, plus `createCoordinator`, which commits each command to the save store before publishing it, refuses a second command while one is saving, pauses after a failed save until `retry`, and marks fenced or conflicting sessions stale). `campaign-state.js` exports its copy-validate `transition` helper. Not loaded by the game: wiring into `index.html` is P2 PR5.
+- Correction cycles consumed: 0 / 3.
+- Open blockers / data-loss risk: none known; nothing is wired into the game.
+- Rollback: revert the PR; no stored data exists.
+- Status: AWAITING_INDEPENDENT_REVIEW.
 
 ## Setup event — 2026-10-29
 
