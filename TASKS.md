@@ -62,7 +62,14 @@ posted as PR comments after each push, with existing GitHub CI evidence. One
 reusable developer prompt selects the earliest open, authorised stage. The owner must
 approve SPEC §10 defaults, each PR merge and the start of the next PR. These
 coordination documents do not launch Claude or Codex automatically, approve
-gameplay changes, merge PRs or deploy. Current P2 PR1 state: **NEEDS_OWNER_APPROVAL**.
+gameplay changes, merge PRs or deploy.
+
+2026-10-31 — owner approved the SPEC §10 defaults and authorised P2 PR1 ([approval
+record](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)).
+P2 PR1 (#32) is implemented on `development/arpg-p2-pr1-stable-identities` as a draft
+PR awaiting independent Codex review: stable, RNG-free spawn/chest/area identities with
+generation pinned to main `ef177df` by a golden fixture. PR2–PR5 still need separate
+owner authorisation after each preceding merge.
 
 ## Previous graphics specification task
 

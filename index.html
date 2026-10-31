@@ -148,6 +148,7 @@ const TAU=Math.PI*2, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(
 let width=1,height=1,dpr=1,tileSize=40, time=0, anim=0, last=0, state='title', floor=1,level=1, kills=0, ash=0, needed=0, floorKills=0, bossDead=true;
 let finalEncounter=[], encounterStarted=false;
 let world=null,player=null,enemies=[],bullets=[],particles=[],loots=[],flashes=[], texts=[],traps=[],torches=[],chests=[],stair=null, cam={x:0,y:0},screenShake=0, invul=0,attackTimer=0,dashTimer=0, dashTime=0, damageOverlay=0, flowCooldown=0, visited=[],flow=[],messageTimeout=0, deadAt=0;
+let areaManifest=null;
 let audio=null,soundOn=true,fxId=0,joy={x:0,y:0,id:null},key={},holdAttack=false, mouseAim=null, portalReady=false, portalNear=false;
 const story=window.VesperStory;
 const equipment=window.VesperEquipment;
@@ -221,7 +222,7 @@ function spawnEnemy(x,y,type){
  const config=world.config;const e={x,y,type,hp:Math.round(355*config.health),maxHp:Math.round(355*config.health),speed:1.1*(1+Math.min(.24,floor*.02)),dmg:21*config.damage,xp:90,r:.59,hit:0,attack:rand()*.9,shoot:1.2+rand(),phase:rand()*TAU,dead:false,aim:0};enemies.push(e);return e;
 }
 function newFloor(){
- abilities.cancelCast();combat.reset();reseed();world=makeWorld();enemies=[];bullets=[];particles=[];loots=[];flashes=[];texts=[];traps=[];torches=[];chests=[];visited=new Uint8Array(world.W*world.H);flow=new Int16Array(world.W*world.H);flow.fill(32000);
+ abilities.cancelCast();combat.reset();reseed();const floorSeed=seed;world=makeWorld();enemies=[];bullets=[];particles=[];loots=[];flashes=[];texts=[];traps=[];torches=[];chests=[];visited=new Uint8Array(world.W*world.H);flow=new Int16Array(world.W*world.H);flow.fill(32000);
  player.x=world.start.cx+.5;player.y=world.start.cy+.5;cam.x=player.x;cam.y=player.y;bossDead=false;floorKills=0;finalEncounter=[];encounterStarted=false;clearInput();$('pickup-loot').hidden=true;
  stair={x:world.exit.cx+.5,y:world.exit.cy+.5};
  world.rooms.forEach((r,i)=>{
@@ -247,12 +248,16 @@ function newFloor(){
  };
  if(config.final==='boss')addFinal(stair.x,stair.y-1.5,'boss');
  for(let i=0;i<config.guards;i++)addFinal(world.exit.x+2+i*2,world.exit.y+2,floor===1||floor===2?'guardian':'brute',config.final==='elite');
+ areaManifest=identifyArea(floorSeed);
  encounter={id:'floor-'+floor,kind:config.final,members:finalEncounter,rewarded:false,completed:false};
  bosses.reset(enemies.find(e=>e.type==='boss')||null,world.exit,floor);
  story.setup(world,floor);
  needed=Math.max(5,Math.ceil(enemies.length*(bossDead?.63:.48)));portalReady=false;portalNear=false;flowCooldown=0;updateFlow();
  updateHUD();showToast(world.config.name.toUpperCase(),floor===1?'CHAPTER I · THE HOLLOW CROWN':world.config.final==='boss'?'THE WARDEN AWAITS':'ELITE GUARDIANS BAR THE EXIT');
 }
+// Stable identities for this floor's initial spawns and chests (ARPG Phase 2 PR1). Assigned after population and RNG-free,
+// so the seeded draw order, layout and every position are unchanged; later summons get no spawn ID (they are rewardless).
+function identifyArea(floorSeed){const F=window.VesperFloors,instanceId=F.instanceId(floor,floorSeed);enemies.forEach((e,i)=>{e.spawnId=F.entityId(instanceId,'spawn',i);});chests.forEach((c,i)=>{c.chestId=F.entityId(instanceId,'chest',i);});return Object.freeze({locationId:F.locations[floor-1],instanceId,seed:floorSeed,generatorVersion:F.GENERATOR_VERSION,layoutHash:F.layoutHash(world),spawns:Object.freeze(enemies.map(e=>Object.freeze({id:e.spawnId,type:e.type,x:e.x,y:e.y}))),chests:Object.freeze(chests.map(c=>Object.freeze({id:c.chestId,x:c.x,y:c.y})))});}
 function roman(n){if(n>20)return String(n);return ['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'][n];}
 function startGame(){$('boss-sequence').hidden=true;abilities.reset();runEquipment=equipment.createRun();shieldDelay=0;fireCooldown=0;floor=1;level=1;kills=0;ash=0;player={x:0,y:0,r:.26,hp:115,maxHp:115,xp:0,xpNeeded:48,damage:30,speed:3.9,range:1.7,arc:1.06,attackRate:.36,dashCd:2.2,get potions(){return runEquipment.potions},set potions(n){runEquipment.potions=clamp(Math.floor(n),0,equipment.balance.potions)},shield:equipment.definition(runEquipment.off)?.shield||0,leech:0,crit:0,facing:-Math.PI/2,walk:0};invul=0;attackTimer=0;dashTimer=0;dashTime=0;holdAttack=false;joy.x=joy.y=0;newFloor();setState('playing');story.emit('run-start');sfx('door');}
 function updateFlow(){flow.fill(32000);const q=new Int16Array(world.W*world.H);let head=0,tail=0;const x=clamp(Math.floor(player.x),0,world.W-1),y=clamp(Math.floor(player.y),0,world.H-1),idx=world.ix(x,y);if(!world.walk(x,y))return;flow[idx]=0;q[tail++]=idx;

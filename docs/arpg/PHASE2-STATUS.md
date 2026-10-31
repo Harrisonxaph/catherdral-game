@@ -37,7 +37,7 @@ Do not replace this with an AI assumption.
 
 | Step | Issue | Status | Base SHA | PR URL (head SHAs and verdicts in its comments) | Fix cycles | Merge commit | Owner decision |
 |---|---|---|---|---|---|---|---|
-| P2 PR1 | [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) | NEEDS_OWNER_APPROVAL | unset | none | 0 / 3 | — | pending |
+| P2 PR1 | [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) | AWAITING_INDEPENDENT_REVIEW | `ef177df` | draft PR linked from #32 | 0 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)); merge pending |
 | P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | WAITING_FOR_PR1 | unset | none | 0 / 3 | — | pending |
 | P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | WAITING_FOR_PR2 | unset | none | 0 / 3 | — | pending |
 | P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | WAITING_FOR_PR3 | unset | none | 0 / 3 | — | pending |
@@ -72,6 +72,20 @@ Copy the following section under this heading **for each new PR and each review 
 - Owner merge decision source, if any:
 - Next action / next approval required:
 ```
+
+### 2026-10-31 — P2 PR1 — initial implementation
+- Issue: [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32).
+- Approval source and scope: [`OWNER APPROVAL: P2 PR1 (#32)`](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246) (2026-10-31): approves the SPEC §10 defaults listed there and authorises PR1 within #32's scope. Each merge, later stage, scope expansion and deployment remain owner decisions. The gate boxes above are the owner's to tick.
+- Developer: Claude Code. Reviewer: independent Codex session (pending).
+- Base: `main @ ef177df605d9a19d02c1e1c2466062c82af0d4bd`. Feature branch: `development/arpg-p2-pr1-stable-identities`.
+- PR URL and exact head SHAs: the draft PR linked from #32 and its developer handoff comments.
+- Change summary: `floors.js` gains pure, RNG-free `instanceId`, `entityId`, `layoutHash`, `locations` and `GENERATOR_VERSION`; `index.html` captures the floor seed right after `reseed()` and, after population, assigns `spawnId` to every initial enemy and `chestId` to every chest, building a frozen in-memory `areaManifest`. Nothing is saved yet. Cache bumped to `v21-arpg-p2-identities`.
+- Acceptance evidence: `area-identity.test.cjs` compares every floor × seeds 1–100 (and the graphics seed) against a golden fixture generated from `ef177df`; it checks layout, entity types/positions/HP, chests, traps, torches and the RNG state after population (draw order). IDs are unique across 500 instances, storable under the save schema's ID rule, reproduced in fresh games, and summons get none. Local results are in the developer handoff comment.
+- Correction cycles consumed: 0 / 3.
+- Open blockers / data-loss risk: none known; no save path is wired.
+- Rollback: revert the PR; no stored data exists.
+- Status: AWAITING_INDEPENDENT_REVIEW.
+- Next action: independent Codex review of the PR's current head; owner decides merge.
 
 ## Setup event — 2026-10-29
 
