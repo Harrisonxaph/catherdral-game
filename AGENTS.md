@@ -33,6 +33,7 @@ specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 | `equipment.js` | Pure equipment definitions, rolled bonus modifiers, loadout/stat calculations, atomic inventory transactions and weighted loot |
 | `character-state.js`, `tests/fixtures/` | Proposed persistent-character save schema: validation, item ownership graph, hydration, derived stats and migrations; area instances use `floors.js` identities, so load `floors.js` before it in browsers (ARPG Phase 1A/2; not loaded by the game yet) |
 | `campaign-state.js` | Pure campaign world state and once-only reward ledger: area instances from PR1 manifests, idempotent kills/chests/pick-ups, reward escrow and first clears (ARPG Phase 2 PR2; not loaded by the game yet) |
+| `command-coordinator.js` | Critical gameplay commands committed before they take effect: atomic potion spend and heal, ability cooldown reservation, recorded death, save-failure pause and stale-session detection (ARPG Phase 2 PR3; not loaded by the game yet) |
 | `save-store.js` | Persistent character repository over IndexedDB: signed revisions, compare-and-swap commits, rotating/pinned backups, fenced writer lease, quarantine and recovery (ARPG Phase 1A; not loaded by the game yet) |
 | `inventory-ui.js`, `inventory.css` | Tap-based inventory UI and pause integration |
 | `abilities.js`, `abilities.css` | Three simulation-time player abilities, cooldowns, temporary Aegis and targeting helpers |

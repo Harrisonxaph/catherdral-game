@@ -26,6 +26,13 @@
   const check=C.validate(C.envelope(payload,{characterId:next.characterId||'00000000-0000-4000-8000-000000000000',revision:Math.max(1,next.revision||0),createdAt:'2026-01-01T00:00:00.000Z',savedAt:'2026-01-01T00:00:00.000Z',sessionId:'ledger',leaseEpoch:0}));
   return check.ok?{ok:true,applied:true,state:next,...extra}:fail(check.code||'invalid','the resulting state is invalid; nothing was changed',{errors:check.errors});
  }
+ // Shared by other pure command modules (command-coordinator.js): copy, mutate, then validate the whole result.
+ // `mutate(next)` returns a failure object to reject, or extra result fields (or nothing) to accept.
+ function transition(state,mutate){
+  const next=copy(state),extra=mutate(next);
+  if(extra&&extra.ok===false)return extra;
+  return finish(next,extra||undefined);
+ }
  const instanceOf=(s,id)=>typeof id==='string'&&Object.hasOwn(s.world.instances,id)?s.world.instances[id]:null;
  const identityOf=inst=>F.instanceId(F.locations.indexOf(inst.locationId)+1,inst.seed);
  // Campaign-unique reward keys use the location and encounter, never the instance or epoch, so repopulating or
@@ -136,6 +143,6 @@
   if(locationId==='throne-of-ash')next.campaign.campaignComplete=true;
   return finish(next,{firstClear:true,unlocked:nextLocation});
  }
- const api=Object.freeze({campaignRewardKey,enterArea,recordKill,openChest,pickUp,grantReward,claimEscrow,completeArea});
+ const api=Object.freeze({transition,campaignRewardKey,enterArea,recordKill,openChest,pickUp,grantReward,claimEscrow,completeArea});
  if(node)module.exports=api;else window.VesperCampaign=api;
 })();

@@ -38,8 +38,8 @@ Do not replace this with an AI assumption.
 | Step | Issue | Status | Base SHA | PR URL (head SHAs and verdicts in its comments) | Fix cycles | Merge commit | Owner decision |
 |---|---|---|---|---|---|---|---|
 | P2 PR1 | [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) | MERGED_BY_OWNER | `ef177df` | [#38](https://github.com/Harrisonxaph/catherdral-game/pull/38) | 0 / 3 | `0ab4890` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)); merged by owner |
-| P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | AWAITING_INDEPENDENT_REVIEW | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge pending |
-| P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | WAITING_FOR_PR2 | unset | none | 0 / 3 | — | pending |
+| P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | MERGED_BY_OWNER | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | `562f4e7` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge approved ([record](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823)) |
+| P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | AWAITING_INDEPENDENT_REVIEW | `562f4e7` | [#40](https://github.com/Harrisonxaph/catherdral-game/pull/40) | 1 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merge pending |
 | P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | WAITING_FOR_PR3 | unset | none | 0 / 3 | — | pending |
 | P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | WAITING_FOR_PR4 | unset | none | 0 / 3 | — | pending |
 
@@ -107,6 +107,28 @@ Copy the following section under this heading **for each new PR and each review 
 - Finding: [Codex review of `de58cb5`](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550295471), BLOCKING: drop IDs were built from the base spawn/chest ID without the instance mode/epoch, so the same initial enemy killed in a campaign instance and a replay epoch (drops left uncollected) collided with `duplicate drop ID`.
 - Fix: drop IDs are now `<instance key>:<spawn|chest>:<n>:d<k>` and rewards `<instance key>:reward:<hash>`, scoped to the full saved instance key (mode and epoch). The schema accepts a drop only under its exact instance key and in that grammar (spawn/chest index below 4096, drop index below 64). Campaign reward keys stay globally once-only.
 - Regression tests: campaign plus replay epochs 1 and 2 keep simultaneous drops from the same enemy and chest through save/hydrate round trips; per-instance kills still count once; picking up in one instance leaves the others alone; the campaign reward cannot be re-granted in any instance. Schema test rejects drop IDs under another instance key and malformed suffixes. Both fail on `de58cb5`.
+- Correction cycles consumed: 1 / 3.
+- Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 1" handoff comment).
+
+### 2026-10-31 — P2 PR2 — merged by owner
+- PR [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) merged into main as `562f4e77ccfc47b89a7261adea79c986056d26ea` (reviewed head `2550888`, unchanged). Codex review of that head: no findings ([comment](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550366923)); owner merge approval [recorded](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823). Correction cycles used: 1 / 3.
+
+### 2026-10-31 — P2 PR3 — initial implementation
+- Issue: [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34).
+- Approval source and scope: [`OWNER APPROVAL: P2 PR3 (#34)`](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324), effective once P2 PR2 merged (it did, above): atomic potion spend and heal, ability cooldown reservation, recorded death and save-failure pause; preserve combat timing and all three abilities; do not enable Save/Continue.
+- Developer: Claude Code. Reviewer: independent Codex session (pending).
+- Base: `main @ 562f4e7`. Feature branch: `development/arpg-p2-pr3-commands`.
+- PR URL and exact head SHAs: the draft PR linked from #34 and its developer handoff comments.
+- Change summary: new `command-coordinator.js` (pure transitions `drinkPotion`, `reserveAbility`, `recordDeath`, plus `createCoordinator`, which commits each command to the save store before publishing it, refuses a second command while one is saving, pauses after a failed save until `retry`, and marks fenced or conflicting sessions stale). `campaign-state.js` exports its copy-validate `transition` helper. Not loaded by the game: wiring into `index.html` is P2 PR5.
+- Correction cycles consumed: 0 / 3.
+- Open blockers / data-loss risk: none known; nothing is wired into the game.
+- Rollback: revert the PR; no stored data exists.
+- Status: AWAITING_INDEPENDENT_REVIEW.
+
+### 2026-10-31 — P2 PR3 — correction 1
+- Finding: [Codex review of `2932a8f`](https://github.com/Harrisonxaph/catherdral-game/pull/40#issuecomment-6550629986), BLOCKING: `onStatus` ran inside the storage error path. An observer throwing on `saved` turned a completed commit into a retryable storage failure, so a retry spent a second potion. An observer throwing on `saving` ran outside the try/finally and left the coordinator permanently `busy`.
+- Fix: observer notifications are contained, so their errors are ignored and never reach the save path. Only the store commit is inside the try; `pending` is cleared in `finally` before the outcome is published; a completed commit is always acknowledged and never kept for retry.
+- Regression test: observers throwing at `saving`, `saved`, `failed` and `stale` leave the honest status, matching in-memory and stored state, no second potion spend, nothing to retry after a completed commit, and no stuck `busy`. Fails on `2932a8f` and when the observer containment alone is removed.
 - Correction cycles consumed: 1 / 3.
 - Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 1" handoff comment).
 
