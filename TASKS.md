@@ -84,8 +84,13 @@ before they take effect. Merged by the owner as PR #40 (`2e3d810`).
 2026-10-31 — P2 PR4 (#35), [authorised](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869)
 once PR3 merged, is a draft PR on `development/arpg-p2-pr4-recovery` awaiting independent
 Codex review: labelled, bounded and validated emergency export (including unsaved state),
-export verification, recovery options and stale-choice-safe backup restore. PR5 still needs
-separate owner authorisation after PR4 merges.
+export verification, recovery options and stale-choice-safe backup restore. Merged by the
+owner as PR #41 (`258f67e`).
+
+2026-11-01 — P2 PR5 (#36), [authorised](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090)
+once PR4 merged, is a draft PR on `development/arpg-p2-pr5-continue` awaiting independent
+Codex review: New Character / Continue / checkpoint respawn wired into the game through
+`game-session.js`. Physical-device checks remain NOT VERIFIED. Deployment needs separate owner approval.
 
 ## Previous graphics specification task
 

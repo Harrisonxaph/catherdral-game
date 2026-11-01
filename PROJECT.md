@@ -318,7 +318,7 @@ respawn; a second command while one is saving is refused; a failed save pauses f
 commands until retried; a fenced or conflicting session becomes stale. Not wired into the
 game (Save/Continue stays disabled until PR5). Merged as PR #40 (`2e3d810`).
 
-P2 PR4 (in review, not merged; [approval](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869))
+P2 PR4 ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869))
 adds emergency export and backup recovery selection to `save-store.js` and the coordinator.
 Exports are versioned, bounded to 16 MiB and labelled as stored or NOT SAVED. Each says that
 this version cannot import files and that the checksum detects accidental damage only.
@@ -329,7 +329,17 @@ recovery-required, read-only or missing, and recommends only the newest backup t
 its checks. Restoring over a good save must name the revision the player compared against,
 so a save that has progressed since is never rolled back. The coordinator keeps a refused
 candidate as exportable unsaved progress and labels Saved / Not saved / Recovery required /
-Read-only distinctly. Full import tooling remains Phase 6. Not wired into the game.
+Read-only distinctly. Full import tooling remains Phase 6. Merged as PR #41 (`258f67e`).
+
+P2 PR5 (in review, not merged; [approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090))
+enables persistent play.
+- **Title:** offers Continue, New Character (two-step confirmation when a save exists, so nothing is replaced silently), backup recovery and export. Without usable storage it offers only an explicitly labelled unsaved trial.
+- **What commits:** kills (XP, level-ups, banked skill points, drops), chests, pick-ups, inventory drops and rearrangement, the once-only boss/elite reward, first clears, travel (with the transition recovery once per location), potions, ability reservations, deaths and respawns. Each is committed through `game-session.js` before it is acknowledged.
+- **Continue:** rebuilds the saved floor from its seed at the entrance checkpoint; killed enemies stay dead and loot stays where it fell.
+- **Death:** respawns at the floor entrance with full health and keeps everything.
+- **Saving:** a one-second autosave covers health and cooldowns. A failed save pauses with Retry / Export unsaved / Return to title.
+- **Levels:** deterministic growth replaces the random blessings.
+- **Not yet:** legacy-memory import, the save-aware update flow, skill spending and the Sanctuary. Physical-device testing is not verified.
 ## Graphics overhaul v2 — 2026-10-27/28 (merged via PR #28)
 
 Owner-approved plan: [docs/graphics-v2/SPEC.md](docs/graphics-v2/SPEC.md) ("Ash and

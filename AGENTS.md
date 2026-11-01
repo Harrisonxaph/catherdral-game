@@ -27,14 +27,15 @@ specifies npm `10.8.2`. PWA support uses a manifest and service worker.
 
 | Location | Responsibility |
 | --- | --- |
-| `index.html` | HUD, controls, game state, requestAnimationFrame loop, simulation adapters, melee/player damage, loot/floor transitions, Canvas rendering and PWA registration |
+| `index.html` | HUD, controls, game state, requestAnimationFrame loop, simulation adapters, melee/player damage, loot/floor transitions, Canvas rendering, PWA registration and the persistent-play adapters (title Continue/New Character/recovery, save status, save-failure pause) |
 | `floors.js` | Five immutable floor configurations, rosters, scaling, boss HP, connected procedural layouts and pure RNG-free area/spawn/chest identities (ARPG Phase 2 PR1) |
 | `enemy-system.js` | Eight archetypes, state machine, navigation/separation, shields/statuses, hazard/projectile/summon budgets and exact hazard geometry |
 | `equipment.js` | Pure equipment definitions, rolled bonus modifiers, loadout/stat calculations, atomic inventory transactions and weighted loot |
-| `character-state.js`, `tests/fixtures/` | Proposed persistent-character save schema: validation, item ownership graph, hydration, derived stats and migrations; area instances use `floors.js` identities, so load `floors.js` before it in browsers (ARPG Phase 1A/2; not loaded by the game yet) |
-| `campaign-state.js` | Pure campaign world state and once-only reward ledger: area instances from PR1 manifests, idempotent kills/chests/pick-ups, reward escrow and first clears (ARPG Phase 2 PR2; not loaded by the game yet) |
-| `command-coordinator.js` | Critical gameplay commands committed before they take effect: atomic potion spend and heal, ability cooldown reservation, recorded death, save-failure pause, stale-session detection, exportable unsaved progress and save status labels (ARPG Phase 2 PR3/PR4; not loaded by the game yet) |
-| `save-store.js` | Persistent character repository over IndexedDB: signed revisions, compare-and-swap commits, rotating/pinned backups, fenced writer lease, quarantine, recovery options, stale-choice-safe restore and bounded labelled emergency export/verification (ARPG Phase 1A/2 PR4; not loaded by the game yet) |
+| `character-state.js`, `tests/fixtures/` | Proposed persistent-character save schema: validation, item ownership graph, hydration, derived stats and migrations; area instances use `floors.js` identities, so load `floors.js` before it in browsers (ARPG Phase 1A/2; loaded by the game since Phase 2 PR5) |
+| `campaign-state.js` | Pure campaign world state and once-only reward ledger: area instances from PR1 manifests, idempotent kills/chests/pick-ups, reward escrow and first clears and player drops (ARPG Phase 2 PR2/PR5; loaded by the game) |
+| `command-coordinator.js` | Critical gameplay commands committed before they take effect: atomic potion spend and heal, ability cooldown reservation, recorded death, save-failure pause, stale-session detection, exportable unsaved progress and save status labels (ARPG Phase 2 PR3/PR4; loaded by the game since PR5) |
+| `game-session.js` | Persistent play session: runtime snapshot, respawn, inventory sync, floor arrival and restore-plan transitions, plus an ordered command queue over the coordinator (ARPG Phase 2 PR5; loaded by the game) |
+| `save-store.js` | Persistent character repository over IndexedDB: signed revisions, compare-and-swap commits, rotating/pinned backups, fenced writer lease, quarantine, recovery options, stale-choice-safe restore and bounded labelled emergency export/verification (ARPG Phase 1A/2 PR4; loaded by the game since PR5) |
 | `inventory-ui.js`, `inventory.css` | Tap-based inventory UI and pause integration |
 | `abilities.js`, `abilities.css` | Three simulation-time player abilities, cooldowns, temporary Aegis and targeting helpers |
 | `boss-system.js`, `bosses.css` | Boss encounter state machines, candles, protected actions, sequence lifecycle and boss UI |
@@ -144,6 +145,7 @@ npm run test:hud-layout-browser
 npm run test:boss-art-browser
 npm run test:offline-browser
 npm run test:save-store-browser
+npm run test:persistence-browser
 ```
 
 The offline suite installs the actual service worker; localhost or HTTPS is

@@ -1,5 +1,5 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v21-arpg-p2-identities';
+const CACHE_VERSION = 'vesper-cathedral-v22-arpg-p2-continue';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -13,6 +13,11 @@ const APP_ASSETS = [
   './visual-ui.css',
   './floors.js',
   './enemy-system.js',
+  './character-state.js',
+  './campaign-state.js',
+  './command-coordinator.js',
+  './save-store.js',
+  './game-session.js',
   './equipment.js',
   './abilities.js',
   './boss-system.js',

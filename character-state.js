@@ -1,5 +1,5 @@
 /* Persistent character save schema (proposed v1, docs/arpg/SPEC.md section 4): pure validation, item hydration,
- * derived stats and migrations. No DOM, storage or renderer. ARPG Phase 1A: not loaded by the game yet. */
+ * derived stats and migrations. No DOM, storage or renderer. ARPG Phase 1A; loaded by the game since Phase 2 PR5. */
 (() => {
  'use strict';
  const node=typeof module!=='undefined';
@@ -125,15 +125,16 @@
    if(!locations.includes(inst.locationId)||!safeInt(inst.seed,0,0xffffffff)||!['campaign','replay'].includes(inst.mode)||!safeInt(inst.epoch,0,1e6))return;
    if(id!==instanceKey(inst.locationId,inst.seed,inst.mode,inst.epoch))k.fail(p,'instance key must equal its area identity');
    const identity=F.instanceId(locations.indexOf(inst.locationId)+1,inst.seed);
-   const dropRest=rest=>{const m=/^(spawn|chest):(0|[1-9][0-9]*):d(0|[1-9][0-9]?)$/.exec(rest);return m?+m[2]<F.MAX_ENTITIES&&+m[3]<64:/^reward:[0-9a-f]{8}$/.test(rest);};
+   // A player-dropped item (Phase 2 PR5) is "item:<item ID>": the item's own permanent ID, so it is unique without a counter.
+   const dropRest=(rest,d)=>{const m=/^(spawn|chest):(0|[1-9][0-9]*):d(0|[1-9][0-9]?)$/.exec(rest);if(m)return +m[2]<F.MAX_ENTITIES&&+m[3]<64;const own=/^item:([1-9][0-9]{0,15})$/.exec(rest);if(own)return d.kind==='item'&&d.rewardKey===null&&+own[1]===d.itemId;return /^reward:[0-9a-f]{8}$/.test(rest);};
    const entity=kind=>v=>{if(typeof v!=='string')return false;const m=v.startsWith(identity+':'+kind+':')&&v.slice(identity.length+kind.length+2);return typeof m==='string'&&/^(0|[1-9][0-9]*)$/.test(m)&&+m<F.MAX_ENTITIES;};
    k.uniqueStrings(inst.killed,p+'.killed',F.MAX_ENTITIES,entity('spawn'));
    k.uniqueStrings(inst.opened,p+'.opened',F.MAX_ENTITIES,entity('chest'));
    k.list(inst.groundDrops,p+'.groundDrops',limits.groundDrops,(d,dp)=>{
     if(!k.shape(d,dp,['dropId','kind','itemId','amount','x','y','rewardKey']))return;
-    // Drop IDs are "<instance key>:spawn|chest:<n>:d<k>" or "<instance key>:reward:<hash>" (campaign-state.js), so each
+    // Drop IDs are "<instance key>:spawn|chest:<n>:d<k>", "<instance key>:item:<item ID>" or "<instance key>:reward:<hash>" (campaign-state.js), so each
     // belongs to exactly one instance, mode and epoch included.
-    if(!idText(d.dropId))k.fail(dp+'.dropId','invalid');else if(!d.dropId.startsWith(id+':')||!dropRest(d.dropId.slice(id.length+1)))k.fail(dp+'.dropId','must belong to this area instance');else if(dropIds.has(d.dropId))k.fail(dp+'.dropId','duplicate drop ID');else dropIds.add(d.dropId);
+    if(!idText(d.dropId))k.fail(dp+'.dropId','invalid');else if(!d.dropId.startsWith(id+':')||!dropRest(d.dropId.slice(id.length+1),d))k.fail(dp+'.dropId','must belong to this area instance');else if(dropIds.has(d.dropId))k.fail(dp+'.dropId','duplicate drop ID');else dropIds.add(d.dropId);
     if(!finite(d.x,-1024,1024)||!finite(d.y,-1024,1024))k.fail(dp,'position out of range');
     if(d.rewardKey!==null&&!idText(d.rewardKey))k.fail(dp+'.rewardKey','invalid');else if(d.rewardKey!==null)rewards.push({key:d.rewardKey,path:dp+'.rewardKey'});
     if(d.rewardKey!==null&&(!plain(rewardLedger)||own(rewardLedger,d.rewardKey)!=='escrow'))k.fail(dp+'.rewardKey','ledger must mark a dropped reward as escrow');
