@@ -313,3 +313,27 @@ test('PR4: a failed restore leaves storage unchanged at every write; stale write
  const latest=await a.recoveryOptions(ID),fenced=await a.restoreBackup(ID,latest.backups[0].key,epoch,{expectedRevision:latest.expectedRevision});
  assert.equal(fenced.code,'fenced');assert.equal((await a.load(ID)).envelope.payload.character.ash,4242);
 });
+
+// ---- Phase 2 PR5 correction 3: storage that never answers is reported (WebKit/iOS start failure)
+test('PR5: an IndexedDB open that never answers is reported as unavailable, after waking WebKit with databases()',async()=>{
+ const calls=[],never={};
+ const factory={databases(){calls.push('databases');return Promise.resolve([]);},open(){calls.push('open');return never;}};
+ const store=S.createStore({adapter:S.indexedDBAdapter({indexedDB:factory,openTimeoutMs:60}),sessionId:'tab-a'});
+ const started=Date.now(),r=await store.activeCharacter();
+ assert.equal(r.ok,false);assert.equal(r.code,'unavailable');assert.match(r.message,/did not respond/);assert.ok(Date.now()-started<2000);
+ assert.equal(calls[0],'databases','databases() is called before the first open');assert.ok(calls.includes('open'));
+ // The failure is not cached: the next request tries again.
+ const before=calls.filter(c=>c==='open').length;await store.activeCharacter();assert.equal(calls.filter(c=>c==='open').length,before+1);
+ // A databases() that never settles cannot block the open past the timeout either.
+ const stuck=S.createStore({adapter:S.indexedDBAdapter({indexedDB:{databases:()=>new Promise(()=>{}),open:()=>never},openTimeoutMs:60}),sessionId:'tab-a'});
+ assert.equal((await stuck.load(ID)).code,'unavailable');
+});
+
+test('PR5: a transaction that never finishes is aborted and reported as a retryable timeout',async()=>{
+ let aborted=0;
+ const tx={objectStore:()=>({get:()=>({}),getAll:()=>({}),put:()=>({}),delete:()=>({})}),abort(){aborted++;this.onabort?.();}};
+ const db={objectStoreNames:{contains:()=>true},transaction:()=>tx,close(){}};
+ const factory={open(){const req={result:db};setTimeout(()=>req.onsuccess?.(),0);return req;}};
+ const store=S.createStore({adapter:S.indexedDBAdapter({indexedDB:factory,transactionTimeoutMs:60}),sessionId:'tab-a'});
+ const r=await store.load(ID);assert.equal(r.ok,false);assert.equal(r.code,'timeout');assert.equal(aborted,1);
+});

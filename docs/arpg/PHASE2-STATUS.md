@@ -41,7 +41,7 @@ Do not replace this with an AI assumption.
 | P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | MERGED_BY_OWNER | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | `562f4e7` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge approved ([record](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823)) |
 | P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | MERGED_BY_OWNER | `562f4e7` | [#40](https://github.com/Harrisonxaph/catherdral-game/pull/40) | 1 / 3 | `2e3d810` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merged by owner |
 | P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | MERGED_BY_OWNER | `2e3d810` | [#41](https://github.com/Harrisonxaph/catherdral-game/pull/41) | 0 / 3 | `258f67e` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869)); merged by owner |
-| P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | AWAITING_INDEPENDENT_REVIEW | `258f67e` | [#42](https://github.com/Harrisonxaph/catherdral-game/pull/42) | 2 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090)); merge pending |
+| P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | AWAITING_INDEPENDENT_REVIEW | `258f67e` | [#42](https://github.com/Harrisonxaph/catherdral-game/pull/42) | 3 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090)); merge pending |
 
 Update this table inside the commits that open, correct or block a stage. Record a stage's merge commit in the next stage's first commit. Do not mark a step merged on review success alone.
 
@@ -222,6 +222,24 @@ Copy the following section under this heading **for each new PR and each review 
 - Regression test, for both a failed save and a stale session: an ability reservation, a snapshot, a kill, a potion and a snapshot are pending. The export holds the 20 s cooldown, the healed health, one potion spent and the kill's XP, and it hydrates. Storage, the queue and the runtime are unchanged. The test fails when per-command re-sampling is restored; the four correction-1 mutations still fail too.
 - Correction cycles consumed: 2 / 3.
 - Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 2" handoff comment).
+- Codex review of `a6c9ea5`: no findings ([comment](https://github.com/Harrisonxaph/catherdral-game/pull/42#issuecomment-6555873503)).
+
+### 2026-11-01 — P2 PR5 — correction 3 (owner physical-device finding)
+- Finding (owner, iPhone, on head `a6c9ea5`, screen recording): Begin Your Story → Start Adventure → Enter the crypt returned to the title. Gameplay never started and no error was shown. Automated Chromium tests had not established Safari behaviour.
+- Investigation (cause not confirmed on a device): the recording shows the title's save note stayed empty. `refreshTitle()` therefore never finished its first IndexedDB request; on a fresh browser it would have shown "No saved character", and its error path would have offered the trial. New Character then waited on the same never-settling open, so nothing errored and the dialog closed back to the title. This matches WebKit leaving IndexedDB requests pending until `indexedDB.databases()` has been called. WebKit could not be installed in the development container (download host blocked), so this was simulated in Chromium, not reproduced in Safari.
+- Fixes:
+  - `save-store.js`'s IndexedDB adapter calls `indexedDB.databases()` (polled) before the first open.
+  - An open that does not settle in 8 s is reported as `unavailable`, and is not cached, so the next request retries.
+  - A transaction that does not finish in 15 s is aborted and reported as a retryable `timeout`, so a save cannot sit at SAVING forever.
+  - `index.html` shows "Checking for a saved character…", "Preparing your character…" and "Loading your character…". Any failure in New Character, Continue, a title-time respawn or a title-time save is shown with its reason. Storage failures switch the title to the labelled unsaved trial. Unhandled errors on the title are shown.
+- Regression tests:
+  - Node: a never-answering open → `unavailable` within the timeout, with `databases()` called first and the failure not cached; a never-settling `databases()` cannot block the timeout; a never-finishing transaction is aborted as `timeout`.
+  - Browser (`test:persistence-browser`), WebKit-style factory that answers only after `databases()`: New Character starts normally.
+  - Browser, never-answering storage: the title shows progress, then "Could not start a character (unavailable: browser storage did not respond in time)" and PLAY UNSAVED TRIAL, and the trial plays.
+- Correction cycles consumed: 3 / 3 (the budget is exhausted; any further finding needs an owner decision).
+- Physical iPhone/Safari: NOT VERIFIED after this fix; owner retest required.
+- `CACHE_VERSION` bumped to v23, so a device that cached the v22 build of this PR fetches the fixed files.
+- Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 3" handoff comment).
 
 ## Setup event — 2026-10-29
 
