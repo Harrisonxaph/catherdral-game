@@ -331,8 +331,10 @@ so a save that has progressed since is never rolled back. The coordinator keeps 
 candidate as exportable unsaved progress and labels Saved / Not saved / Recovery required /
 Read-only distinctly. Full import tooling remains Phase 6. Merged as PR #41 (`258f67e`).
 
-P2 PR5 (in review, not merged; [approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090))
-enables persistent play.
+P2 PR5 ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090); merged as PR #42, `10cb19b`)
+enables persistent play. Known issue: on an owner iPhone the merged build returned to the title without starting
+(storage never answered). A separate fix PR adds a WebKit IndexedDB wake-up, 8 s open / 15 s transaction timeouts and
+visible start errors with the unsaved-trial fallback; it is NOT VERIFIED on a device until the owner retests.
 - **Title:** offers Continue, New Character (two-step confirmation when a save exists, so nothing is replaced silently), backup recovery and export. Without usable storage it offers only an explicitly labelled unsaved trial.
 - **What commits:** kills (XP, level-ups, banked skill points, drops), chests, pick-ups, inventory drops and rearrangement, the once-only boss/elite reward, first clears, travel (with the transition recovery once per location), potions, ability reservations, deaths and respawns. Each is committed through `game-session.js` before it is acknowledged.
 - **Continue:** rebuilds the saved floor from its seed at the entrance checkpoint; killed enemies stay dead and loot stays where it fell.

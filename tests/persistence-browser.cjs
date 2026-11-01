@@ -111,7 +111,41 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  const trialFile=JSON.parse(fs.readFileSync(await trialDownload.path(),'utf8'));check(trialFile.source==='unsaved'&&trialFile.saved===false,'trial export label');
  await noStore.close();
 
+ // 10. WebKit-style storage that answers only after indexedDB.databases() has been called (the iPhone start failure):
+ // the game wakes it first, so New Character starts normally.
+ const quirk=await browser.newContext({viewport:{width:393,height:852},serviceWorkers:'block'});
+ await quirk.addInitScript(()=>{const open=IDBFactory.prototype.open,dbs=IDBFactory.prototype.databases;let awake=false;
+  IDBFactory.prototype.databases=function(){return dbs.call(this).then(r=>{awake=true;return r;});};
+  IDBFactory.prototype.open=function(...a){return awake?open.apply(this,a):{};};});
+ await quirk.route('**/index.html',route=>route.fulfill({body:fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').replace("const stick=$('stick')",hook),contentType:'text/html'}));
+ const quirkPage=await quirk.newPage();await open(quirkPage);
+ await quirkPage.waitForFunction(()=>/No saved character/.test(document.getElementById('save-note').textContent),null,{timeout:6000});
+ await quirkPage.locator('#start').click();await quirkPage.locator('#story-choices button').first().click();
+ await quirkPage.waitForFunction(()=>persistQA.state==='playing'&&persistQA.session?.state.world.currentInstanceId,null,{timeout:6000});
+ await quirk.close();
+
+ // 11a. Storage that never opens: the title says so (after the open timeout) and offers only the unsaved trial, which plays.
+ const ctxFor=async init=>{const c=await browser.newContext({viewport:{width:393,height:852},serviceWorkers:'block'});await c.addInitScript(init);await c.route('**/index.html',route=>route.fulfill({body:fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').replace("const stick=$('stick')",hook),contentType:'text/html'}));const pg=await c.newPage();pg.on('pageerror',e=>errors.push(e.message));await pg.goto(base+'/index.html');await pg.waitForFunction(()=>window.persistQA&&window.castleView!==undefined);return {c,pg};};
+ const hung=await ctxFor(()=>{IDBFactory.prototype.open=function(){return {};};IDBFactory.prototype.databases=function(){return new Promise(()=>{});};});
+ await hung.pg.waitForFunction(()=>document.getElementById('start').textContent==='PLAY UNSAVED TRIAL'&&/Saving is unavailable in this browser \(unavailable: browser storage did not respond in time\)/.test(document.getElementById('save-note').textContent),null,{timeout:20000});
+ const hungState=await hung.pg.evaluate(()=>({state:persistQA.state,session:!!persistQA.session,note:document.getElementById('save-note').textContent}));
+ check(hungState.state==='title'&&!hungState.session,'hung storage: '+JSON.stringify(hungState));
+ await hung.pg.locator('#start').click();await hung.pg.locator('#story-choices button').first().click();
+ await hung.pg.waitForFunction(()=>persistQA.state==='playing'&&persistQA.session&&document.getElementById('save-status').textContent==='UNSAVED TRIAL',null,{timeout:6000});
+ await hung.c.close();
+
+ // 11b. Storage that opens but never finishes a write: New Character shows its progress, then the reason (transaction
+ // timeout) and the unsaved trial on the title, instead of silently returning to it.
+ const stuck=await ctxFor(()=>{const tx=IDBDatabase.prototype.transaction;IDBDatabase.prototype.transaction=function(names,mode,...rest){if(mode!=='readwrite')return tx.call(this,names,mode,...rest);
+  const never=()=>({});return {objectStore:()=>({get:never,getAll:never,put:never,delete:never}),abort(){this.onabort?.();}};};});
+ await stuck.pg.waitForFunction(()=>/No saved character/.test(document.getElementById('save-note').textContent),null,{timeout:8000});
+ await stuck.pg.locator('#start').click();await stuck.pg.locator('#story-choices button').first().click();await closeStory(stuck.pg);
+ const preparing=await stuck.pg.evaluate(()=>document.getElementById('save-note').textContent);check(/Preparing your character/.test(preparing),'no visible progress while the character is created: '+preparing);
+ await stuck.pg.waitForFunction(()=>document.getElementById('start').textContent==='PLAY UNSAVED TRIAL'&&/Could not start a character \(timeout: browser storage did not finish in time\)/.test(document.getElementById('save-note').textContent),null,{timeout:30000});
+ check(await stuck.pg.evaluate(()=>persistQA.state==='title'&&!persistQA.session),'a failed start must leave no session');
+ await stuck.c.close();
+
  check(!errors.length,'page errors: '+JSON.stringify(errors));
  await browser.close();
- console.log(JSON.stringify({persistenceBrowser:'passed',created,afterKills:{xp:afterKills.xp,level:afterKills.level,killed:afterKills.killed.length},restored:{xp:restored.xp,ash:restored.ash,potions:restored.potions,aegis:world.aegis},deaths:pending.deaths,retried:{xp:retried.xp},trial:trial.label}));
+ console.log(JSON.stringify({persistenceBrowser:'passed',created,afterKills:{xp:afterKills.xp,level:afterKills.level,killed:afterKills.killed.length},restored:{xp:restored.xp,ash:restored.ash,potions:restored.potions,aegis:world.aegis},deaths:pending.deaths,retried:{xp:retried.xp},trial:trial.label,webkitWake:'passed',hungStorage:hungState.note}));
 })().catch(e=>{console.error(e);process.exit(1);});

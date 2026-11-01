@@ -493,7 +493,7 @@ function showSaveStatus(){const el=$('save-status');if(!session){el.textContent=
  el.textContent=trial?'UNSAVED TRIAL':status==='saving'?'SAVING…':status==='saved'?'✓ SAVED':status==='stale'?'NOT SAVED · OTHER TAB':'NOT SAVED';
  if(status==='failed'||status==='stale')saveFailed();}
 // A failed save pauses play with an honest message: retry, export the unsaved progress, or leave without it.
-function saveFailed(){if(!session||state==='title')return;if(state!=='savefail')saveResume=state;clearInput();abilities.cancelCast();$('savefail-text').textContent=CK.statusLabel(session.status);$('save-retry').hidden=session.status==='stale';state='savefail';showOverlay('savefail');uiPlaying(false);updateAbilityHUD();}
+function saveFailed(){if(!session)return;if(state==='title'){const status=session.status;endSession();return startFailed('save the character',{code:status==='stale'?'stale':'storage',message:CK.statusLabel(status)});}if(state!=='savefail')saveResume=state;clearInput();abilities.cancelCast();$('savefail-text').textContent=CK.statusLabel(session.status);$('save-retry').hidden=session.status==='stale';state='savefail';showOverlay('savefail');uiPlaying(false);updateAbilityHUD();}
 function download(text,label){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.href=url;a.download='vesper-character-'+label+'-'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function lootFor(d){if(d.kind==='item'){const spec=equipment.definition(d.item);return {x:d.x,y:d.y,kind:'equipment',item:d.item,color:equipment.rarities[spec.rarity].color,phase:0,pickAt:time+.4,dropId:d.dropId};}return {x:d.x,y:d.y,kind:d.kind,value:d.amount,phase:(d.x*3.7+d.y*1.3)%TAU,dropId:d.dropId};}
 // Ground loot mirrors the committed drops of the current area: new drops appear, picked ones disappear.
@@ -543,17 +543,26 @@ async function openSession(id,epoch,envelope,isTrial=false){
  trial=isTrial;saveId=id;saveEpoch=epoch;session=VS.createSession({store:saveStore,characterId:id,epoch,envelope,snapshot:runtimeSnapshot,onStatus:showSaveStatus});
  clearInterval(leaseTimer);leaseTimer=setInterval(()=>{if(session&&!session.halted)saveStore.renewLease(id,epoch);},5000);
  let s=session.state;
- if(s.world.lifecycle.mode==='dead-pending-respawn'){const r=await persist('respawn',st=>VS.respawn(st,{respawnId:'respawn-'+st.world.lifecycle.deathId}),{tap:true});if(!r.ok)return;s=r.state;}
+ if(s.world.lifecycle.mode==='dead-pending-respawn'){const r=await persist('respawn',st=>VS.respawn(st,{respawnId:'respawn-'+st.world.lifecycle.deathId}),{tap:true});if(!r.ok){if(session&&!session.halted){endSession();startFailed('respawn the character',r);}return;}s=r.state;}
  beginSaved(s);}
 function respawnHere(){if(!session)return startGame();persist('respawn',st=>VS.respawn(st,{respawnId:'respawn-'+st.world.lifecycle.deathId}),{tap:true,publish:r=>{if(!session)return;if(r.ok||r.code==='alive')beginSaved(session.state);}});}
 function endSession(){if(session&&saveStore&&!trial)saveStore.releaseLease(saveId,saveEpoch);session=null;trial=false;clearInterval(leaseTimer);showSaveStatus();}
 async function quitToTitle(save=true){if(session&&save&&!session.halted)await persist('snapshot',keepState);endSession();setState('title');refreshTitle();}
+// Starting is asynchronous (storage first, then play). Progress and every failure are shown on the title: a start that
+// cannot reach storage says why and offers the labelled unsaved trial instead of silently returning to the title.
+const reason=r=>(r?.code?r.code+(r.message?': '+r.message:''):r?.message||String(r||'unknown error')).slice(0,240);
+const storageCodes=new Set(['unavailable','timeout','storage','quota']);
+function startFailed(what,r){if(session)return;titleNote('Could not '+what+' ('+reason(r)+').'+(storageCodes.has(r?.code)?' Saving is not working in this browser right now: play an UNSAVED TRIAL, or reload and try again.':' Nothing was overwritten.'));
+ if(storageCodes.has(r?.code)){titleMode='unavailable';$('start').textContent='PLAY UNSAVED TRIAL';$('continue').hidden=true;}}
 async function newCharacter(isTrial=false){
- if(isTrial||!saveStore)saveStore=SS.createStore({adapter:SS.memoryAdapter(),sessionId:'trial'});
- const id=uuid(),lease=await saveStore.acquireLease(id);if(!lease.ok)return titleNote('Could not start a character ('+lease.code+').');
- const made=await saveStore.create(id,CS.dehydrate(CS.create()),lease.epoch);if(!made.ok)return titleNote('Could not create the character ('+made.code+'). Nothing was overwritten.');
- await openSession(id,lease.epoch,made.envelope,isTrial);}
-function titleNote(text){$('save-note').textContent=text;setState('title');}
+ $('save-note').textContent=isTrial?'Starting an unsaved trial…':'Preparing your character…';
+ try{
+  if(isTrial||!saveStore)saveStore=SS.createStore({adapter:SS.memoryAdapter(),sessionId:'trial'});
+  const id=uuid(),lease=await saveStore.acquireLease(id);if(!lease.ok)return startFailed('start a character',lease);
+  const made=await saveStore.create(id,CS.dehydrate(CS.create()),lease.epoch);if(!made.ok)return startFailed('create the character',made);
+  await openSession(id,lease.epoch,made.envelope,isTrial);
+ }catch(e){startFailed('start a character',e);}}
+function titleNote(text){$('save-note').textContent=text;if(state!=='title')setState('title');}
 // Recovery: compare backups newest first and restore one explicitly; corrupt or newer-version records are only exported.
 function showRecovery(options){const box=$('recovery');box.replaceChildren();box.hidden=false;
  for(const b of options.backups){const line=document.createElement('div');line.textContent='Revision '+b.revision+(b.pinned?' (pinned)':'')+' · '+String(b.savedAt||'').slice(0,16).replace('T',' ')+' · '+(b.status==='valid'?'LVL '+b.summary.level+' · '+b.summary.ash+' ash · '+b.summary.items+' items':b.status.toUpperCase());box.append(line);
@@ -561,7 +570,7 @@ function showRecovery(options){const box=$('recovery');box.replaceChildren();box
   button.addEventListener('click',async()=>{if(saveBusy)return;saveBusy=true;try{const lease=await saveStore.acquireLease(saveId);if(!lease.ok){titleNote(lease.code==='locked'?'This character is open in another tab.':'Cannot restore ('+lease.code+').');return;}const r=await saveStore.restoreBackup(saveId,b.key,lease.epoch,{expectedRevision:options.expectedRevision});await saveStore.releaseLease(saveId,lease.epoch);$('save-note').textContent=r.ok?'Restored revision '+b.revision+'.':'Not restored ('+r.code+'); storage is unchanged.';}finally{saveBusy=false;}if($('save-note').textContent.startsWith('Restored'))refreshTitle(true);});box.append(button);}}
 // Title: read what is stored without creating anything. Storage that cannot be used offers only an unsaved trial.
 async function refreshTitle(keepNote=false){
- const note=$('save-note');$('continue').hidden=true;$('recovery').hidden=true;$('save-export').hidden=true;$('start').textContent='BEGIN YOUR STORY';titleMode='new';confirmNew=false;if(!keepNote)note.textContent='';
+ const note=$('save-note');$('continue').hidden=true;$('recovery').hidden=true;$('save-export').hidden=true;$('start').textContent='BEGIN YOUR STORY';titleMode='new';confirmNew=false;if(!keepNote)note.textContent='Checking for a saved character…';
  if(!SS||!VS)return;
  try{
   if(!saveStore||saveStore.sessionId==='trial')saveStore=SS.createStore({adapter:SS.indexedDBAdapter(),sessionId:tabSessionId()});
@@ -573,7 +582,7 @@ async function refreshTitle(keepNote=false){
   else if(options.state==='recovery-required'){titleMode='recovery';note.textContent=CK.statusLabel('recovery-required');showRecovery(options);}
   else if(options.state==='read-only'){titleMode='read-only';note.textContent=CK.statusLabel('read-only');}
   else {titleMode='new';$('start').textContent='BEGIN YOUR STORY';$('save-export').hidden=true;}
- }catch(e){titleMode='unavailable';$('start').textContent='PLAY UNSAVED TRIAL';note.textContent='Saving is unavailable in this browser ('+(e?.code||'error')+'). An unsaved trial is lost when the page closes unless you export it.';}
+ }catch(e){titleMode='unavailable';$('start').textContent='PLAY UNSAVED TRIAL';note.textContent='Saving is unavailable in this browser ('+reason(e)+'). An unsaved trial is lost when the page closes unless you export it.';}
 }
 $('start').addEventListener('click',()=>{
  if(!SS||!VS)return story.opening(startGame);
@@ -584,8 +593,10 @@ $('start').addEventListener('click',()=>{
 // Enter on the title takes the same guarded path as the buttons (a focused button activates itself): Continue a saved
 // character, begin a new one or the labelled unsaved trial when nothing is stored, and never confirm a replacement.
 function titleEnter(){if(!SS||!VS)return story.opening(startGame);if(titleMode==='saved')return $('continue').click();if(titleMode==='new'||titleMode==='unavailable')return $('start').click();}
-$('continue').addEventListener('click',async()=>{if(saveBusy||!saveId)return;saveBusy=true;try{const lease=await saveStore.acquireLease(saveId);if(!lease.ok){$('save-note').textContent=lease.code==='locked'?'This character is open in another tab. Close it there, then continue here.':'Cannot open the save ('+lease.code+').';return;}
- const loaded=await saveStore.load(saveId);if(!loaded.ok){await saveStore.releaseLease(saveId,lease.epoch);refreshTitle();return;}await openSession(saveId,lease.epoch,loaded.envelope);}finally{saveBusy=false;}});
+$('continue').addEventListener('click',async()=>{if(saveBusy||!saveId)return;saveBusy=true;$('save-note').textContent='Loading your character…';try{const lease=await saveStore.acquireLease(saveId);if(!lease.ok){if(lease.code==='locked')$('save-note').textContent='This character is open in another tab. Close it there, then continue here.';else startFailed('open the save',lease);return;}
+ const loaded=await saveStore.load(saveId);if(!loaded.ok){await saveStore.releaseLease(saveId,lease.epoch);refreshTitle();return;}await openSession(saveId,lease.epoch,loaded.envelope);}catch(e){startFailed('load the character',e);}finally{saveBusy=false;}});
+// Anything unexpected while on the title is shown rather than swallowed.
+addEventListener('unhandledrejection',e=>{if(state==='title'&&!session)$('save-note').textContent='Something went wrong ('+reason(e.reason)+'). Reload the page to try again.';});
 $('save-export').addEventListener('click',async()=>{if(!saveStore||!saveId)return;const r=await saveStore.exportLatest(saveId);if(r.ok)download(r.text,'stored');else $('save-note').textContent='Export failed ('+r.code+').';});
 $('save-retry').addEventListener('click',async()=>{if(!session||saveBusy)return;saveBusy=true;try{await session.retry();}finally{saveBusy=false;}if(session&&!session.halted&&session.status!=='stale'&&session.status!=='failed'){const back=saveResume;saveResume=null;setState(back==='dead'||back==='complete'?back:'playing');}});
 $('save-export-unsaved').addEventListener('click',async()=>{if(!session)return;const r=await session.exportUnsaved();if(r.ok)return download(r.text,'unsaved');if(r.code==='nothing-unsaved'&&!trial){const e=await saveStore.exportLatest(saveId);if(e.ok)return download(e.text,'stored');}$('savefail-text').textContent='Export failed ('+r.code+').';});
