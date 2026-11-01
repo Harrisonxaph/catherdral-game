@@ -1,4 +1,4 @@
-/* Real-browser IndexedDB checks for the persistent character repository (ARPG Phase 1A).
+/* Real-browser IndexedDB checks for the persistent character repository (ARPG Phase 1A; recovery and export: Phase 2 PR4).
  * A bare harness page loads only the pure modules; the real game page must never create or open the save database. */
 const {chromium}=require('playwright');
 const fs=require('node:fs');
@@ -55,6 +55,37 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  },ID);
  check(recovered.corrupt==='corrupt'&&recovered.restore&&recovered.revision===8&&recovered.ash===50&&recovered.quarantined[0]===123456,'recovery: '+JSON.stringify(recovered));
 
+ // Phase 2 PR4: recovery selection and emergency export against real IndexedDB, across a closed and reopened connection.
+ const recovery=await tabA.evaluate(async({ID,payload})=>{
+  const S=VesperSaveStore;let adapter=S.indexedDBAdapter(),store=S.createStore({adapter,sessionId:'tab-a'});const {epoch}=await store.acquireLease(ID);
+  const saved=await store.recoveryOptions(ID);
+  const raw=await adapter.transact(['characters'],'readonly',tx=>tx.get('characters',ID));raw.payload.character.ash=7777777;
+  await adapter.transact(['characters'],'readwrite',tx=>tx.put('characters',raw));await adapter.close();
+  adapter=S.indexedDBAdapter();store=S.createStore({adapter,sessionId:'tab-a'});
+  const need=await store.recoveryOptions(ID);
+  const stale=await store.restoreBackup(ID,need.recommended,epoch,{expectedRevision:need.expectedRevision-1}),stillCorrupt=(await store.load(ID)).code;
+  const corruptExport=await store.exportLatest(ID),corruptCheck=await store.verifyExport(corruptExport.text);
+  const restored=await store.restoreBackup(ID,need.recommended,epoch,{expectedRevision:need.expectedRevision});await adapter.close();
+  const reopened=S.createStore({adapter:S.indexedDBAdapter(),sessionId:'tab-a'}),after=await reopened.recoveryOptions(ID),loaded=await reopened.load(ID);
+  const stored=await reopened.exportLatest(ID),storedCheck=await reopened.verifyExport(stored.text);
+  const unsaved=await reopened.exportUnsaved(ID,{...payload,character:{...payload.character,ash:31337}},{baseRevision:after.expectedRevision}),unsavedCheck=await reopened.verifyExport(unsaved.text);
+  return {saved:saved.state,need:need.state,needCurrent:need.current.status,recommended:need.backups.find(b=>b.key===need.recommended)?.revision,stale:stale.code,stillCorrupt,
+   corruptExport:[corruptExport.status,corruptCheck.status],restored:restored.ok&&restored.revision,after:after.state,ash:loaded.envelope?.payload.character.ash,
+   stored:[storedCheck.source,storedCheck.saved,storedCheck.status],unsaved:[unsavedCheck.source,unsavedCheck.saved,unsavedCheck.status,JSON.parse(unsaved.text).envelope.payload.character.ash]};
+ },{ID,payload:fixture});
+ check(recovery.saved==='saved'&&recovery.need==='recovery-required'&&recovery.needCurrent==='corrupt'&&recovery.recommended===6&&recovery.stale==='conflict'&&recovery.stillCorrupt==='corrupt'
+  &&recovery.corruptExport.join()==='corrupt,corrupt'&&recovery.restored===9&&recovery.after==='saved'&&recovery.ash===50
+  &&recovery.stored.join()==='stored,true,valid'&&recovery.unsaved.join()==='unsaved,false,valid,31337','recovery selection/export: '+JSON.stringify(recovery));
+
+ // Denied or unavailable storage: no fake saved session, but unsaved progress can still be exported.
+ const denied=await tabA.evaluate(async({ID,payload})=>{
+  const S=VesperSaveStore,refusing={open(){throw new DOMException('The operation is insecure.','SecurityError');}};
+  const store=S.createStore({adapter:S.indexedDBAdapter({indexedDB:refusing}),sessionId:'tab-a'}),none=S.createStore({adapter:S.indexedDBAdapter({indexedDB:null}),sessionId:'tab-a'});
+  const lease=await store.acquireLease(ID),load=await store.load(ID),options=await store.recoveryOptions(ID),exported=await store.exportUnsaved(ID,payload,{baseRevision:0});
+  return {lease:lease.code,load:load.code,options:options.code,noneLoad:(await none.load(ID)).code,exported:exported.ok&&exported.saved===false,check:(await store.verifyExport(exported.text)).status};
+ },{ID,payload:fixture});
+ check(denied.lease==='unavailable'&&denied.load==='unavailable'&&denied.options==='unavailable'&&denied.noneLoad==='unavailable'&&denied.exported&&denied.check==='valid','denied storage: '+JSON.stringify(denied));
+
  // A newer page version upgrading the database closes this tab's connection instead of being blocked by it.
  const upgrade=await tabA.evaluate(async ID=>{
   let closed=false;const adapter=VesperSaveStore.indexedDBAdapter({onVersionChange:()=>{closed=true;}});
@@ -75,5 +106,5 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  check(!untouched.dbs.includes('vesper-arpg')&&!untouched.modules[0]&&!untouched.modules[1]&&!untouched.scripts.length,'game touched persistence: '+JSON.stringify(untouched));
  check(!errors.length,'page errors: '+JSON.stringify(errors));
  await browser.close();
- console.log(JSON.stringify({saveStoreBrowser:'passed',reopen:first,aborted:true,secondTab:second,recovered,upgrade,gameUntouched:untouched.dbs}));
+ console.log(JSON.stringify({saveStoreBrowser:'passed',reopen:first,aborted:true,secondTab:second,recovered,recovery,denied,upgrade,gameUntouched:untouched.dbs}));
 })().catch(e=>{console.error(e);process.exit(1);});

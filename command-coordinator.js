@@ -46,9 +46,21 @@
  // Status: 'saved' | 'saving' | 'failed' (a retryable save failure; commands are paused until retry succeeds) |
  // 'stale' (another tab or revision took over; nothing more can be saved from this session until it reloads).
  const STALE=new Set(['fenced','conflict','exists','unsupported','corrupt']);
+ // What the player is told for each status (Phase 2 PR4): saved, unsaved and recovery-required are never confused.
+ // 'recovery-required' and 'read-only' come from the store's recoveryOptions before a coordinator can be created.
+ const STATUS_LABELS=Object.freeze({
+  saving:'Saving…',saved:'Saved',
+  failed:'Not saved: saving failed. Retry, or export the unsaved progress.',
+  stale:'Not saved: another tab or game version took over. Export the unsaved progress, then reload.',
+  'recovery-required':'Recovery required: the latest save failed its checks. Choose a backup or export it.',
+  'read-only':'Read-only: this save was made by a newer game version and is never overwritten.'
+ });
+ const statusLabel=status=>Object.hasOwn(STATUS_LABELS,status)?STATUS_LABELS[status]:'Not saved';
  function createCoordinator({store,characterId,epoch,envelope,onStatus=()=>{}}){
   const loaded=C.hydrate(envelope);if(!loaded.ok)throw new RangeError('cannot coordinate an invalid save: '+loaded.code);
   let state=loaded.state,revision=envelope.revision,status='saved',pending=false,failed=null;
+  // The newest candidate a save refused: never acknowledged in `state`, but kept so it can be exported as unsaved.
+  let unsaved=null;
   // Observers are notified after the outcome is settled; a throwing observer never changes a save result, never turns
   // a completed commit into a retryable failure and never leaves a command pending.
   const setStatus=(next,detail)=>{status=next;try{onStatus({status,...detail});}catch(_){/* observer errors are ignored */}};
@@ -65,11 +77,11 @@
    }catch(e){saved={ok:false,code:'storage',message:e?.message};}
    finally{pending=false;}
    if(!saved.ok){
-    failed={name,args};
+    failed={name,args};unsaved=r.state;
     setStatus(STALE.has(saved.code)?'stale':'failed',{command:name,code:saved.code,message:saved.message});
     return {ok:false,code:saved.code,message:saved.message,status};
    }
-   state=r.state;revision=saved.revision;failed=null;setStatus('saved',{command:name,revision});
+   state=r.state;revision=saved.revision;failed=null;unsaved=null;setStatus('saved',{command:name,revision});
    const {state:_,...extra}=r;return {...extra,state};
   }
   const commands={
@@ -84,8 +96,16 @@
    const {name,args}=failed;status='saved';
    return ledger.includes(name)?commands.ledger(name,args[0]):commands[name](...args);
   }
-  return Object.freeze({...commands,retry,get state(){return state;},get revision(){return revision;},get status(){return status;},get pending(){return pending;}});
+  // Emergency export of progress that is not saved: the refused candidate by default, or in-memory state the caller
+  // holds (for example the runtime's uncommitted snapshot). It works in every status, including failed and stale, and
+  // never writes; with nothing unsaved it says so instead of exporting a copy labelled unsaved.
+  function exportUnsaved(current=unsaved){
+   if(!current)return Promise.resolve(fail('nothing-unsaved','all acknowledged progress is saved; export the stored save instead'));
+   let payload;try{payload=C.dehydrate(current);}catch(e){return Promise.resolve(fail('invalid',e.message));}
+   return store.exportUnsaved(characterId,payload,{baseRevision:revision,createdAt:envelope.createdAt});
+  }
+  return Object.freeze({...commands,retry,exportUnsaved,get state(){return state;},get revision(){return revision;},get status(){return status;},get pending(){return pending;},get hasUnsaved(){return unsaved!==null;},get label(){return statusLabel(status);}});
  }
- const api=Object.freeze({drinkPotion,reserveAbility,recordDeath,ledger,createCoordinator});
+ const api=Object.freeze({drinkPotion,reserveAbility,recordDeath,ledger,STATUS_LABELS,statusLabel,createCoordinator});
  if(node)module.exports=api;else window.VesperCommands=api;
 })();

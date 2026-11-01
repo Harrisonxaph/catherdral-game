@@ -79,7 +79,13 @@ Merged by the owner as PR #39 (`562f4e7`).
 2026-10-31 — P2 PR3 (#34), [authorised](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)
 once PR2 merged, is a draft PR on `development/arpg-p2-pr3-commands` awaiting independent
 Codex review: `command-coordinator.js` commits potion, ability, death and ledger commands
-before they take effect. PR4–PR5 still need separate owner authorisation after each merge.
+before they take effect. Merged by the owner as PR #40 (`2e3d810`).
+
+2026-10-31 — P2 PR4 (#35), [authorised](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869)
+once PR3 merged, is a draft PR on `development/arpg-p2-pr4-recovery` awaiting independent
+Codex review: labelled, bounded and validated emergency export (including unsaved state),
+export verification, recovery options and stale-choice-safe backup restore. PR5 still needs
+separate owner authorisation after PR4 merges.
 
 ## Previous graphics specification task
 

@@ -144,3 +144,30 @@ test('A throwing status observer never changes a save outcome, causes a second s
   assert.equal((await k.drinkPotion()).code,'stale');assert.equal((await k.retry()).code,'nothing-to-retry');
  }
 });
+
+test('PR4: unsaved progress is exported with an honest label after a failed or stale save; saved progress is not',async()=>{
+ const {k,adapter,store,reload,time,clock}=await setup();
+ assert.equal(k.label,'Saved');assert.equal(k.hasUnsaved,false);assert.equal((await k.exportUnsaved()).code,'nothing-unsaved');
+ adapter.failAfter(0);assert.equal((await k.drinkPotion()).ok,false);adapter.clearFailure();
+ assert.equal(k.status,'failed');assert.equal(k.hasUnsaved,true);assert.match(k.label,/^Not saved: saving failed/);
+ const e=await k.exportUnsaved();assert.ok(e.ok,JSON.stringify(e));assert.deepEqual([e.source,e.saved,e.revision],['unsaved',false,k.revision+1]);
+ const v=await store.verifyExport(e.text);assert.deepEqual([v.status,v.saved],['valid',false]);
+ const file=JSON.parse(e.text);assert.equal(file.envelope.payload.character.resources.potions,1,'the refused potion spend is what was not saved');
+ assert.equal(k.state.run.potions,2,'nothing acknowledged');assert.equal((await reload()).run.potions,2,'nothing stored');
+ assert.ok((await k.retry()).ok);assert.equal(k.hasUnsaved,false);assert.equal(k.label,'Saved');assert.equal((await k.exportUnsaved()).code,'nothing-unsaved');
+ // Stale: this tab can no longer save, but can still export what it could not save.
+ time.now+=10001;assert.ok((await S.createStore({adapter,sessionId:'tab-b',clock}).acquireLease(ID)).ok);
+ assert.equal((await k.reserveAbility('aegis')).code,'fenced');assert.equal(k.status,'stale');assert.match(k.label,/another tab/);
+ const s=await k.exportUnsaved();assert.ok(s.ok);assert.equal(JSON.parse(s.text).envelope.payload.character.timers.abilityCooldowns.aegis,20);
+ assert.equal((await reload()).character.timers.abilityCooldowns.aegis,0,'the stale write was not stored');
+ // Caller-held in-memory state (the runtime's uncommitted snapshot) can be exported too; invalid state is refused.
+ assert.ok((await k.exportUnsaved(k.state)).ok);
+ assert.equal((await k.exportUnsaved({...k.state,character:{...k.state.character,ash:-1}})).code,'invalid');
+});
+
+test('PR4: saved, saving, unsaved, recovery-required and read-only statuses have distinct labels',()=>{
+ const labels=['saved','saving','failed','stale','recovery-required','read-only'].map(K.statusLabel);
+ assert.equal(new Set(labels).size,labels.length);assert.equal(K.statusLabel('saved'),'Saved');
+ for(const s of ['failed','stale'])assert.match(K.statusLabel(s),/^Not saved/);
+ assert.match(K.statusLabel('recovery-required'),/^Recovery required/);assert.equal(K.statusLabel('mystery'),'Not saved');assert.equal(K.statusLabel('__proto__'),'Not saved');
+});

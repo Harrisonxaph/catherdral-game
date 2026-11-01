@@ -88,6 +88,14 @@
   };
  }
 
+ // Emergency export (Phase 2 PR4): versioned JSON text, bounded in size, labelled with what it is and what it is not.
+ const EXPORT_FORMAT='vesper-character-export',EXPORT_VERSION=1,MAX_EXPORT_BYTES=16*1024*1024;
+ const EXPORT_NOTICE=Object.freeze({
+  stored:'Copy of the save stored in this browser.',
+  unsaved:'NOT SAVED in this browser: this file is the only copy of these changes.',
+  limits:'This version cannot import files; keep this file for a future import tool. The checksum detects accidental damage only and does not guarantee the file can be restored.'
+ });
+ const byteLength=text=>new TextEncoder().encode(text).length;
  const sha256=async text=>{const bytes=new TextEncoder().encode(text),hash=await globalThis.crypto.subtle.digest('SHA-256',bytes);return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');};
  const unsigned=env=>({...env,integrity:null});
 
@@ -120,6 +128,20 @@
    if(!m.ok)return {status:m.code==='unsupported'?'unsupported':'corrupt',errors:m.errors};
    return {status:'valid',errors:[],envelope:m.envelope,migrated:!!m.migrated};
   }
+  // One labelled export file; anything over the size bound is refused rather than truncated.
+  function exportFile({id,source,status,revision,envelope}){
+   const text=JSON.stringify({format:EXPORT_FORMAT,version:EXPORT_VERSION,exportedAt:iso(),source,saved:source==='stored',status,characterId:id,revision,notice:EXPORT_NOTICE[source]+' '+EXPORT_NOTICE.limits,envelope});
+   const bytes=byteLength(text);
+   if(bytes>MAX_EXPORT_BYTES)return failure('too-large','the export exceeds the size limit; nothing was exported',{bytes});
+   return {ok:true,source,saved:source==='stored',status,revision,bytes,text};
+  }
+  async function describeBackups(id,all){
+   const out=[];
+   for(const b of all.filter(b=>b.characterId===id).sort((a,b)=>b.revision-a.revision||(b.pinned?1:0)-(a.pinned?1:0))){const state=await inspectBackup(b.envelope),c=state.envelope?.payload?.character;out.push({key:b.key,revision:b.revision,pinned:!!b.pinned,savedAt:b.savedAt,status:state.status,summary:state.status==='valid'?{level:c.level,ash:c.ash,items:state.envelope.payload.items.length,unlocked:state.envelope.payload.campaign.unlockedLocations.length,migrated:state.migrated}:null});}
+   return out;
+  }
+  // The revision a recovery choice is made against: 0 when nothing is stored, null for a damaged non-integer revision.
+  const choiceRevision=raw=>raw?(Number.isSafeInteger(raw.revision)?raw.revision:null):0;
   const leaseOk=(lease,epoch)=>lease&&lease.sessionId===sessionId&&lease.epoch===epoch&&lease.expiresAt>clock();
   const backupKey=(id,rev,pinned)=>id+(pinned?'#pinned#':'#')+pad(rev);
   // Prune rotating backups only inside a successful write; pinned pre-migration backups are never pruned.
@@ -184,19 +206,31 @@
    return commitPayload(id,payload,{expectedRevision,epoch},createdAt||current?.createdAt);
   });
   // Backups newest first, each re-verified, with a summary so the player can compare progress before restoring.
-  const listBackups=id=>guard(async()=>{
-   const all=(await adapter.transact(['backups'],'readonly',tx=>tx.getAll('backups'))).filter(b=>b.characterId===id).sort((a,b)=>b.revision-a.revision||(b.pinned?1:0)-(a.pinned?1:0));
-   const out=[];for(const b of all){const state=await inspectBackup(b.envelope),c=state.envelope?.payload?.character;out.push({key:b.key,revision:b.revision,pinned:!!b.pinned,savedAt:b.savedAt,status:state.status,summary:state.status==='valid'?{level:c.level,ash:c.ash,items:state.envelope.payload.items.length,unlocked:state.envelope.payload.campaign.unlockedLocations.length,migrated:state.migrated}:null});}
-   return {ok:true,backups:out};
+  const listBackups=id=>guard(async()=>({ok:true,backups:await describeBackups(id,await adapter.transact(['backups'],'readonly',tx=>tx.getAll('backups')))}));
+  // Recovery overview read without writing anything: 'saved' (the latest record is good), 'recovery-required' (it is
+  // corrupt or missing while backups exist), 'read-only' (made by a newer version; never overwritten) or 'missing'.
+  // The recommended choice is the newest backup that passes its checks; corrupt, unsupported or unmigratable backups
+  // are listed with their status but never recommended or restored. `expectedRevision` is what a restore must name.
+  const recoveryOptions=id=>guard(async()=>{
+   const [raw,all]=await adapter.transact(['characters','backups'],'readonly',async tx=>[await tx.get('characters',id),await tx.getAll('backups')]);
+   const current=raw?await inspect(raw):null,backups=await describeBackups(id,all);
+   const state=!raw?(backups.length?'recovery-required':'missing'):current.status==='valid'?'saved':current.status==='unsupported'?'read-only':'recovery-required';
+   const good=backups.find(b=>b.status==='valid');
+   return {ok:true,state,current:raw?{revision:Number.isSafeInteger(raw.revision)?raw.revision:null,status:current.status,savedAt:typeof raw.savedAt==='string'?raw.savedAt:null}:null,
+    expectedRevision:choiceRevision(raw),backups,recommended:state==='recovery-required'&&good?good.key:null};
   });
   // Restore rolls the character back to a chosen backup as a new revision; nothing is merged into the current one.
   // A corrupt or unreadable latest record is quarantined (kept for export), never silently dropped.
-  const restoreBackup=(id,key,epoch)=>guard(async()=>{
+  // Restoring over a good save discards its newer progress, so the caller must name the revision the player compared
+  // against (`expectedRevision` from recoveryOptions); a save that moved on since then is a conflict and is kept.
+  const restoreBackup=(id,key,epoch,{expectedRevision}={})=>guard(async()=>{
    const [backup,current]=await adapter.transact(['backups','characters'],'readonly',async tx=>[await tx.get('backups',key),await tx.get('characters',id)]);
    if(!backup||backup.characterId!==id)return failure('missing','no such backup');
    const state=await inspectBackup(backup.envelope);if(state.status!=='valid')return failure(state.status,'that backup failed its checks or cannot be migrated; storage is unchanged',{errors:state.errors});
    const currentState=current?await inspect(current):null;
    if(currentState?.status==='unsupported')return failure('unsupported','a newer save is never overwritten');
+   if(expectedRevision===undefined&&currentState?.status==='valid')return failure('invalid','restoring over a good save requires the expected revision');
+   if(expectedRevision!==undefined&&expectedRevision!==choiceRevision(current))return failure('conflict','the save changed since the backups were compared; storage is unchanged',{revision:choiceRevision(current)});
    const corrupt=currentState?.status==='corrupt',floor=Math.max(backup.revision,Number.isSafeInteger(current?.revision)?current.revision:0);
    return commitPayload(id,state.envelope.payload,{expectedRevision:corrupt?floor:current?current.revision:0,epoch,quarantineCurrent:corrupt?schema.canonical(current):false,revisionFloor:floor},backup.envelope.createdAt);
   });
@@ -210,11 +244,38 @@
    return committed.ok?{...committed,migrated:true}:committed;
   });
   // Emergency export of exactly what is stored, including corrupt bytes, as versioned JSON text.
-  const exportLatest=id=>guard(async()=>{const raw=await readCurrent(id);if(!raw)return failure('missing','no saved character');const state=await inspect(raw);return {ok:true,status:state.status,text:JSON.stringify({format:'vesper-character-export',version:1,exportedAt:iso(),envelope:raw})};});
+  const exportLatest=id=>guard(async()=>{const raw=await readCurrent(id);if(!raw)return failure('missing','no saved character');const state=await inspect(raw);return exportFile({id,source:'stored',status:state.status,revision:Number.isSafeInteger(raw.revision)?raw.revision:null,envelope:raw});});
+  // Emergency export of in-memory progress that is not (or not known to be) stored: it must pass the save schema and is
+  // labelled unsaved. It never touches storage and is not queued behind pending writes, so it still works when storage
+  // is denied, full, hung or held by another tab. The envelope carries the revision a commit would have written.
+  async function exportUnsaved(id,input,{baseRevision=0,createdAt=null}={}){
+   try{
+    if(!Number.isSafeInteger(baseRevision)||baseRevision<0)return failure('invalid','a base revision is required');
+    let payload;try{payload=strictSnapshot(input);}catch(e){return failure('invalid','the unsaved state is invalid; nothing was exported',{errors:[{path:'',message:e.message}]});}
+    const now=iso(),env=schema.envelope(payload,{characterId:id,revision:baseRevision+1,createdAt:createdAt||now,savedAt:now,sessionId,leaseEpoch:0});
+    const check=schema.validate(env);if(!check.ok)return failure(check.code||'invalid','the unsaved state is invalid; nothing was exported',{errors:check.errors});
+    return exportFile({id,source:'unsaved',status:'valid',revision:baseRevision+1,envelope:await sign(env)});
+   }catch(e){return failure(storageCode(e),e?.message||String(e));}
+  }
+  // Bounded check of an export file: size before parsing, then format, label and the envelope's checksum and schema.
+  // It reports what the file holds; it writes nothing (import tooling is Phase 6).
+  async function verifyExport(text){
+   try{
+    if(typeof text!=='string')return failure('invalid-export','not an export file');
+    const bytes=byteLength(text);if(bytes>MAX_EXPORT_BYTES)return failure('too-large','the file exceeds the export size limit',{bytes});
+    let file;try{file=JSON.parse(text);}catch{return failure('invalid-export','the file is not valid JSON');}
+    if(!file||typeof file!=='object'||Array.isArray(file)||file.format!==EXPORT_FORMAT)return failure('invalid-export','not a VESPER character export');
+    if(file.version!==EXPORT_VERSION)return failure('unsupported','this export was made by a different game version');
+    if(!['stored','unsaved'].includes(file.source)||file.saved!==(file.source==='stored'))return failure('invalid-export','the export label is invalid');
+    const state=await inspect(file.envelope);
+    if(state.status==='valid'&&file.envelope.characterId!==file.characterId)return {ok:true,source:file.source,saved:file.saved,status:'corrupt',characterId:file.characterId,errors:[{path:'characterId',message:'label does not match the save'}]};
+    return {ok:true,source:file.source,saved:file.saved,status:state.status,characterId:file.characterId,revision:state.status==='valid'?file.envelope.revision:null,errors:state.errors};
+   }catch(e){return failure('invalid-export',e?.message||String(e));}
+  }
   const quarantined=id=>guard(async()=>({ok:true,records:(await adapter.transact(['quarantine'],'readonly',tx=>tx.getAll('quarantine'))).filter(q=>q.characterId===id)}));
-  return Object.freeze({sessionId,acquireLease,renewLease,releaseLease,load,activeCharacter,create,commit,listBackups,restoreBackup,migrateStored,exportLatest,quarantined});
+  return Object.freeze({sessionId,acquireLease,renewLease,releaseLease,load,activeCharacter,create,commit,listBackups,recoveryOptions,restoreBackup,migrateStored,exportLatest,exportUnsaved,verifyExport,quarantined});
  }
 
- const api=Object.freeze({DB_NAME,DB_VERSION,STORES,memoryAdapter,indexedDBAdapter,createStore,sha256});
+ const api=Object.freeze({DB_NAME,DB_VERSION,STORES,EXPORT_FORMAT,EXPORT_VERSION,MAX_EXPORT_BYTES,EXPORT_NOTICE,memoryAdapter,indexedDBAdapter,createStore,sha256});
  if(node)module.exports=api;else window.VesperSaveStore=api;
 })();

@@ -39,8 +39,8 @@ Do not replace this with an AI assumption.
 |---|---|---|---|---|---|---|---|
 | P2 PR1 | [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) | MERGED_BY_OWNER | `ef177df` | [#38](https://github.com/Harrisonxaph/catherdral-game/pull/38) | 0 / 3 | `0ab4890` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)); merged by owner |
 | P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | MERGED_BY_OWNER | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | `562f4e7` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge approved ([record](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823)) |
-| P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | AWAITING_INDEPENDENT_REVIEW | `562f4e7` | [#40](https://github.com/Harrisonxaph/catherdral-game/pull/40) | 1 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merge pending |
-| P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | WAITING_FOR_PR3 | unset | none | 0 / 3 | — | pending |
+| P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | MERGED_BY_OWNER | `562f4e7` | [#40](https://github.com/Harrisonxaph/catherdral-game/pull/40) | 1 / 3 | `2e3d810` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merged by owner |
+| P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | AWAITING_INDEPENDENT_REVIEW | `2e3d810` | draft PR linked from #35 | 0 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869)); merge pending |
 | P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | WAITING_FOR_PR4 | unset | none | 0 / 3 | — | pending |
 
 Update this table inside the commits that open, correct or block a stage. Record a stage's merge commit in the next stage's first commit. Do not mark a step merged on review success alone.
@@ -131,6 +131,31 @@ Copy the following section under this heading **for each new PR and each review 
 - Regression test: observers throwing at `saving`, `saved`, `failed` and `stale` leave the honest status, matching in-memory and stored state, no second potion spend, nothing to retry after a completed commit, and no stuck `busy`. Fails on `2932a8f` and when the observer containment alone is removed.
 - Correction cycles consumed: 1 / 3.
 - Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 1" handoff comment).
+
+### 2026-10-31 — P2 PR3 — merged by owner
+- PR [#40](https://github.com/Harrisonxaph/catherdral-game/pull/40) merged into main as `2e3d8108c2108a01945a97bbf20bb3f38c5af6d8` (reviewed head `1f57bd9`, unchanged). Codex review of that head: no findings ([comment](https://github.com/Harrisonxaph/catherdral-game/pull/40#issuecomment-6550664597)). Correction cycles used: 1 / 3.
+
+### 2026-10-31 — P2 PR4 — initial implementation
+- Issue: [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35).
+- Approval source and scope: [`OWNER APPROVAL: P2 PR4 (#35)`](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869), effective once P2 PR3 merged (it did, above): validated emergency export including unsaved in-memory state, and safe selection of prior-good backups; preserve corruption checks, revision checks and writer fencing; no full import tooling; do not enable Save/Continue.
+- Developer: Claude Code. Reviewer: independent Codex session (pending).
+- Base: `main @ 2e3d810`. Feature branch: `development/arpg-p2-pr4-recovery`.
+- PR URL and exact head SHAs: the draft PR linked from #35 and its developer handoff comments.
+- Change summary:
+  - `save-store.js`:
+    - Every export is versioned, size-bounded (16 MiB, refused rather than truncated) and labelled `stored`/`saved:true` or `unsaved`/`saved:false`, with a notice that this version cannot import files and that the checksum detects accidental damage only.
+    - `exportUnsaved` validates in-memory state against the save schema and signs it. It never touches storage and is not queued behind writes, so it works when storage is denied, hung or fenced.
+    - `verifyExport` checks a file without importing it: size before parsing, then format, label, checksum and schema.
+    - `recoveryOptions` reports `saved`, `recovery-required`, `read-only` or `missing`, and recommends only the newest backup that passes its checks.
+    - `restoreBackup` over a good save must name the revision the player compared against (`expectedRevision`); a save that has moved on is a conflict and stays unchanged.
+  - `command-coordinator.js`:
+    - Keeps the candidate a save refused (`hasUnsaved`) and can export it, or caller-held state, as unsaved in any status.
+    - `statusLabel` distinguishes Saved, Saving, Not saved (failed or stale), Recovery required and Read-only.
+  - Not loaded by the game: wiring is P2 PR5.
+- Correction cycles consumed: 0 / 3.
+- Open blockers / data-loss risk: none known; nothing is wired into the game. `restoreBackup` callers over a good save must now pass `expectedRevision` (no runtime caller exists yet).
+- Rollback: revert the PR; no stored data exists.
+- Status: AWAITING_INDEPENDENT_REVIEW.
 
 ## Setup event — 2026-10-29
 
