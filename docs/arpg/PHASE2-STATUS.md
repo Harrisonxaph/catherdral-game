@@ -41,7 +41,7 @@ Do not replace this with an AI assumption.
 | P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | MERGED_BY_OWNER | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | `562f4e7` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge approved ([record](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823)) |
 | P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | MERGED_BY_OWNER | `562f4e7` | [#40](https://github.com/Harrisonxaph/catherdral-game/pull/40) | 1 / 3 | `2e3d810` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merged by owner |
 | P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | MERGED_BY_OWNER | `2e3d810` | [#41](https://github.com/Harrisonxaph/catherdral-game/pull/41) | 0 / 3 | `258f67e` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869)); merged by owner |
-| P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | AWAITING_INDEPENDENT_REVIEW | `258f67e` | draft PR linked from #36 | 0 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090)); merge pending |
+| P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | AWAITING_INDEPENDENT_REVIEW | `258f67e` | [#42](https://github.com/Harrisonxaph/catherdral-game/pull/42) | 1 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090)); merge pending |
 
 Update this table inside the commits that open, correct or block a stage. Record a stage's merge commit in the next stage's first commit. Do not mark a step merged on review success alone.
 
@@ -193,6 +193,28 @@ Copy the following section under this heading **for each new PR and each review 
 - Open blockers / data-loss risk: none known. Known limitation (SPEC section 5): up to about 1 s of noncritical health/position may be lost on an OS kill, and events queued behind a failed save are not included in its unsaved export.
 - Rollback: revert the PR. Saves created by this version stay in IndexedDB (`vesper-arpg`) and are ignored by older builds, which do not load the save modules.
 - Status: AWAITING_INDEPENDENT_REVIEW.
+
+### 2026-11-01 — P2 PR5 — correction 1
+- Findings: [Codex review of `9b244d5`](https://github.com/Harrisonxaph/catherdral-game/pull/42#issuecomment-6553236480), three BLOCKING:
+  1. The next queued command sampled the runtime before the previous command's effect was published (promise callbacks run later), so a snapshot could store a reserved cooldown as 0 or overwrite a committed heal.
+  2. Pressing Enter on the title still called the old unsaved `startGame` flow.
+  3. The emergency export after a failed save held only the failed command, not the commands queued behind it.
+- Fixes:
+  1. Each queued command now carries a `publish` callback that the session runs synchronously as it settles, before the next command samples the runtime. All twelve runtime adapters use it, ignored if their session has ended. A throwing publish never stops the queue.
+  2. Enter on the title takes the same guarded path as the buttons: Continue a saved character, or begin a new character or the labelled unsaved trial when nothing is stored. It never confirms a replacement, and it prevents the stray keypress that used to close the opening dialog at once.
+  3. `exportUnsaved` folds every pending command (the failed head, those queued behind it, and those a stale session could not save) over the committed state as pure transitions. It writes nothing and leaves the queue intact.
+  - Also found while testing: after a successful retry, play resumed only if no further command was already saving. It now resumes whenever the queue is no longer halted.
+- Regression tests:
+  - Node:
+    - an ability reservation, with a snapshot and kill queued behind it, stores the full cooldown;
+    - a potion heal followed by a snapshot stores the healed health;
+    - a throwing publish does not stop the queue;
+    - an export after a failure with two queued kills holds both (XP, killed, drops), verifies, hydrates, writes nothing and leaves the queue intact, and retry then applies both once;
+    - a stale session's export holds both commands it could not save.
+  - Each fails when its fix is removed (4 mutations).
+  - Browser: Enter starts a new character, continues a saved one and starts the trial without storage; the ability is reserved in the same turn as a kill; the failed-save export holds both kills, and retry resumes play and applies them once. The new browser suite fails on `9b244d5`.
+- Correction cycles consumed: 1 / 3.
+- Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 1" handoff comment).
 
 ## Setup event — 2026-10-29
 

@@ -160,7 +160,7 @@ const story=window.VesperStory;
 const equipment=window.VesperEquipment;
 let runEquipment=equipment.createRun(),encounter=null,shieldDelay=0,fireCooldown=0;
 const equipmentStats=()=>equipment.stats(player,runEquipment);
-function reconcileEquipment(){player.shield=Math.min(player.shield||0,equipmentStats().shield);if(session)persist('inventory',st=>VS.syncRun(st,{main:runEquipment.main,off:runEquipment.off,bag:runEquipment.bag.slice(),potions:st.run.potions})).then(r=>{if(session&&!r.ok)reconcileRun(session.state);});updateHUD();}
+function reconcileEquipment(){player.shield=Math.min(player.shield||0,equipmentStats().shield);if(session)persist('inventory',st=>VS.syncRun(st,{main:runEquipment.main,off:runEquipment.off,bag:runEquipment.bag.slice(),potions:st.run.potions}),{publish:r=>{if(session&&!r.ok)reconcileRun(session.state);}});updateHUD();}
 function dropEquipment(item,x,y){if(!item)return;const spec=equipment.definition(item);loots.push({x,y,kind:'equipment',item,color:equipment.rarities[spec.rarity].color,phase:0,pickAt:time+.4});}
 function checkEncounter(){if(!encounter||encounter.completed||!encounter.members.every(e=>e.dead))return;encounter.completed=true;const item=equipment.encounterReward(encounter,floor,rand);if(item&&session)persistReward(item);else if(item)dropEquipment(item,stair.x,stair.y);story.emit('encounter-complete',{id:encounter.id,floor,kind:encounter.kind});}
 function nearestEquipment(){return loots.filter(l=>l.kind==='equipment'&&!l.gone&&time>=(l.pickAt||0)&&dist(l.x,l.y,player.x,player.y)<1.6).sort((a,b)=>dist(a.x,a.y,player.x,player.y)-dist(b.x,b.y,player.x,player.y))[0];}
@@ -483,7 +483,9 @@ function uuid(){if(crypto.randomUUID)return crypto.randomUUID();const b=crypto.g
 // The writer lease belongs to this tab: a reload of the same tab reuses its ID (sessionStorage) and so its own lease, instead
 // of being locked out until it expires. A duplicated tab sharing the ID is still stopped by the revision check (stale).
 function tabSessionId(){let id=null;try{id=sessionStorage.getItem('vesperTabSession');}catch{}if(!/^tab-[0-9a-f]{8}$/.test(id||'')){id='tab-'+uuid().slice(0,8);try{sessionStorage.setItem('vesperTabSession',id);}catch{}}return id;}
-function persist(name,fn,options){return session?session.enqueue(name,fn,options):Promise.resolve({ok:false,code:'no-session'});}
+// `publish` applies a committed result to the runtime synchronously, before the next queued command samples the runtime
+// (game-session.js); it is ignored if this session has since ended or been replaced.
+function persist(name,fn,options={}){if(!session)return Promise.resolve({ok:false,code:'no-session'});const owner=session,publish=options.publish;return session.enqueue(name,fn,{tap:!!options.tap,publish:publish?r=>{if(session===owner)publish(r);}:null});}
 const keepState=st=>({ok:true,applied:false,state:st});
 // Noncritical runtime values folded into every command and the one-second autosave; never after death (see die()).
 function runtimeSnapshot(){if(!player||state==='dead'||state==='title')return null;return {hp:player.hp,shield:player.shield||0,cooldowns:{...abilities.cooldowns},attackRemaining:attackTimer,dodgeRemaining:dashTimer,firePassiveRemaining:fireCooldown,shieldDelay};}
@@ -506,21 +508,21 @@ function reconcileRun(s){const owned=new Map([s.run.main,s.run.off,...s.run.bag]
  if([...owned.keys()].some(id=>!held.has(id))){runEquipment.main=s.run.main;runEquipment.off=s.run.off;runEquipment.bag=s.run.bag.slice();}
  runEquipment.potions=s.run.potions;player.shield=Math.min(player.shield||0,equipmentStats().shield);updateHUD();}
 const rewardKey=()=>CG.campaignRewardKey(CS.locations[floor-1],'final','item');
-function persistKill(e){const instanceId=areaInstance,spawnId=e.spawnId,xp=e.xp,drops=lootDrops(e.x,e.y,e).map(({phase,...d})=>d);persist('kill',st=>CG.recordKill(st,{instanceId,spawnId,xp,drops})).then(r=>{if(r.ok&&session){syncLoots(r.state);syncProgress(r.state);}});}
-function persistChest(c,drops){const instanceId=areaInstance,chestId=c.chestId;persist('chest',st=>CG.openChest(st,{instanceId,chestId,drops:drops.map(({phase,...d})=>d)})).then(r=>{if(r.ok&&session)syncLoots(r.state);});}
-function persistReward(item){const instanceId=areaInstance,key=rewardKey(),x=stair.x,y=stair.y;persist('reward',st=>CG.grantReward(st,{rewardKey:key,item,instanceId,x,y})).then(r=>{if(r.ok&&session)syncLoots(r.state);});}
+function persistKill(e){const instanceId=areaInstance,spawnId=e.spawnId,xp=e.xp,drops=lootDrops(e.x,e.y,e).map(({phase,...d})=>d);persist('kill',st=>CG.recordKill(st,{instanceId,spawnId,xp,drops}),{publish:r=>{if(r.ok&&session){syncLoots(r.state);syncProgress(r.state);}}});}
+function persistChest(c,drops){const instanceId=areaInstance,chestId=c.chestId;persist('chest',st=>CG.openChest(st,{instanceId,chestId,drops:drops.map(({phase,...d})=>d)}),{publish:r=>{if(r.ok&&session)syncLoots(r.state);}});}
+function persistReward(item){const instanceId=areaInstance,key=rewardKey(),x=stair.x,y=stair.y;persist('reward',st=>CG.grantReward(st,{rewardKey:key,item,instanceId,x,y}),{publish:r=>{if(r.ok&&session)syncLoots(r.state);}});}
 function completeHere(){const locationId=CS.locations[floor-1];persist('complete',st=>CG.completeArea(st,{locationId}));}
-function pickSaved(l){l.pending=true;const instanceId=areaInstance;persist('pickup',st=>CG.pickUp(st,{instanceId,dropId:l.dropId})).then(r=>{l.pending=false;if(!session)return;if(!r.ok){l.retryAt=time+1;return;}if(r.applied){sfx('collect');if(l.kind==='potion')flyText(l.x,l.y,'POTION','#ef8585');}syncLoots(r.state);syncProgress(r.state);});}
+function pickSaved(l){l.pending=true;const instanceId=areaInstance;persist('pickup',st=>CG.pickUp(st,{instanceId,dropId:l.dropId}),{publish:r=>{l.pending=false;if(!session)return;if(!r.ok){l.retryAt=time+1;return;}if(r.applied){sfx('collect');if(l.kind==='potion')flyText(l.x,l.y,'POTION','#ef8585');}syncLoots(r.state);syncProgress(r.state);}});}
 function collectSaved(loot){if(loot.pending)return;if(!runEquipment.bag.includes(null)){showToast('BACKPACK FULL','Drop or equip something first');return;}loot.pending=true;const instanceId=areaInstance;
- persist('pickup',st=>CG.pickUp(st,{instanceId,dropId:loot.dropId})).then(r=>{loot.pending=false;if(!session)return;if(!r.ok){if(r.code==='bag-full')showToast('BACKPACK FULL',r.message);return;}reconcileRun(r.state);syncLoots(r.state);if(r.applied){showToast('RELIC ACQUIRED',[equipment.definition(loot.item).name,...equipment.modifiers(loot.item).map(equipment.describeModifier)].join(' · '),equipment.definition(loot.item).rarity);sfx('collect');}});}
-function dropSaved(item,x,y){const instanceId=areaInstance,itemId=item.id;persist('drop',st=>CG.dropItem(st,{instanceId,itemId,x,y})).then(r=>{if(!session)return;reconcileRun(session.state);if(r.ok)syncLoots(r.state);});}
+ persist('pickup',st=>CG.pickUp(st,{instanceId,dropId:loot.dropId}),{publish:r=>{loot.pending=false;if(!session)return;if(!r.ok){if(r.code==='bag-full')showToast('BACKPACK FULL',r.message);return;}reconcileRun(r.state);syncLoots(r.state);if(r.applied){showToast('RELIC ACQUIRED',[equipment.definition(loot.item).name,...equipment.modifiers(loot.item).map(equipment.describeModifier)].join(' · '),equipment.definition(loot.item).rarity);sfx('collect');}}});}
+function dropSaved(item,x,y){const instanceId=areaInstance,itemId=item.id;persist('drop',st=>CG.dropItem(st,{instanceId,itemId,x,y}),{publish:r=>{if(!session)return;reconcileRun(session.state);if(r.ok)syncLoots(r.state);}});}
 // Potion and ability taps commit before they take effect; a second tap while saving is refused (no double spend).
-function drinkSaved(){if(player.potions<=0||player.hp>=player.maxHp)return;persist('potion',st=>CK.drinkPotion(st),{tap:true}).then(r=>{if(!r.ok||!session)return;runEquipment.potions=r.state.run.potions;heal(r.healed);});}
-function activateSaved(id){if(!abilities.available(id))return false;persist('ability:'+id,st=>CK.reserveAbility(st,id),{tap:true}).then(r=>{if(!r.ok||!session)return;
+function drinkSaved(){if(player.potions<=0||player.hp>=player.maxHp)return;persist('potion',st=>CK.drinkPotion(st),{tap:true,publish:r=>{if(!r.ok||!session)return;runEquipment.potions=r.state.run.potions;heal(r.healed);}});}
+function activateSaved(id){if(!abilities.available(id))return false;persist('ability:'+id,st=>CK.reserveAbility(st,id),{tap:true,publish:r=>{if(!r.ok||!session)return;
  // The cooldown is already committed: if the cast can no longer start, the runtime still honours the reservation.
- if(!abilities.activate(id))abilities.cooldowns[id]=abilitySystem.definitions[id].cooldown;updateAbilityHUD();});return true;}
+ if(!abilities.activate(id))abilities.cooldowns[id]=abilitySystem.definitions[id].cooldown;updateAbilityHUD();}});return true;}
 function recordDeathSaved(snap){const deathId='death-'+uuid();persist('death',st=>{const a=VS.applySnapshot(st,snap);return a.ok?CK.recordDeath(a.state,deathId):a;});}
-function travelSaved(){dashTime=0;invul=1;newFloor();sfx('door');const manifest=areaManifest;persist('arrive',st=>VS.arrive(st,{manifest})).then(r=>{if(!r.ok||!session){if(session&&!session.halted)showToast('TRAVEL NOT SAVED',r.message||r.code);return;}if(r.recovered)player.hp=Math.min(player.maxHp,player.hp+r.recovered.hp);syncProgress(r.state);});}
+function travelSaved(){dashTime=0;invul=1;newFloor();sfx('door');const manifest=areaManifest;persist('arrive',st=>VS.arrive(st,{manifest}),{publish:r=>{if(!r.ok||!session){if(session&&!session.halted)showToast('TRAVEL NOT SAVED',r.message||r.code);return;}if(r.recovered)player.hp=Math.min(player.maxHp,player.hp+r.recovered.hp);syncProgress(r.state);}});}
 // Rebuild the current area from its saved seed: killed enemies stay dead, opened chests stay open, ground loot returns.
 function restoreArea(s){const plan=VS.restorePlan(s,areaManifest);if(!plan.ok){showToast('AREA NOT RESTORED',plan.message);return;}
  for(const e of enemies)if(plan.killed.has(e.spawnId)){e.dead=true;e.state='dead';e.hp=0;e.deadAt=-1e9;}
@@ -535,7 +537,7 @@ function beginSaved(s){$('boss-sequence').hidden=true;abilities.reset();const c=
  for(const id of Object.keys(abilities.cooldowns))abilities.cooldowns[id]=c.timers.abilityCooldowns[id];
  attackTimer=c.timers.attackRemaining;dashTimer=c.timers.dodgeRemaining;fireCooldown=c.timers.firePassiveRemaining;shieldDelay=c.timers.shieldDelay;invul=1;dashTime=0;holdAttack=false;joy.x=joy.y=0;
  const area=VS.currentArea(s);floor=area.floor;newFloor(area.seed===null?undefined:area.seed);
- if(area.seed===null){const manifest=areaManifest;persist('arrive',st2=>VS.arrive(st2,{manifest})).then(r=>{if(r.ok&&session)syncProgress(r.state);});}else restoreArea(s);
+ if(area.seed===null){const manifest=areaManifest;persist('arrive',st2=>VS.arrive(st2,{manifest}),{publish:r=>{if(r.ok&&session)syncProgress(r.state);}});}else restoreArea(s);
  autosaveAt=time+1;setState('playing');showSaveStatus();story.emit('run-start');sfx('door');}
 async function openSession(id,epoch,envelope,isTrial=false){
  trial=isTrial;saveId=id;saveEpoch=epoch;session=VS.createSession({store:saveStore,characterId:id,epoch,envelope,snapshot:runtimeSnapshot,onStatus:showSaveStatus});
@@ -543,7 +545,7 @@ async function openSession(id,epoch,envelope,isTrial=false){
  let s=session.state;
  if(s.world.lifecycle.mode==='dead-pending-respawn'){const r=await persist('respawn',st=>VS.respawn(st,{respawnId:'respawn-'+st.world.lifecycle.deathId}),{tap:true});if(!r.ok)return;s=r.state;}
  beginSaved(s);}
-function respawnHere(){if(!session)return startGame();persist('respawn',st=>VS.respawn(st,{respawnId:'respawn-'+st.world.lifecycle.deathId}),{tap:true}).then(r=>{if(!session)return;if(r.ok||r.code==='alive')beginSaved(session.state);});}
+function respawnHere(){if(!session)return startGame();persist('respawn',st=>VS.respawn(st,{respawnId:'respawn-'+st.world.lifecycle.deathId}),{tap:true,publish:r=>{if(!session)return;if(r.ok||r.code==='alive')beginSaved(session.state);}});}
 function endSession(){if(session&&saveStore&&!trial)saveStore.releaseLease(saveId,saveEpoch);session=null;trial=false;clearInterval(leaseTimer);showSaveStatus();}
 async function quitToTitle(save=true){if(session&&save&&!session.halted)await persist('snapshot',keepState);endSession();setState('title');refreshTitle();}
 async function newCharacter(isTrial=false){
@@ -579,16 +581,19 @@ $('start').addEventListener('click',()=>{
  // A saved, damaged or newer character is never replaced silently: the first tap explains, the second confirms.
  if(titleMode!=='new'&&!confirmNew){confirmNew=true;$('start').textContent='CONFIRM NEW CHARACTER';$('save-note').textContent='Continue will load the new character. The current one stays in this browser but will no longer be offered; export it first to keep a copy.';return;}
  confirmNew=false;story.opening(()=>newCharacter());});
+// Enter on the title takes the same guarded path as the buttons (a focused button activates itself): Continue a saved
+// character, begin a new one or the labelled unsaved trial when nothing is stored, and never confirm a replacement.
+function titleEnter(){if(!SS||!VS)return story.opening(startGame);if(titleMode==='saved')return $('continue').click();if(titleMode==='new'||titleMode==='unavailable')return $('start').click();}
 $('continue').addEventListener('click',async()=>{if(saveBusy||!saveId)return;saveBusy=true;try{const lease=await saveStore.acquireLease(saveId);if(!lease.ok){$('save-note').textContent=lease.code==='locked'?'This character is open in another tab. Close it there, then continue here.':'Cannot open the save ('+lease.code+').';return;}
  const loaded=await saveStore.load(saveId);if(!loaded.ok){await saveStore.releaseLease(saveId,lease.epoch);refreshTitle();return;}await openSession(saveId,lease.epoch,loaded.envelope);}finally{saveBusy=false;}});
 $('save-export').addEventListener('click',async()=>{if(!saveStore||!saveId)return;const r=await saveStore.exportLatest(saveId);if(r.ok)download(r.text,'stored');else $('save-note').textContent='Export failed ('+r.code+').';});
-$('save-retry').addEventListener('click',async()=>{if(!session||saveBusy)return;saveBusy=true;try{await session.retry();}finally{saveBusy=false;}if(session&&!session.halted&&session.status==='saved'){const back=saveResume;saveResume=null;setState(back==='dead'||back==='complete'?back:'playing');}});
+$('save-retry').addEventListener('click',async()=>{if(!session||saveBusy)return;saveBusy=true;try{await session.retry();}finally{saveBusy=false;}if(session&&!session.halted&&session.status!=='stale'&&session.status!=='failed'){const back=saveResume;saveResume=null;setState(back==='dead'||back==='complete'?back:'playing');}});
 $('save-export-unsaved').addEventListener('click',async()=>{if(!session)return;const r=await session.exportUnsaved();if(r.ok)return download(r.text,'unsaved');if(r.code==='nothing-unsaved'&&!trial){const e=await saveStore.exportLatest(saveId);if(e.ok)return download(e.text,'stored');}$('savefail-text').textContent='Export failed ('+r.code+').';});
 $('save-title').addEventListener('click',()=>quitToTitle(false));
 addEventListener('pagehide',()=>{if(session&&!trial&&!session.pending)saveStore.releaseLease(saveId,saveEpoch);});
 // A trial is never stored, so its export is always labelled unsaved; a saved character exports the stored record.
 $('pause-export').addEventListener('click',async()=>{if(!session)return;if(!trial)await persist('snapshot',keepState);const r=trial?await session.exportUnsaved(session.state):await saveStore.exportLatest(saveId);if(r.ok)download(r.text,trial?'unsaved-trial':'stored');else showToast('EXPORT FAILED',r.code);});
-const dirkeys=['1','2','3','w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Shift','q','Q','j','J','k','K','e','E'];addEventListener('keydown',e=>{if(state==='cinematic'){if(e.key==='Escape'){e.preventDefault();bosses.skip();}return;}if(story.paused||e.isComposing||e.keyCode===229)return;if(dirkeys.includes(e.key))e.preventDefault();key[e.key]=true;if(e.repeat)return;if(['1','2','3'].includes(e.key))activateAbility({'1':'execution','2':'aegis','3':'stunning'}[e.key]);if(e.key==='Shift'||e.key==='k'||e.key==='K')dash();if(e.key==='q'||e.key==='Q')drink();if(e.key==='e'||e.key==='E')nextFloor();if(e.key==='r'||e.key==='R')collectEquipment();if((e.key==='c'||e.key==='C')&&state==='playing')bosses.interact();if(e.key==='Escape'||e.key==='p'||e.key==='P')togglePause();if(state==='title'&&e.key==='Enter')story.opening(startGame);});addEventListener('keyup',e=>{key[e.key]=false;});
+const dirkeys=['1','2','3','w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Shift','q','Q','j','J','k','K','e','E'];addEventListener('keydown',e=>{if(state==='cinematic'){if(e.key==='Escape'){e.preventDefault();bosses.skip();}return;}if(story.paused||e.isComposing||e.keyCode===229)return;if(dirkeys.includes(e.key))e.preventDefault();key[e.key]=true;if(e.repeat)return;if(['1','2','3'].includes(e.key))activateAbility({'1':'execution','2':'aegis','3':'stunning'}[e.key]);if(e.key==='Shift'||e.key==='k'||e.key==='K')dash();if(e.key==='q'||e.key==='Q')drink();if(e.key==='e'||e.key==='E')nextFloor();if(e.key==='r'||e.key==='R')collectEquipment();if((e.key==='c'||e.key==='C')&&state==='playing')bosses.interact();if(e.key==='Escape'||e.key==='p'||e.key==='P')togglePause();if(state==='title'&&e.key==='Enter'&&!e.target?.closest?.('button')){e.preventDefault();titleEnter();}});addEventListener('keyup',e=>{key[e.key]=false;});
 canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&state==='playing'){holdAttack=true;attemptAttack();}});window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')holdAttack=false;});// Mobile browser chrome and embedded toolbars can blur a visible page on a tap.
 // Clear held input on blur, but pause only when the document actually leaves view.
 window.addEventListener('blur',clearInput);

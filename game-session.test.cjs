@@ -129,3 +129,56 @@ test('Session: events apply in order, taps are refused while saving, and a faile
  const stale=await kill(3);assert.equal(stale.code,'fenced');assert.equal(session.status,'stale');
  assert.equal((await kill(4)).code,'stale');assert.equal((await env.reload()).world.instances[m.instanceId].killed.length,3);
 });
+
+test('Review: a committed effect is published before the next queued command samples the runtime',async()=>{
+ const K=require('./command-coordinator.js'),m=manifest(1,606),env=await stored();
+ const runtime={hp:C.create().stats.maxHp,cooldowns:{execution:0,aegis:0,stunning:0}};
+ const session=V.createSession({store:env.store,characterId:ID,epoch:env.epoch,envelope:env.envelope,snapshot:()=>({hp:runtime.hp,cooldowns:{...runtime.cooldowns}})});
+ assert.ok((await session.enqueue('arrive',s=>V.arrive(s,{manifest:m}))).ok);
+ // Ability reservation, then a snapshot and a kill queued behind it in the same turn: the runtime cooldown set by the
+ // reservation's publish must be what they sample, so the stored cooldown is never written back to zero.
+ const reserved=session.enqueue('ability',s=>K.reserveAbility(s,'aegis'),{tap:true,publish:r=>{if(r.ok)runtime.cooldowns.aegis=20;}});
+ const snap=session.enqueue('snapshot',s=>({ok:true,applied:false,state:s}));
+ const kill=session.enqueue('kill',s=>G.recordKill(s,{instanceId:m.instanceId,spawnId:m.spawns[0].id,xp:5}));
+ await Promise.all([reserved,snap,kill]);
+ assert.equal((await env.reload()).character.timers.abilityCooldowns.aegis,20,'the reserved cooldown survives the commands queued behind it');
+ // Potion heal, then a snapshot: the stored health includes the heal.
+ runtime.hp=30;let healed=0;
+ const potion=session.enqueue('potion',s=>K.drinkPotion(s),{tap:true,publish:r=>{if(r.ok){healed=r.healed;runtime.hp+=r.healed;}}});
+ const after=session.enqueue('snapshot',s=>({ok:true,applied:false,state:s}));
+ await Promise.all([potion,after]);
+ assert.ok(healed>0);assert.equal((await env.reload()).character.resources.hp,30+healed,'the committed heal is not overwritten by older runtime health');
+ // A publish that throws never stops the queue.
+ const bad=session.enqueue('kill',s=>G.recordKill(s,{instanceId:m.instanceId,spawnId:m.spawns[1].id,xp:5}),{publish:()=>{throw new Error('presentation');}});
+ const next=session.enqueue('kill',s=>G.recordKill(s,{instanceId:m.instanceId,spawnId:m.spawns[2].id,xp:5}));
+ assert.ok((await bad).ok);assert.ok((await next).ok);
+});
+
+test('Review: the emergency export holds every pending command, writes nothing and leaves the queue intact',async()=>{
+ const m=manifest(1,707),env=await stored();
+ const session=V.createSession({store:env.store,characterId:ID,epoch:env.epoch,envelope:env.envelope});
+ assert.ok((await session.enqueue('arrive',s=>V.arrive(s,{manifest:m}))).ok);
+ const kill=n=>session.enqueue('kill',s=>G.recordKill(s,{instanceId:m.instanceId,spawnId:m.spawns[n].id,xp:5,drops:[{kind:'ash',amount:2,x:1,y:1}]}));
+ env.adapter.failAfter(0);const a=kill(0),b=kill(1);await new Promise(r=>setTimeout(r,20));env.adapter.clearFailure();
+ assert.equal(session.halted,true);assert.equal(session.pending,2);
+ const before=JSON.stringify([...env.adapter.data].map(([n,v])=>[n,[...v]]));
+ const e=await session.exportUnsaved();assert.ok(e.ok,JSON.stringify(e));
+ assert.deepEqual([e.saved,e.pendingCommands,e.appliedCommands],[false,2,2]);
+ const file=JSON.parse(e.text),inst=file.envelope.payload.world.instances[m.instanceId];
+ assert.equal(file.envelope.payload.character.lifetimeXp,10,'both queued kills are in the export');
+ assert.deepEqual(inst.killed,[m.spawns[0].id,m.spawns[1].id]);assert.equal(inst.groundDrops.length,2);
+ const verified=await env.store.verifyExport(e.text);assert.deepEqual([verified.status,verified.saved],['valid',false]);
+ assert.equal(C.hydrate(file.envelope).ok,true,'the export hydrates as a valid character');
+ assert.equal(JSON.stringify([...env.adapter.data].map(([n,v])=>[n,[...v]])),before,'exporting writes nothing');
+ assert.equal(session.pending,2,'exporting leaves the queue intact');assert.equal(session.halted,true);
+ assert.ok((await session.retry()).ok);assert.ok((await a).ok);assert.ok((await b).ok);
+ assert.equal((await env.reload()).character.lifetimeXp,10,'retry then applies both, once each');
+ assert.equal((await session.exportUnsaved()).code,'nothing-unsaved');
+ // A stale session keeps what it could not save, so its export still holds it.
+ env.time.now+=10001;assert.ok((await S.createStore({adapter:env.adapter,sessionId:'tab-b',clock:env.clock}).acquireLease(ID)).ok);
+ const [c,d]=await Promise.all([kill(2),kill(3)]);assert.equal(c.code,'fenced');assert.equal(d.code,'fenced');assert.equal(session.status,'stale');
+ assert.equal((await kill(4)).code,'stale','nothing new is accepted once stale');
+ const staleExport=JSON.parse((await session.exportUnsaved()).text);
+ assert.equal(staleExport.envelope.payload.character.lifetimeXp,20,'both commands the stale session could not save are exported');
+ assert.equal((await env.reload()).character.lifetimeXp,10);
+});

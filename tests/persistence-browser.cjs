@@ -23,7 +23,7 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  // 1. New Character: nothing stored yet, then one character exists at the Crypt entrance.
  const title=await page.evaluate(()=>({continueHidden:document.getElementById('continue').hidden,start:document.getElementById('start').textContent}));
  check(title.continueHidden&&title.start==='BEGIN YOUR STORY','fresh title: '+JSON.stringify(title));
- await page.locator('#start').click();await page.locator('#story-choices button').first().click();
+ await page.evaluate(()=>document.activeElement?.blur());await page.keyboard.press('Enter');await page.locator('#story-choices button').first().click();
  await page.waitForFunction(()=>persistQA.state==='playing'&&persistQA.session?.state.world.currentInstanceId);await settle(page);await closeStory(page);
  const created=await saved(page);check(created.level===1&&created.xp===0&&created.potions===2&&created.instance.startsWith('forgotten-crypt:s'),'created: '+JSON.stringify(created));
 
@@ -42,7 +42,7 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  const potionsBefore=(await saved(page)).potions;check(potionsBefore>=1,'no potion to test');
  await page.evaluate(()=>{persistQA.player.hp=20;persistQA.drink();persistQA.drink();});await settle(page);
  const afterPotion=await saved(page);check(afterPotion.potions===potionsBefore-1&&afterPotion.hp>20,'potion (double tap spends one): '+JSON.stringify({potionsBefore,afterPotion}));
- await page.evaluate(()=>persistQA.activateAbility('aegis'));await settle(page);
+ await page.evaluate(()=>{persistQA.activateAbility('aegis');const e=persistQA.enemies.find(e=>!e.dead&&!e.finalGuard&&e.spawnId);if(e)persistQA.killEnemy(e);for(let i=0;i<3;i++)persistQA.tick(.016);});await settle(page);
  const afterAbility=await saved(page);check(afterAbility.aegis>15&&await page.evaluate(()=>persistQA.cooldowns.aegis>15),'ability: '+JSON.stringify(afterAbility));
 
  // 4. A second tab cannot open the same character while this one plays.
@@ -54,7 +54,7 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  const before=await saved(page);await page.reload();await open(page);
  const cont=await page.evaluate(()=>({hidden:document.getElementById('continue').hidden,text:document.getElementById('continue').textContent,start:document.getElementById('start').textContent}));
  check(!cont.hidden&&cont.text==='CONTINUE · LVL '+before.level&&cont.start==='NEW CHARACTER','continue title: '+JSON.stringify(cont));
- await page.locator('#continue').click();await page.waitForFunction(()=>persistQA.state==='playing'&&persistQA.session);await settle(page);
+ await page.evaluate(()=>document.activeElement?.blur());await page.keyboard.press('Enter');await page.waitForFunction(()=>persistQA.state==='playing'&&persistQA.session);await settle(page);
  const restored=await saved(page),world=await page.evaluate(()=>({dead:persistQA.enemies.filter(e=>e.dead&&e.spawnId).map(e=>e.spawnId),level:persistQA.level,ash:persistQA.ash,potions:persistQA.player.potions,aegis:persistQA.cooldowns.aegis,items:[persistQA.run.main?.id,persistQA.run.off?.id],at:[persistQA.player.x,persistQA.player.y],start:[persistQA.start.cx+.5,persistQA.start.cy+.5]}));
  check(restored.xp===before.xp&&restored.ash===before.ash&&restored.potions===before.potions&&restored.instance===before.instance,'continue state: '+JSON.stringify({before,restored}));
  check(world.level===before.level&&world.ash===before.ash&&world.potions===before.potions&&JSON.stringify(world.items)===JSON.stringify(before.items),'continue runtime: '+JSON.stringify(world));
@@ -77,15 +77,15 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  // 7. A failed save pauses play honestly, nothing is acknowledged, the unsaved progress can be exported, and retry applies it once.
  await page.evaluate(()=>{const orig=IDBDatabase.prototype.transaction;window.__restoreIDB=()=>{IDBDatabase.prototype.transaction=orig;};IDBDatabase.prototype.transaction=function(names,mode,...rest){if(mode==='readwrite')throw new DOMException('Quota exceeded','QuotaExceededError');return orig.call(this,names,mode,...rest);};});
  const failXp=(await saved(page)).xp;
- await page.evaluate(()=>{const e=persistQA.enemies.find(e=>!e.dead&&!e.finalGuard&&e.spawnId);persistQA.killEnemy(e);});
+ const failKills=await page.evaluate(()=>{const xs=persistQA.enemies.filter(e=>!e.dead&&!e.finalGuard&&e.spawnId).slice(0,2);xs.forEach(e=>persistQA.killEnemy(e));return xs.map(e=>e.xp);});check(failKills.length===2,'need two enemies');
  await page.waitForFunction(()=>persistQA.state==='savefail'&&!document.getElementById('savefail').classList.contains('hidden'));
  const failing=await page.evaluate(()=>({status:persistQA.session.status,label:document.getElementById('save-status').textContent,text:document.getElementById('savefail-text').textContent,xp:persistQA.session.state.character.lifetimeXp}));
  check(failing.status==='failed'&&failing.label==='NOT SAVED'&&/Not saved/.test(failing.text)&&failing.xp===failXp,'save failure: '+JSON.stringify(failing));
  const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#save-export-unsaved').click()]);
- const file=JSON.parse(fs.readFileSync(await download.path(),'utf8'));check(file.source==='unsaved'&&file.saved===false&&file.envelope.payload.character.lifetimeXp>failXp,'unsaved export: '+JSON.stringify({source:file.source,saved:file.saved}));
+ const file=JSON.parse(fs.readFileSync(await download.path(),'utf8'));check(file.source==='unsaved'&&file.saved===false&&file.envelope.payload.character.lifetimeXp===failXp+failKills[0]+failKills[1],'unsaved export must hold both kills: '+JSON.stringify({source:file.source,saved:file.saved,xp:file.envelope.payload.character.lifetimeXp,failXp,failKills}));
  await page.evaluate(()=>window.__restoreIDB());await page.locator('#save-retry').click();
  await page.waitForFunction(()=>persistQA.state==='playing');await settle(page);
- const retried=await saved(page);check(retried.xp>failXp&&retried.killed.length===before.killed.length+1,'retry: '+JSON.stringify(retried));
+ const retried=await saved(page);check(retried.xp===failXp+failKills[0]+failKills[1]&&retried.killed.length===before.killed.length+2,'retry applies both once: '+JSON.stringify(retried));
 
  // 8. New Character is never silent: the first tap only explains; the saved character stays active.
  await page.evaluate(()=>{document.getElementById('pausebtn').click();});await page.locator('#quit').click();await page.waitForFunction(()=>persistQA.state==='title'&&persistQA.session===null&&!document.getElementById('continue').hidden&&/LVL/.test(document.getElementById('continue').textContent));
@@ -103,7 +103,7 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  await noStore.route('**/index.html',route=>route.fulfill({body:fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').replace("const stick=$('stick')",hook),contentType:'text/html'}));
  const trialPage=await noStore.newPage();await open(trialPage);
  await trialPage.waitForFunction(()=>document.getElementById('start').textContent==='PLAY UNSAVED TRIAL');
- await trialPage.locator('#start').click();await trialPage.locator('#story-choices button').first().click();await trialPage.waitForFunction(()=>persistQA.state==='playing'&&persistQA.session);await closeStory(trialPage);
+ await trialPage.evaluate(()=>document.activeElement?.blur());await trialPage.keyboard.press('Enter');await trialPage.locator('#story-choices button').first().click();await trialPage.waitForFunction(()=>persistQA.state==='playing'&&persistQA.session);await closeStory(trialPage);
  const trial=await trialPage.evaluate(()=>({label:document.getElementById('save-status').textContent,note:document.getElementById('save-note').textContent}));
  check(trial.label==='UNSAVED TRIAL','trial label: '+JSON.stringify(trial));
  await trialPage.evaluate(()=>document.getElementById('pausebtn').click());

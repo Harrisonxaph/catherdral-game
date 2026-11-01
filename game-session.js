@@ -89,43 +89,59 @@
  // (potion, ability) are refused while the same tap is still saving, so a double tap spends once. Every command first
  // folds in the latest runtime snapshot, so it is decided against current health and cooldowns, not stale ones.
  // A failed save halts the queue with that command at its head; nothing after it is applied until retry succeeds.
+ // Each command's `publish(result)` runs synchronously as soon as it settles, before the next command samples the
+ // runtime snapshot, so a committed effect (a reserved cooldown, a heal) is always in the runtime before anything later
+ // can read it; a promise callback would run too late and let an older runtime value overwrite the committed one.
  function createSession({store,characterId,epoch,envelope,snapshot=()=>null,onStatus=()=>{}}){
   const k=K.createCoordinator({store,characterId,epoch,envelope,onStatus});
-  const queue=[],taps=new Set();let running=false,halted=false;
+  // `orphaned`: commands a stale session can never save; kept (with the queue) so the emergency export still holds them.
+  const queue=[],taps=new Set(),orphaned=[];let running=false,halted=false;
   const compose=fn=>state=>{
    const snap=applySnapshot(state,snapshot());if(!snap.ok)return snap;
    const r=fn(snap.state);if(!r||r.ok===false)return r||fail('invalid','no transition result');
    return !r.applied&&snap.applied?{...r,applied:true,state:snap.state}:r;
   };
   const blocked=r=>!r.ok&&(r.status==='failed'||r.status==='stale'||r.code==='save-failed'||r.code==='stale');
-  function settle(job,r){queue.shift();if(job.tap)taps.delete(job.name);job.resolve(r);}
+  const publish=(job,r)=>{if(job.publish)try{job.publish(r);}catch(_){/* a presentation error never stops the queue */}};
+  function settle(job,r){queue.shift();if(job.tap)taps.delete(job.name);publish(job,r);job.resolve(r);}
+  function orphan(r){const jobs=queue.splice(0);orphaned.push(...jobs);for(const j of jobs){if(j.tap)taps.delete(j.name);publish(j,r);j.resolve(r);}}
   async function pump(){
    if(running||halted)return;running=true;
    try{
     while(queue.length&&!halted){
      const job=queue[0],r=await k.run(job.name,compose(job.fn));
-     if(blocked(r)){halted=true;if(k.status==='stale')for(const j of queue.splice(0))j.resolve(r);break;}
+     if(blocked(r)){halted=true;if(k.status==='stale')orphan(r);break;}
      settle(job,r);
     }
    }finally{running=false;}
   }
-  function enqueue(name,fn,{tap=false}={}){
+  function enqueue(name,fn,{tap=false,publish=null}={}){
    if(k.status==='stale')return Promise.resolve(fail('stale','this session can no longer save; reload'));
    if(tap&&taps.has(name))return Promise.resolve(fail('busy','that command is still saving'));
    if(tap)taps.add(name);
-   return new Promise(resolve=>{queue.push({name,fn,tap,resolve});pump();});
+   return new Promise(resolve=>{queue.push({name,fn,tap,publish,resolve});pump();});
   }
   // Retry the halted head command once; on success the rest of the queue continues in order.
   async function retry(){
    if(!halted||running)return fail('nothing-to-retry','no failed save to retry');
    running=true;let r;try{r=await k.retry();}finally{running=false;}
-   if(blocked(r)){if(k.status==='stale')for(const j of queue.splice(0))j.resolve(r);return r;}
+   if(blocked(r)){if(k.status==='stale')orphan(r);return r;}
    if(queue.length)settle(queue[0],r);halted=false;pump();return r;
   }
-  return Object.freeze({characterId,enqueue,retry,
-   exportUnsaved:state=>k.exportUnsaved(state),
+  // Emergency export of everything not yet saved: the committed state with every pending command (the failed head,
+  // the commands queued behind it, or those a stale session could not save) applied in order, as pure transitions.
+  // Nothing is written, acknowledged or removed from the queue. A command that no longer applies is skipped, exactly
+  // as a retry would skip it. An explicit state (caller-held) is exported as given.
+  function exportUnsaved(state){
+   if(state)return k.exportUnsaved(state);
+   const jobs=[...orphaned,...queue];if(!jobs.length)return k.exportUnsaved();
+   let s=k.state,applied=0;
+   for(const job of jobs){const r=compose(job.fn)(s);if(r&&r.ok&&r.applied){s=r.state;applied++;}}
+   return (s===k.state?k.exportUnsaved():k.exportUnsaved(s)).then(r=>r.ok?{...r,pendingCommands:jobs.length,appliedCommands:applied}:r);
+  }
+  return Object.freeze({characterId,enqueue,retry,exportUnsaved,
    get state(){return k.state;},get revision(){return k.revision;},get status(){return k.status;},get label(){return k.label;},
-   get hasUnsaved(){return k.hasUnsaved||queue.length>0;},get pending(){return queue.length;},get halted(){return halted;}});
+   get hasUnsaved(){return k.hasUnsaved||queue.length>0||orphaned.length>0;},get pending(){return queue.length;},get halted(){return halted;}});
  }
  const api=Object.freeze({applySnapshot,respawn,syncRun,arrive,restorePlan,currentArea,createSession});
  if(node)module.exports=api;else window.VesperSession=api;
