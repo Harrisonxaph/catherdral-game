@@ -130,13 +130,16 @@
   }
   // Emergency export of everything not yet saved: the committed state with every pending command (the failed head,
   // the commands queued behind it, or those a stale session could not save) applied in order, as pure transitions.
-  // Nothing is written, acknowledged or removed from the queue. A command that no longer applies is skipped, exactly
-  // as a retry would skip it. An explicit state (caller-held) is exported as given.
+  // The runtime snapshot is folded in once, first: export never publishes, so the live runtime does not yet hold the
+  // pending commands' effects, and re-sampling it per command would overwrite them (a reserved cooldown, a heal).
+  // Nothing is written, acknowledged, published or removed from the queue. A command that no longer applies is
+  // skipped, exactly as a retry would skip it. An explicit state (caller-held) is exported as given.
   function exportUnsaved(state){
    if(state)return k.exportUnsaved(state);
    const jobs=[...orphaned,...queue];if(!jobs.length)return k.exportUnsaved();
-   let s=k.state,applied=0;
-   for(const job of jobs){const r=compose(job.fn)(s);if(r&&r.ok&&r.applied){s=r.state;applied++;}}
+   const base=applySnapshot(k.state,snapshot());
+   let s=base.ok?base.state:k.state,applied=0;
+   for(const job of jobs){const r=job.fn(s);if(r&&r.ok&&r.applied){s=r.state;applied++;}}
    return (s===k.state?k.exportUnsaved():k.exportUnsaved(s)).then(r=>r.ok?{...r,pendingCommands:jobs.length,appliedCommands:applied}:r);
   }
   return Object.freeze({characterId,enqueue,retry,exportUnsaved,

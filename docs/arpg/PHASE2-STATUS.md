@@ -41,7 +41,7 @@ Do not replace this with an AI assumption.
 | P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | MERGED_BY_OWNER | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | `562f4e7` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge approved ([record](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823)) |
 | P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | MERGED_BY_OWNER | `562f4e7` | [#40](https://github.com/Harrisonxaph/catherdral-game/pull/40) | 1 / 3 | `2e3d810` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merged by owner |
 | P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | MERGED_BY_OWNER | `2e3d810` | [#41](https://github.com/Harrisonxaph/catherdral-game/pull/41) | 0 / 3 | `258f67e` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869)); merged by owner |
-| P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | AWAITING_INDEPENDENT_REVIEW | `258f67e` | [#42](https://github.com/Harrisonxaph/catherdral-game/pull/42) | 1 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090)); merge pending |
+| P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | AWAITING_INDEPENDENT_REVIEW | `258f67e` | [#42](https://github.com/Harrisonxaph/catherdral-game/pull/42) | 2 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090)); merge pending |
 
 Update this table inside the commits that open, correct or block a stage. Record a stage's merge commit in the next stage's first commit. Do not mark a step merged on review success alone.
 
@@ -215,6 +215,13 @@ Copy the following section under this heading **for each new PR and each review 
   - Browser: Enter starts a new character, continues a saved one and starts the trial without storage; the ability is reserved in the same turn as a kill; the failed-save export holds both kills, and retry resumes play and applies them once. The new browser suite fails on `9b244d5`.
 - Correction cycles consumed: 1 / 3.
 - Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 1" handoff comment).
+
+### 2026-11-01 — P2 PR5 — correction 2
+- Finding: [Codex review of `23a4e79`](https://github.com/Harrisonxaph/catherdral-game/pull/42#issuecomment-6553487958), BLOCKING. The emergency export re-applied the live runtime snapshot before every pending command. Export never publishes, so the runtime did not yet hold earlier pending effects: a pending Aegis reservation exported as 0 s instead of 20 s, and a pending heal could be overwritten.
+- Fix: `exportUnsaved` folds the runtime snapshot into the committed state once, then applies the pending commands' pure transitions in order without re-sampling. It still writes, publishes and dequeues nothing.
+- Regression test, for both a failed save and a stale session: an ability reservation, a snapshot, a kill, a potion and a snapshot are pending. The export holds the 20 s cooldown, the healed health, one potion spent and the kill's XP, and it hydrates. Storage, the queue and the runtime are unchanged. The test fails when per-command re-sampling is restored; the four correction-1 mutations still fail too.
+- Correction cycles consumed: 2 / 3.
+- Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 2" handoff comment).
 
 ## Setup event — 2026-10-29
 

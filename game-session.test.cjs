@@ -182,3 +182,31 @@ test('Review: the emergency export holds every pending command, writes nothing a
  assert.equal(staleExport.envelope.payload.character.lifetimeXp,20,'both commands the stale session could not save are exported');
  assert.equal((await env.reload()).character.lifetimeXp,10);
 });
+
+test('Review: the emergency export keeps pending reservations and heals; the runtime snapshot is folded in once',async()=>{
+ const K=require('./command-coordinator.js'),m=manifest(1,808);
+ const runtime={hp:30,cooldowns:{execution:0,aegis:0,stunning:0}};
+ for(const stale of [false,true]){
+  const env=await stored();
+  const session=V.createSession({store:env.store,characterId:ID,epoch:env.epoch,envelope:env.envelope,snapshot:()=>({hp:runtime.hp,cooldowns:{...runtime.cooldowns}})});
+  assert.ok((await session.enqueue('arrive',s=>V.arrive(s,{manifest:m}))).ok);
+  if(stale){env.time.now+=10001;assert.ok((await S.createStore({adapter:env.adapter,sessionId:'tab-b',clock:env.clock}).acquireLease(ID)).ok);}
+  else env.adapter.failAfter(0);
+  // An ability reservation and a potion, each followed by commands that sample the (unpublished) runtime.
+  const jobs=[session.enqueue('ability',s=>K.reserveAbility(s,'aegis'),{tap:true}),session.enqueue('snapshot',s=>({ok:true,applied:false,state:s})),
+   session.enqueue('kill',s=>G.recordKill(s,{instanceId:m.instanceId,spawnId:m.spawns[0].id,xp:5})),session.enqueue('potion',s=>K.drinkPotion(s),{tap:true}),
+   session.enqueue('snapshot',s=>({ok:true,applied:false,state:s}))];
+  await new Promise(r=>setTimeout(r,20));if(!stale)env.adapter.clearFailure();
+  assert.ok(stale?session.status==='stale':session.halted);
+  const before=JSON.stringify([...env.adapter.data].map(([n,v])=>[n,[...v]])),pending=session.pending,runtimeBefore=JSON.stringify(runtime);
+  const e=await session.exportUnsaved();assert.ok(e.ok,JSON.stringify(e));
+  const p=JSON.parse(e.text).envelope.payload,max=C.create().stats.maxHp;
+  assert.equal(p.character.timers.abilityCooldowns.aegis,20,(stale?'stale':'failed')+': the pending reservation is exported, not the old runtime 0');
+  assert.equal(p.character.resources.hp,30+Math.round(max*.42),'the pending heal is exported, not overwritten by the old runtime health');
+  assert.equal(p.character.resources.potions,1);assert.equal(p.character.lifetimeXp,5);assert.equal(e.appliedCommands,3);
+  assert.equal(C.hydrate(JSON.parse(e.text).envelope).ok,true);
+  assert.equal(JSON.stringify([...env.adapter.data].map(([n,v])=>[n,[...v]])),before,'nothing written');
+  assert.equal(session.pending,pending,'queue unchanged');assert.equal(JSON.stringify(runtime),runtimeBefore,'runtime untouched (nothing published)');
+  if(!stale){assert.ok((await session.retry()).ok);await Promise.all(jobs);const s=await env.reload();assert.equal(s.run.potions,1);assert.equal(s.character.lifetimeXp,5);}
+ }
+});
