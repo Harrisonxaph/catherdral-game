@@ -111,7 +111,36 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  const trialFile=JSON.parse(fs.readFileSync(await trialDownload.path(),'utf8'));check(trialFile.source==='unsaved'&&trialFile.saved===false,'trial export label');
  await noStore.close();
 
+ // 10. WebKit-style storage that answers only after indexedDB.databases() has been called (the iPhone start failure):
+ // the game wakes it first, so New Character starts normally.
+ const quirk=await browser.newContext({viewport:{width:393,height:852},serviceWorkers:'block'});
+ await quirk.addInitScript(()=>{const open=IDBFactory.prototype.open,dbs=IDBFactory.prototype.databases;let awake=false;
+  IDBFactory.prototype.databases=function(){return dbs.call(this).then(r=>{awake=true;return r;});};
+  IDBFactory.prototype.open=function(...a){return awake?open.apply(this,a):{};};});
+ await quirk.route('**/index.html',route=>route.fulfill({body:fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').replace("const stick=$('stick')",hook),contentType:'text/html'}));
+ const quirkPage=await quirk.newPage();await open(quirkPage);
+ await quirkPage.waitForFunction(()=>/No saved character/.test(document.getElementById('save-note').textContent),null,{timeout:6000});
+ await quirkPage.locator('#start').click();await quirkPage.locator('#story-choices button').first().click();
+ await quirkPage.waitForFunction(()=>persistQA.state==='playing'&&persistQA.session?.state.world.currentInstanceId,null,{timeout:6000});
+ await quirk.close();
+
+ // 11. Storage that never answers: the title says so and offers only the unsaved trial; a start attempted meanwhile
+ // reports the failure on the title instead of silently returning to it, and the trial then plays.
+ const hung=await browser.newContext({viewport:{width:393,height:852},serviceWorkers:'block'});
+ await hung.addInitScript(()=>{IDBFactory.prototype.open=function(){return {};};IDBFactory.prototype.databases=function(){return new Promise(()=>{});};});
+ await hung.route('**/index.html',route=>route.fulfill({body:fs.readFileSync(path.join(__dirname,'../index.html'),'utf8').replace("const stick=$('stick')",hook),contentType:'text/html'}));
+ const hungPage=await hung.newPage();hungPage.on('pageerror',e=>errors.push(e.message));await hungPage.goto(base+'/index.html');await hungPage.waitForFunction(()=>window.persistQA&&window.castleView!==undefined);
+ check(/Checking for a saved character/.test(await hungPage.evaluate(()=>document.getElementById('save-note').textContent)),'no visible progress while storage is checked');
+ await hungPage.locator('#start').click();await hungPage.locator('#story-choices button').first().click();await closeStory(hungPage);
+ const preparing=await hungPage.evaluate(()=>document.getElementById('save-note').textContent);check(/Preparing your character|Could not start a character/.test(preparing),'no visible progress or outcome while the character is created: '+preparing);
+ await hungPage.waitForFunction(()=>document.getElementById('start').textContent==='PLAY UNSAVED TRIAL'&&/Could not start a character \(unavailable: browser storage did not respond in time\)/.test(document.getElementById('save-note').textContent),null,{timeout:20000});
+ const hungState=await hungPage.evaluate(()=>({state:persistQA.state,session:!!persistQA.session,note:document.getElementById('save-note').textContent}));
+ check(hungState.state==='title'&&!hungState.session&&/UNSAVED TRIAL/.test(hungState.note),'hung storage: '+JSON.stringify(hungState));
+ await hungPage.locator('#start').click();await hungPage.locator('#story-choices button').first().click();
+ await hungPage.waitForFunction(()=>persistQA.state==='playing'&&persistQA.session&&document.getElementById('save-status').textContent==='UNSAVED TRIAL',null,{timeout:6000});
+ await hung.close();
+
  check(!errors.length,'page errors: '+JSON.stringify(errors));
  await browser.close();
- console.log(JSON.stringify({persistenceBrowser:'passed',created,afterKills:{xp:afterKills.xp,level:afterKills.level,killed:afterKills.killed.length},restored:{xp:restored.xp,ash:restored.ash,potions:restored.potions,aegis:world.aegis},deaths:pending.deaths,retried:{xp:retried.xp},trial:trial.label}));
+ console.log(JSON.stringify({persistenceBrowser:'passed',created,afterKills:{xp:afterKills.xp,level:afterKills.level,killed:afterKills.killed.length},restored:{xp:restored.xp,ash:restored.ash,potions:restored.potions,aegis:world.aegis},deaths:pending.deaths,retried:{xp:retried.xp},trial:trial.label,webkitWake:'passed',hungStorage:hungState.note}));
 })().catch(e=>{console.error(e);process.exit(1);});

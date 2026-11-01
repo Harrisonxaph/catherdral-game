@@ -55,21 +55,37 @@
  }
 
  // IndexedDB adapter. Work functions only await this transaction's own requests, so the transaction stays active.
- function indexedDBAdapter({indexedDB=globalThis.indexedDB,name=DB_NAME,onBlocked=null,onVersionChange=null}={}){
+ // Storage that never answers is reported, not waited on forever: an open that does not settle within `openTimeoutMs`
+ // is 'unavailable', and a transaction that does not finish within `transactionTimeoutMs` is aborted as 'timeout'
+ // (a retryable save failure). WebKit (iOS and macOS Safari) can leave the first IndexedDB requests pending until
+ // indexedDB.databases() has been called, so it is polled first where it exists.
+ function indexedDBAdapter({indexedDB=globalThis.indexedDB,name=DB_NAME,onBlocked=null,onVersionChange=null,openTimeoutMs=8000,transactionTimeoutMs=15000}={}){
   let opening=null;
+  function wake(){
+   if(!indexedDB||typeof indexedDB.databases!=='function')return Promise.resolve();
+   return new Promise(resolve=>{let done=false,timer=null;const finish=()=>{if(done)return;done=true;clearInterval(timer);resolve();};
+    const poke=()=>{try{Promise.resolve(indexedDB.databases()).then(finish,finish);}catch{finish();}};timer=setInterval(poke,100);poke();setTimeout(finish,openTimeoutMs);});
+  }
   const request=r=>new Promise((resolve,reject)=>{r.onsuccess=()=>resolve(r.result);r.onerror=e=>{e.preventDefault?.();reject(r.error);};});
   function open(){
    if(opening)return opening;
-   opening=new Promise((resolve,reject)=>{
+   const attempt=new Promise((resolve,reject)=>{
     if(!indexedDB)return reject(new StoreError('unavailable','IndexedDB is not available'));
-    let req;try{req=indexedDB.open(name,DB_VERSION);}catch(e){return reject(new StoreError('unavailable',e.message));}
-    req.onupgradeneeded=()=>{const db=req.result;for(const s of STORES)if(!db.objectStoreNames.contains(s.name))db.createObjectStore(s.name,{keyPath:s.key});};
-    req.onblocked=()=>onBlocked?.();
-    req.onerror=()=>{opening=null;reject(new StoreError(req.error?.name==='VersionError'?'unsupported':'unavailable',req.error?.message||'open failed'));};
-    // A newer page version upgrading the database closes this connection instead of blocking it.
-    req.onsuccess=()=>{const db=req.result;db.onversionchange=()=>{db.close();opening=null;onVersionChange?.();};resolve(db);};
+    let settled=false;const fail=e=>{if(settled)return;settled=true;clearTimeout(timer);reject(e);};
+    const timer=setTimeout(()=>fail(new StoreError('unavailable','browser storage did not respond in time')),openTimeoutMs);
+    wake().then(()=>{
+     if(settled)return;
+     let req;try{req=indexedDB.open(name,DB_VERSION);}catch(e){return fail(new StoreError('unavailable',e.message));}
+     req.onupgradeneeded=()=>{const db=req.result;for(const s of STORES)if(!db.objectStoreNames.contains(s.name))db.createObjectStore(s.name,{keyPath:s.key});};
+     req.onblocked=()=>onBlocked?.();
+     req.onerror=()=>fail(new StoreError(req.error?.name==='VersionError'?'unsupported':'unavailable',req.error?.message||'open failed'));
+     // A newer page version upgrading the database closes this connection instead of blocking it. A connection that
+     // arrives after the timeout is closed at once; the caller has already been told storage is unavailable.
+     req.onsuccess=()=>{const db=req.result;if(settled){db.close();return;}settled=true;clearTimeout(timer);db.onversionchange=()=>{db.close();opening=null;onVersionChange?.();};resolve(db);};
+    });
    });
-   return opening;
+   opening=attempt;attempt.catch(()=>{if(opening===attempt)opening=null;});
+   return attempt;
   }
   return {
    kind:'indexeddb',
@@ -78,9 +94,11 @@
     return new Promise((resolve,reject)=>{
      let tx;try{tx=db.transaction(names,mode,{durability:'strict'});}catch(e){try{tx=db.transaction(names,mode);}catch(e2){return reject(e2);}}
      let result,failed=null;
+     // A transaction that never finishes is aborted and reported, so a save cannot sit at "saving" forever.
+     const timer=setTimeout(()=>{failed=failed||new StoreError('timeout','browser storage did not finish in time');try{tx.abort();}catch{}reject(failed);},transactionTimeoutMs);
      const api={get:(n,k)=>request(tx.objectStore(n).get(k)),getAll:n=>request(tx.objectStore(n).getAll()),put:(n,v)=>request(tx.objectStore(n).put(v)),delete:(n,k)=>request(tx.objectStore(n).delete(k))};
-     tx.oncomplete=()=>failed?reject(failed):resolve(result);
-     tx.onabort=()=>reject(failed||tx.error||new StoreError('storage','transaction aborted'));
+     tx.oncomplete=()=>{clearTimeout(timer);failed?reject(failed):resolve(result);};
+     tx.onabort=()=>{clearTimeout(timer);reject(failed||tx.error||new StoreError('storage','transaction aborted'));};
      Promise.resolve().then(()=>work(api)).then(r=>{result=r;},e=>{failed=e;try{tx.abort();}catch{}});
     });
    },

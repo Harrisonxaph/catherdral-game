@@ -88,9 +88,11 @@ export verification, recovery options and stale-choice-safe backup restore. Merg
 owner as PR #41 (`258f67e`).
 
 2026-11-01 — P2 PR5 (#36), [authorised](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090)
-once PR4 merged, is a draft PR on `development/arpg-p2-pr5-continue` awaiting independent
-Codex review: New Character / Continue / checkpoint respawn wired into the game through
-`game-session.js`. Physical-device checks remain NOT VERIFIED. Deployment needs separate owner approval.
+once PR4 merged: New Character / Continue / checkpoint respawn wired into the game through
+`game-session.js`. Merged by the owner as PR #42 (`10cb19b`). An owner iPhone test then
+found the start flow silently returning to the title. The fix (WebKit IndexedDB wake-up,
+storage timeouts, visible start errors) is in a separate PR on
+`development/arpg-p2-pr5-ios-storage-fix`, awaiting review and CI. Physical-device checks remain NOT VERIFIED.
 
 ## Previous graphics specification task
 

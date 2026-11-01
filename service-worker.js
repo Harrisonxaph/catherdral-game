@@ -1,5 +1,5 @@
 /* VESPER offline cache. Increment CACHE_VERSION after future game releases. */
-const CACHE_VERSION = 'vesper-cathedral-v22-arpg-p2-continue';
+const CACHE_VERSION = 'vesper-cathedral-v23-arpg-p2-storage-start';
 const APP_ASSETS = [
   './',
   './index.html',
