@@ -74,6 +74,7 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
 .installcta{display:flex;justify-content:center;gap:8px;align-items:center;width:100%;margin:10px auto 0;padding:11px;border:1px solid #86705e;background:#141521a8;color:#dfc9ab;font:700 11px system-ui,sans-serif;letter-spacing:2px;text-transform:uppercase}
 .installcta:active{background:#3b2c37}
 .installstatus{font:10px/1.5 system-ui,sans-serif;color:#9fb9a5;margin-top:9px;min-height:15px}
+.savenote{font:10px/1.5 system-ui,sans-serif;color:#c9b59a;margin-top:9px;min-height:15px;white-space:pre-line}.savestatus{font:9px/1.3 system-ui,sans-serif;letter-spacing:1px;color:#9fb9a5;text-align:right;min-height:12px;margin:2px 0}.savestatus:empty{display:none}.savestatus[data-state=failed],.savestatus[data-state=stale],.savestatus[data-state=trial]{color:#ff9a8f}#recovery{margin-top:10px;text-align:left;font:10px/1.5 system-ui,sans-serif;color:#cdbfae}#recovery button{display:block;width:100%;margin:6px 0 0;min-height:44px}
 .install-guide{position:fixed;inset:0;z-index:40;display:flex;justify-content:center;align-items:center;background:#070810ed;padding:calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));overflow:auto}
 .install-guide.hidden{display:none}
 .install-panel{width:min(460px,100%);max-height:100%;overflow-y:auto;text-align:center;padding:24px 21px;background:linear-gradient(135deg,#211723,#11121d);border:1px solid #a78c74;box-shadow:0 24px 80px #000d}
@@ -95,17 +96,17 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
 </head>
 <body>
 <canvas id="game" aria-label="Gothic dungeon game"></canvas><div id="vignette"></div>
-<div id="hud"><div class="hud-top"><div class="hud-stats"><div class="hud-nametag"><span>THE PENITENT</span><span id="lvlabel">LVL 1</span></div><div class="bar"><span id="hpbar"></span></div><div class="bar xp"><span id="xpbar"></span></div><div class="hud-sub"><span id="hptext">110 / 110</span><span id="aegis-status" style="color:#8bcfff"></span><span id="player-shield" style="color:#69b5ff"></span><span id="cointext">✦ 0 ASH</span></div></div><div class="hud-right"><div id="floorlabel" class="floorlabel">CRYPT I</div><canvas id="map" width="130" height="130" aria-label="Minimap"></canvas></div></div></div>
+<div id="hud"><div class="hud-top"><div class="hud-stats"><div class="hud-nametag"><span>THE PENITENT</span><span id="lvlabel">LVL 1</span></div><div class="bar"><span id="hpbar"></span></div><div class="bar xp"><span id="xpbar"></span></div><div class="hud-sub"><span id="hptext">110 / 110</span><span id="aegis-status" style="color:#8bcfff"></span><span id="player-shield" style="color:#69b5ff"></span><span id="cointext">✦ 0 ASH</span></div></div><div class="hud-right"><div id="floorlabel" class="floorlabel">CRYPT I</div><div id="save-status" class="savestatus" aria-live="polite"></div><canvas id="map" width="130" height="130" aria-label="Minimap"></canvas></div></div></div>
 <div id="obj">PURGE THE CURSED</div><div id="toast"></div>
 <div id="topbuttons"><button class="iconbtn" id="inventory-button" aria-label="Open inventory" title="Inventory · I"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;pointer-events:none"><path d="M8 7V5a4 4 0 0 1 8 0v2M7 7h10a3 3 0 0 1 3 3v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a3 3 0 0 1 3-3Z"/><path d="M4 10c4 4 12 4 16 0M9 16h6v5M12 11v3"/></svg></button><button class="iconbtn" id="viewmode" aria-label="Switch between 3D and classic 2D view">3D</button><button class="iconbtn" id="sound" aria-label="Toggle sound">♫</button><button class="iconbtn" id="pausebtn" aria-label="Pause game">Ⅱ</button></div>
 <div id="controls"><div id="stick"><div id="knob"></div></div><div class="actiongroup"><button id="potion" class="action" aria-label="Drink healing potion"><b>✚</b><span id="potionlabel">2 / 3</span></button><button id="dash" class="action" aria-label="Dash"><b>↝</b><span id="dashlabel">DASH</span></button><button id="attack" class="action" aria-label="Attack"><b>⚔</b><span>STRIKE</span></button></div></div>
 <div id="abilities" aria-label="Combat abilities"><button class="ability execution" id="ability-execution" aria-label="Execution Strike"><b>⚔</b><span id="cooldown-execution">1 · STRIKE</span></button><button class="ability aegis" id="ability-aegis" aria-label="Aegis of Ash"><b><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 21 5v6c0 5-5 9-9 11-4-2-9-6-9-11V5z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 6v11M8 10h8" stroke="currentColor" stroke-width="1.5"/></svg></b><span id="cooldown-aegis">2 · AEGIS</span></button><button class="ability stunning" id="ability-stunning" aria-label="Stunning Blow"><b>ϟ</b><span id="cooldown-stunning">3 · STUN</span></button></div>
 <button id="descend">DESCEND ↡</button>
-<div class="overlay" id="home"><div class="panel"><p class="eyebrow">A 3D GOTHIC CASTLE ADVENTURE</p><div class="sigil"><span>♱</span></div><h1>VESPER</h1><p class="subtitle">The Hollow Crown</p><div class="goldline"></div><p class="lore">A king who would not die. A castle that cannot forget. Wake beneath Castle Vesper and recover the memories buried with the Hollow Crown.</p><button class="primary" id="start">BEGIN YOUR STORY</button><button class="installcta" id="installBtn" type="button">✦ INSTALL GAME ON PHONE</button><div class="installstatus" id="offlineStatus" aria-live="polite"></div><div class="help"><strong>Phone:</strong> Left thumb moves · ⚔ attacks · ↝ dodges · ✚ heals · ▦ gear<br><strong>Keyboard:</strong> WASD · Space strike · Shift dash · Q heal · I gear · R collect · 1/2/3 abilities</div><div class="smallnote" id="best">No previous descents</div></div></div>
-<div class="overlay hidden" id="upgrade"><div class="panel"><p class="eyebrow">THE BLOOD REMEMBERS</p><div class="sigil" style="height:65px;width:65px"><span style="font-size:36px">✥</span></div><h1 style="font-size:33px;letter-spacing:3px">CHOOSE A BLESSING</h1><p class="subtitle">Power has its price.</p><div id="upgrades"></div></div></div>
-<div class="overlay hidden" id="dead"><div class="panel"><p class="eyebrow">THE CATHEDRAL CLAIMS ANOTHER</p><div class="sigil"><span>☩</span></div><h1 style="font-size:43px">YOU HAVE FALLEN</h1><p class="subtitle" id="deathtag">Ashes to ashes.</p><div class="goldline"></div><div class="stats-summary" id="deathstats"></div><button class="primary" id="retry">RISE AGAIN</button><div class="smallnote">New crypt · New enemies · Another chance</div></div></div>
-<div class="overlay hidden" id="complete"><div class="panel"><p class="eyebrow">FIVE FLOORS · FIVE BROKEN SEALS</p><h1 style="font-size:38px">ASHES FALL SILENT</h1><p class="lore">You have survived the Cathedral of Ash.</p><button class="primary" onclick="document.getElementById('retry').click()">BEGIN ANOTHER DESCENT</button></div></div>
-<div class="overlay hidden" id="paused"><div class="panel"><p class="eyebrow">THE WORLD HOLDS ITS BREATH</p><h1 style="font-size:41px">PAUSED</h1><p class="lore">The dead will wait. Briefly.</p><label class="graphics-label" for="graphics-quality">GRAPHICS QUALITY <select id="graphics-quality"><option value="low">Low · mobile friendly</option><option value="medium">Medium · balanced</option><option value="high">High · enhanced</option></select></label><button class="primary" id="resume">RESUME THE DESCENT</button><button class="secondary" id="quit">Return to title</button></div></div>
+<div class="overlay" id="home"><div class="panel"><p class="eyebrow">A 3D GOTHIC CASTLE ADVENTURE</p><div class="sigil"><span>♱</span></div><h1>VESPER</h1><p class="subtitle">The Hollow Crown</p><div class="goldline"></div><p class="lore">A king who would not die. A castle that cannot forget. Wake beneath Castle Vesper and recover the memories buried with the Hollow Crown.</p><button class="primary" id="continue" hidden>CONTINUE</button><button class="primary" id="start">BEGIN YOUR STORY</button><div class="savenote" id="save-note" aria-live="polite"></div><div id="recovery" hidden></div><button class="installcta" id="save-export" type="button" hidden>EXPORT SAVE FILE</button><button class="installcta" id="installBtn" type="button">✦ INSTALL GAME ON PHONE</button><div class="installstatus" id="offlineStatus" aria-live="polite"></div><div class="help"><strong>Phone:</strong> Left thumb moves · ⚔ attacks · ↝ dodges · ✚ heals · ▦ gear<br><strong>Keyboard:</strong> WASD · Space strike · Shift dash · Q heal · I gear · R collect · 1/2/3 abilities</div><div class="smallnote" id="best">No previous descents</div></div></div>
+<div class="overlay hidden" id="savefail"><div class="panel"><p class="eyebrow">PROGRESS NOT SAVED</p><h1 style="font-size:36px">THE RECORD FALTERS</h1><p class="lore" id="savefail-text">Saving failed.</p><button class="primary" id="save-retry">RETRY SAVE</button><button class="installcta" id="save-export-unsaved" type="button">EXPORT UNSAVED PROGRESS</button><button class="installcta" id="save-title" type="button">RETURN TO TITLE</button></div></div>
+<div class="overlay hidden" id="dead"><div class="panel"><p class="eyebrow">THE CATHEDRAL CLAIMS ANOTHER</p><div class="sigil"><span>☩</span></div><h1 style="font-size:43px">YOU HAVE FALLEN</h1><p class="subtitle" id="deathtag">Ashes to ashes.</p><div class="goldline"></div><div class="stats-summary" id="deathstats"></div><button class="primary" id="retry">RISE AGAIN</button><div class="smallnote" id="retry-note">New crypt · New enemies · Another chance</div></div></div>
+<div class="overlay hidden" id="complete"><div class="panel"><p class="eyebrow">FIVE FLOORS · FIVE BROKEN SEALS</p><h1 style="font-size:38px">ASHES FALL SILENT</h1><p class="lore">You have survived the Cathedral of Ash.</p><button class="primary" id="again">BEGIN ANOTHER DESCENT</button></div></div>
+<div class="overlay hidden" id="paused"><div class="panel"><p class="eyebrow">THE WORLD HOLDS ITS BREATH</p><h1 style="font-size:41px">PAUSED</h1><p class="lore">The dead will wait. Briefly.</p><label class="graphics-label" for="graphics-quality">GRAPHICS QUALITY <select id="graphics-quality"><option value="low">Low · mobile friendly</option><option value="medium">Medium · balanced</option><option value="high">High · enhanced</option></select></label><button class="primary" id="resume">RESUME THE DESCENT</button><button class="secondary" id="quit">Return to title</button><button class="installcta" id="pause-export" type="button" hidden>EXPORT PROGRESS</button></div></div>
 <div class="install-guide hidden" id="installGuide" role="dialog" aria-modal="true" aria-labelledby="installTitle">
   <div class="install-panel">
     <img src="./icons/apple-touch-icon.png" alt="VESPER gothic app icon" />
@@ -132,6 +133,11 @@ h1{font-size:clamp(36px,9vw,58px);font-weight:normal;line-height:.98;letter-spac
 <script src="./inventory-ui.js"></script>
 <script src="./floors.js"></script>
 <script src="./enemy-system.js"></script>
+<script src="./character-state.js"></script>
+<script src="./campaign-state.js"></script>
+<script src="./command-coordinator.js"></script>
+<script src="./save-store.js"></script>
+<script src="./game-session.js"></script>
 <link rel="stylesheet" href="./bosses.css">
 <button id="boss-interact" hidden>Light candle · C</button>
 <div id="boss-status" hidden></div>
@@ -154,12 +160,12 @@ const story=window.VesperStory;
 const equipment=window.VesperEquipment;
 let runEquipment=equipment.createRun(),encounter=null,shieldDelay=0,fireCooldown=0;
 const equipmentStats=()=>equipment.stats(player,runEquipment);
-function reconcileEquipment(){player.shield=Math.min(player.shield||0,equipmentStats().shield);updateHUD();}
+function reconcileEquipment(){player.shield=Math.min(player.shield||0,equipmentStats().shield);if(session)persist('inventory',st=>VS.syncRun(st,{main:runEquipment.main,off:runEquipment.off,bag:runEquipment.bag.slice(),potions:st.run.potions}),{publish:r=>{if(session&&!r.ok)reconcileRun(session.state);}});updateHUD();}
 function dropEquipment(item,x,y){if(!item)return;const spec=equipment.definition(item);loots.push({x,y,kind:'equipment',item,color:equipment.rarities[spec.rarity].color,phase:0,pickAt:time+.4});}
-function checkEncounter(){if(!encounter||encounter.completed||!encounter.members.every(e=>e.dead))return;encounter.completed=true;const item=equipment.encounterReward(encounter,floor,rand);if(item)dropEquipment(item,stair.x,stair.y);story.emit('encounter-complete',{id:encounter.id,floor,kind:encounter.kind});}
+function checkEncounter(){if(!encounter||encounter.completed||!encounter.members.every(e=>e.dead))return;encounter.completed=true;const item=equipment.encounterReward(encounter,floor,rand);if(item&&session)persistReward(item);else if(item)dropEquipment(item,stair.x,stair.y);story.emit('encounter-complete',{id:encounter.id,floor,kind:encounter.kind});}
 function nearestEquipment(){return loots.filter(l=>l.kind==='equipment'&&!l.gone&&time>=(l.pickAt||0)&&dist(l.x,l.y,player.x,player.y)<1.6).sort((a,b)=>dist(a.x,a.y,player.x,player.y)-dist(b.x,b.y,player.x,player.y))[0];}
-function collectEquipment(){if(state!=='playing'||story.paused)return;const loot=nearestEquipment();if(!loot)return;const result=equipment.collect(runEquipment,loot.item);if(!result.ok){showToast('BACKPACK FULL',result.error);return;}loot.gone=true;showToast('RELIC ACQUIRED',[equipment.definition(loot.item).name,...equipment.modifiers(loot.item).map(equipment.describeModifier)].join(' · '),equipment.definition(loot.item).rarity);sfx('collect');updateHUD();}
-const inventoryUI=window.VesperInventoryUI.create({run:()=>runEquipment,base:()=>player,canOpen:()=>state==='playing'&&!story.paused,pause(){clearInput();state='inventory';updateAbilityHUD();$('descend').style.display='none';$('pickup-loot').hidden=true;},resume(){clearInput();last=0;if(document.hidden){state='paused';showOverlay('paused');}else state='playing';updateAbilityHUD();},changed:reconcileEquipment,drop(item){if(loots.filter(l=>l.kind==='equipment'&&!l.gone).length>=40)return false;for(const [dx,dy]of [[0,.8],[.8,0],[-.8,0],[0,-.8]]){if(free(player.x+dx,player.y+dy,.2)){dropEquipment(item,player.x+dx,player.y+dy);return true;}}return false;}});
+function collectEquipment(){if(state!=='playing'||story.paused)return;const loot=nearestEquipment();if(!loot)return;if(session&&loot.dropId)return collectSaved(loot);const result=equipment.collect(runEquipment,loot.item);if(!result.ok){showToast('BACKPACK FULL',result.error);return;}loot.gone=true;showToast('RELIC ACQUIRED',[equipment.definition(loot.item).name,...equipment.modifiers(loot.item).map(equipment.describeModifier)].join(' · '),equipment.definition(loot.item).rarity);sfx('collect');updateHUD();}
+const inventoryUI=window.VesperInventoryUI.create({run:()=>runEquipment,base:()=>player,canOpen:()=>state==='playing'&&!story.paused,pause(){clearInput();state='inventory';updateAbilityHUD();$('descend').style.display='none';$('pickup-loot').hidden=true;},resume(){clearInput();last=0;if(document.hidden){state='paused';showOverlay('paused');}else state='playing';updateAbilityHUD();},changed:reconcileEquipment,drop(item){if(loots.filter(l=>l.kind==='equipment'&&!l.gone).length>=40)return false;for(const [dx,dy]of [[0,.8],[.8,0],[-.8,0],[0,-.8]]){if(free(player.x+dx,player.y+dy,.2)){if(session)dropSaved(item,player.x+dx,player.y+dy);else dropEquipment(item,player.x+dx,player.y+dy);return true;}}return false;}});
 $('pickup-loot').addEventListener('click',collectEquipment);
 function clearInput(){key={};holdAttack=false;joy.x=joy.y=0;joy.id=null;$('knob').style.transform='translate(0,0)';$('attack').classList.remove('down');}
 story.connect({clearInput,playing:()=>state==='playing'});
@@ -171,10 +177,10 @@ function resize(){dpr=Math.min(devicePixelRatio||1,2);width=innerWidth;height=in
 window.addEventListener('resize',resize);resize();
 function sfx(type){if(!soundOn)return;try{audio=audio||new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();let f={strike:250,hit:150,kill:100,dash:440,collect:650,hurt:95,level:850,potion:500,door:180,shoot:300,execution:110,aegis:720,stunning:390}[type]||250;const osc=audio.createOscillator(),g=audio.createGain(),now=audio.currentTime;osc.type=type==='collect'||type==='level'?'sine':type==='hurt'?'sawtooth':'triangle';osc.frequency.setValueAtTime(f,now);osc.frequency.exponentialRampToValueAtTime(Math.max(40,f*(type==='level'?1.5:.52)),now+.14);g.gain.setValueAtTime(.065,now);g.gain.exponentialRampToValueAtTime(.001,now+.17);osc.connect(g);g.connect(audio.destination);osc.start(now);osc.stop(now+.18);}catch(e){}}
 function showToast(a,b='',rarity=''){const t=$('toast');t.innerHTML=a+(b?'<small>'+b+'</small>':'');t.dataset.rarity=rarity;t.classList.add('visible');messageTimeout=2.1;}
-function showOverlay(id){for(const name of ['home','upgrade','dead','paused','complete'])$(name).classList.toggle('hidden',name!==id);}
-function hideOverlays(){for(const name of ['home','upgrade','dead','paused','complete'])$(name).classList.add('hidden');}
+function showOverlay(id){for(const name of ['home','savefail','dead','paused','complete'])$(name).classList.toggle('hidden',name!==id);}
+function hideOverlays(){for(const name of ['home','savefail','dead','paused','complete'])$(name).classList.add('hidden');}
 function uiPlaying(on){if(!on)$('pickup-loot').hidden=true;$('abilities').style.display=on?'flex':'none';$('hud').style.display=on?'block':'none';$('obj').style.display=on?'block':'none';$('controls').style.display=on?'flex':'none';$('topbuttons').style.display=on?'flex':'none';$('descend').style.display='none';}
-function setState(s){state=s;if(s==='playing'){hideOverlays();uiPlaying(true);}else if(s==='title'){showOverlay('home');uiPlaying(false);}else {showOverlay(s==='upgrade'?'upgrade':s==='dead'?'dead':s==='complete'?'complete':'paused'); if(s==='dead'||s==='complete')uiPlaying(false);}updateAbilityHUD(); }
+function setState(s){state=s;if(s==='playing'){hideOverlays();uiPlaying(true);}else if(s==='title'){showOverlay('home');uiPlaying(false);}else {showOverlay(s==='savefail'?'savefail':s==='dead'?'dead':s==='complete'?'complete':'paused'); if(s==='dead'||s==='complete'||s==='savefail')uiPlaying(false);}updateAbilityHUD(); }
 function makeWorld(){return window.VesperFloors.generate(window.VesperFloors.get(floor),rand);}
 function free(x,y,r=.28){return world.walk(Math.floor(x-r),Math.floor(y-r))&&world.walk(Math.floor(x+r),Math.floor(y-r))&&world.walk(Math.floor(x-r),Math.floor(y+r))&&world.walk(Math.floor(x+r),Math.floor(y+r));}
 function moveEntity(a,dx,dy){if(free(a.x+dx,a.y,a.r)){a.x+=dx;a.y+=dy;return;}if(free(a.x+dx,a.y,a.r))a.x+=dx;if(free(a.x,a.y+dy,a.r))a.y+=dy;}
@@ -205,7 +211,7 @@ const abilities=abilitySystem.createRuntime({
   if(kind==='windup')sfx(definition.key==='1'?'execution':'stunning');else if(kind==='aegis-start')sfx('aegis');else if(kind==='aegis-break')sfx('hit');
  }
 });
-function activateAbility(id){const activated=abilities.activate(id);updateAbilityHUD();return activated;}
+function activateAbility(id){if(session)return activateSaved(id);const activated=abilities.activate(id);updateAbilityHUD();return activated;}
 function updateAbilityHUD(){
  const labels={execution:'STRIKE',aegis:'AEGIS',stunning:'STUN'};
  for(const [id,definition]of Object.entries(abilitySystem.definitions)){
@@ -221,8 +227,8 @@ function spawnEnemy(x,y,type){
  // Boss combat is owned by the reusable encounter runtime below.
  const config=world.config;const e={x,y,type,hp:Math.round(355*config.health),maxHp:Math.round(355*config.health),speed:1.1*(1+Math.min(.24,floor*.02)),dmg:21*config.damage,xp:90,r:.59,hit:0,attack:rand()*.9,shoot:1.2+rand(),phase:rand()*TAU,dead:false,aim:0};enemies.push(e);return e;
 }
-function newFloor(){
- abilities.cancelCast();combat.reset();reseed();const floorSeed=seed;world=makeWorld();enemies=[];bullets=[];particles=[];loots=[];flashes=[];texts=[];traps=[];torches=[];chests=[];visited=new Uint8Array(world.W*world.H);flow=new Int16Array(world.W*world.H);flow.fill(32000);
+function newFloor(savedSeed){
+ abilities.cancelCast();combat.reset();reseed();if(savedSeed!==undefined)seed=savedSeed>>>0;const floorSeed=seed;world=makeWorld();enemies=[];bullets=[];particles=[];loots=[];flashes=[];texts=[];traps=[];torches=[];chests=[];visited=new Uint8Array(world.W*world.H);flow=new Int16Array(world.W*world.H);flow.fill(32000);
  player.x=world.start.cx+.5;player.y=world.start.cy+.5;cam.x=player.x;cam.y=player.y;bossDead=false;floorKills=0;finalEncounter=[];encounterStarted=false;clearInput();$('pickup-loot').hidden=true;
  stair={x:world.exit.cx+.5,y:world.exit.cy+.5};
  world.rooms.forEach((r,i)=>{
@@ -248,7 +254,7 @@ function newFloor(){
  };
  if(config.final==='boss')addFinal(stair.x,stair.y-1.5,'boss');
  for(let i=0;i<config.guards;i++)addFinal(world.exit.x+2+i*2,world.exit.y+2,floor===1||floor===2?'guardian':'brute',config.final==='elite');
- areaManifest=identifyArea(floorSeed);
+ areaManifest=identifyArea(floorSeed);areaInstance=areaManifest.instanceId;
  encounter={id:'floor-'+floor,kind:config.final,members:finalEncounter,rewarded:false,completed:false};
  bosses.reset(enemies.find(e=>e.type==='boss')||null,world.exit,floor);
  story.setup(world,floor);
@@ -267,8 +273,12 @@ function updateFlow(){flow.fill(32000);const q=new Int16Array(world.W*world.H);l
 }
 function burst(x,y,color,count=11,power=2){for(let i=0;i<count;i++){let a=rnd(0,TAU),v=rnd(.4,power);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:rnd(.27,.65),max:.65,size:rnd(.035,.115),color});}if(particles.length>240)particles.splice(0,particles.length-240);}
 function flyText(x,y,s,color='#ffcb93',size=14){texts.push({x,y,t:0,txt:s,color,size});}
-function dropLoot(x,y,enemy){let count=enemy.type==='boss'?16:randi(1,3);for(let i=0;i<count;i++)loots.push({x:x+rnd(-.38,.38),y:y+rnd(-.38,.38),kind:'ash',value:enemy.type==='boss'?7:1,phase:rnd(0,TAU)});if(rand()<(enemy.type==='boss'?.9:equipment.tables.potionChance))loots.push({x,y,kind:'potion',phase:0});const item=enemy.finalGuard&&encounter?.kind==='boss'?null:equipment.roll('ordinary',floor,rand);if(item)dropEquipment(item,x,y);}
-function killEnemy(e){if(e.dead)return;e.dead=true;e.state='dead';combat.cancel(e);e.deadAt=time;if(!e.minion){floorKills++;kills++;player.xp+=e.xp;dropLoot(e.x,e.y,e);}burst(e.x,e.y,e.type==='wraith'?'#81a9b2':'#a54459',e.type==='boss'?44:14,3.2);sfx('kill');screenShake=Math.max(screenShake,e.type==='boss'?.44:.13);if(e.type==='boss'){bossDead=true;story.emit('boss-defeated',{floor,x:e.x,y:e.y});bosses.defeat(e);}checkEncounter();if(!e.minion&&player.leech&&rand()<player.leech)heal(5,false);if(floorKills>=needed&&finalEncounter.every(enemy=>enemy.dead)&&!portalReady){portalReady=true;story.emit('seal-open',{floor});showToast('THE SEAL IS BROKEN','Find the glowing stairway');sfx('door');}updateHUD();}
+// Loot is resolved as a list (same random draws, same order), then placed directly or committed with the kill/chest.
+function lootDrops(x,y,enemy){const out=[];let count=enemy.type==='boss'?16:randi(1,3);for(let i=0;i<count;i++)out.push({kind:'ash',amount:enemy.type==='boss'?7:1,x:x+rnd(-.38,.38),y:y+rnd(-.38,.38),phase:rnd(0,TAU)});if(rand()<(enemy.type==='boss'?.9:equipment.tables.potionChance))out.push({kind:'potion',amount:1,x,y});const item=enemy.finalGuard&&encounter?.kind==='boss'?null:equipment.roll('ordinary',floor,rand);if(item)out.push({kind:'item',item,x,y});return out;}
+function chestDrops(c){const out=[],item=equipment.roll('chest',floor,rand);if(item)out.push({kind:'item',item,x:c.x,y:c.y});let n=randi(9,18);for(let i=0;i<n;i++)out.push({kind:'ash',amount:1,x:c.x+rnd(-.7,.7),y:c.y+rnd(-.7,.7),phase:rnd(0,TAU)});if(rand()<.40)out.push({kind:'potion',amount:1,x:c.x,y:c.y});return out;}
+function placeDrop(d){if(d.kind==='item')dropEquipment(d.item,d.x,d.y);else if(d.kind==='ash')loots.push({x:d.x,y:d.y,kind:'ash',value:d.amount,phase:d.phase});else loots.push({x:d.x,y:d.y,kind:'potion',phase:0});}
+function dropLoot(x,y,enemy){for(const d of lootDrops(x,y,enemy))placeDrop(d);}
+function killEnemy(e){if(e.dead)return;e.dead=true;e.state='dead';combat.cancel(e);e.deadAt=time;if(!e.minion){floorKills++;kills++;if(session){if(e.spawnId)persistKill(e);}else{player.xp+=e.xp;dropLoot(e.x,e.y,e);}}burst(e.x,e.y,e.type==='wraith'?'#81a9b2':'#a54459',e.type==='boss'?44:14,3.2);sfx('kill');screenShake=Math.max(screenShake,e.type==='boss'?.44:.13);if(e.type==='boss'){bossDead=true;story.emit('boss-defeated',{floor,x:e.x,y:e.y});bosses.defeat(e);}checkEncounter();if(!e.minion&&player.leech&&rand()<player.leech)heal(5,false);if(floorKills>=needed&&finalEncounter.every(enemy=>enemy.dead)&&!portalReady){portalReady=true;if(session)completeHere();story.emit('seal-open',{floor});showToast('THE SEAL IS BROKEN','Find the glowing stairway');sfx('door');}updateHUD();}
 function damageEnemy(e,damage,crit=false,options={}){if(e.dead)return;damage=bosses.modifyDamage(e,damage);if(damage<=0)return {health:0,shield:0};const result=enemySystem.damage(e,damage);e.hit=.19;if(options.interrupt!==false){if(result.health>0)combat.stun(e);else if(e.shield===0)combat.stun(e,.4);}burst(e.x,e.y,e.type==='wraith'?'#9ec4cc':'#ae354f',crit?12:7,1.8);flyText(e.x,e.y-.35,(result.shield?'SHIELD ':crit?'✦ ':'')+Math.round(result.shield||result.health),result.shield?'#69b5ff':crit?'#ffdb8a':'#f2bdb0',crit?18:14);if(e.hp<=0)killEnemy(e);else sfx('hit');return result;}
 function attemptAttack(){
  if(story.paused||state!=='playing'||attackTimer>0||abilities.cast)return;
@@ -296,27 +306,13 @@ function resolveMelee({gear,facing,range,arc,multiplier=1,color,ability=null,stu
 function hurt(amount,fromX,fromY,kind='physical'){if(invul>0||dashTime>0||state!=='playing')return;const gear=equipmentStats();amount*=1-gear.reduction;if(kind==='poison')amount*=1-gear.poisonReduction;const aegis=abilities.absorb(amount);amount=aegis.remaining;const blocked=Math.min(player.shield||0,amount);player.shield=Math.max(0,(player.shield||0)-blocked);amount-=blocked;shieldDelay=equipment.balance.shieldDelay;player.hp-=amount;invul=.64;damageOverlay=.48;screenShake=.32;sfx('hurt');burst(player.x,player.y,'#d34f67',12,2.2);flyText(player.x,player.y-.5,(amount>0?'-'+Math.ceil(amount):'BLOCK '+Math.ceil(blocked+aegis.blocked)),amount>0?'#ff727e':'#69b5ff',16);
  if(fromX!==undefined){const a=Math.atan2(player.y-fromY,player.x-fromX);moveEntity(player,Math.cos(a)*.3,Math.sin(a)*.3);}if(player.hp<=0){player.hp=0;die();}updateHUD();}
 function heal(amount,play=true){if(player.hp>=player.maxHp)return false;player.hp=Math.min(player.maxHp,player.hp+amount);flyText(player.x,player.y-.7,'+'+Math.round(amount),'#b4e6be');burst(player.x,player.y,'#85c5a5',15,1.4);if(play)sfx('potion');updateHUD();return true;}
-function drink(){if(story.paused||state!=='playing')return;const amount=equipment.usePotion(runEquipment,player.hp,player.maxHp);if(amount)heal(amount);}
+function drink(){if(story.paused||state!=='playing')return;if(session)return drinkSaved();const amount=equipment.usePotion(runEquipment,player.hp,player.maxHp);if(amount)heal(amount);}
 function dash(){if(story.paused||state!=='playing'||dashTimer>0)return;abilities.cancelCast();let mx=joy.x+(key['d']||key['ArrowRight']?1:0)-(key['a']||key['ArrowLeft']?1:0),my=joy.y+(key['s']||key['ArrowDown']?1:0)-(key['w']||key['ArrowUp']?1:0);if(Math.hypot(mx,my)<.2){mx=Math.cos(player.facing);my=Math.sin(player.facing);}const l=Math.hypot(mx,my);player.dashX=mx/l;player.dashY=my/l;dashTime=.19;dashTimer=player.dashCd;invul=Math.max(invul,.29);sfx('dash');burst(player.x,player.y,'#c1b4ed',12,2);}
-const powers=[
- {name:'Blood-forged Blade',glyph:'⚔',desc:'Your strikes deal 25% more damage.',do:()=>player.damage*=1.25},
- {name:'Swift as Shadow',glyph:'↝',desc:'Move 15% faster through the crypt.',do:()=>player.speed*=1.15},
- {name:'Heart of Iron',glyph:'♡',desc:'Gain 30 maximum health and recover 35.',do:()=>{player.maxHp+=30;player.hp=Math.min(player.maxHp,player.hp+35)}},
- {name:'Long Reaper',glyph:'☾',desc:'Your blade reaches 20% farther.',do:()=>player.range*=1.2},
- {name:'Whirlwind',glyph:'✷',desc:'Broaden your attack into a wider arc.',do:()=>player.arc=Math.min(2.8,player.arc+.31)},
- {name:'Quickened Steel',glyph:'❖',desc:'Attack 17% faster.',do:()=>player.attackRate=Math.max(.16,player.attackRate*.83)},
- {name:'Veilstep',glyph:'✧',desc:'Dash recharges 20% faster.',do:()=>player.dashCd=Math.max(.8,player.dashCd*.8)},
- {name:'Crimson Pact',glyph:'♱',desc:'Each kill has a 22% chance to heal 5 HP.',do:()=>player.leech=Math.min(1,player.leech+.22)},
- {name:'Executioner',glyph:'✦',desc:'Gain 12% critical strike chance.',do:()=>player.crit=Math.min(.7,player.crit+.12)},
- {name:'Restored Grace',glyph:'✚',desc:'Restore health and gain a healing potion.',do:()=>{player.potions=Math.min(equipment.balance.potions,player.potions+1);player.hp=Math.min(player.maxHp,player.hp+60)}}
-];
-function upgrade(){state='upgrade';showOverlay('upgrade');let opts=[];while(opts.length<3){const p=powers[randi(0,powers.length-1)];if(!opts.includes(p))opts.push(p);}
- $('upgrades').innerHTML=opts.map((p,i)=>`<button class="upgrade-card" data-p="${i}"><div class="upgrade-glyph">${p.glyph}</div><div><strong>${p.name}</strong><small>${p.desc}</small></div></button>`).join('');
- $('upgrades').querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{opts[+btn.dataset.p].do();sfx('level');updateHUD();setState('playing');}, {once:true}));
-}
-function gainLevel(){if(state!=='playing')return;if(player.xp>=player.xpNeeded){player.xp-=player.xpNeeded;level++;player.xpNeeded=Math.round(player.xpNeeded*1.24+16);upgrade();updateHUD();}}
-function die(){if(state==='dead')return;$('boss-interact').hidden=true;$('boss-status').hidden=true;abilities.reset();state='dead';holdAttack=false;const best=Number(store.get('vesperBest')||0);if(kills>best)store.set('vesperBest',String(kills));$('deathstats').innerHTML=`Crypt reached: <b>${roman(floor)}</b><br>Souls reaped: <b>${kills}</b><br>Ash collected: <b>${ash}</b><br>Best run: <b>${Math.max(best,kills)} souls</b>`;const msgs=['Even the strongest candles burn out.','The dead are patient.','The cathedral remembers your name.'];$('deathtag').textContent=msgs[randi(0,msgs.length-1)];setState('dead');story.emit('player-died',{floor});}
-function nextFloor(){if(story.paused||!portalReady||!portalNear||state!=='playing')return;if(!story.canLeave(floor))return;story.emit('floor-left',{floor});if(floor===window.VesperFloors.floors.length){clearInput();setState('complete');story.emit('run-complete',{floor,kills});return;}floor++;player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.2));player.potions=Math.min(equipment.balance.potions,player.potions+1);dashTime=0;invul=1;newFloor();sfx('door');}
+// Deterministic level growth (SPEC section 8) replaces the random blessing choice: +5 maximum health and +1 damage per level.
+// A saved character levels through committed XP (syncProgress); this covers the unsaved runtime only.
+function gainLevel(){if(state!=='playing'||session)return;let gained=0;while(player.xp>=player.xpNeeded){player.xp-=player.xpNeeded;level++;gained++;player.xpNeeded=Math.round(player.xpNeeded*1.24+16);player.maxHp+=5;player.damage+=1;}if(gained){sfx('level');showToast('LEVEL '+level,'Strength and vitality rise');updateHUD();}}
+function die(){if(state==='dead')return;const lastSnapshot=runtimeSnapshot();$('boss-interact').hidden=true;$('boss-status').hidden=true;abilities.reset();state='dead';holdAttack=false;const best=Number(store.get('vesperBest')||0);if(kills>best)store.set('vesperBest',String(kills));$('deathstats').innerHTML=`Crypt reached: <b>${roman(floor)}</b><br>Souls reaped: <b>${kills}</b><br>Ash collected: <b>${ash}</b><br>Best run: <b>${Math.max(best,kills)} souls</b>`;const msgs=['Even the strongest candles burn out.','The dead are patient.','The cathedral remembers your name.'];$('deathtag').textContent=msgs[randi(0,msgs.length-1)];$('retry-note').textContent=session?'Return to the floor entrance · XP, items and ash are kept':'New crypt · New enemies · Another chance';setState('dead');if(session)recordDeathSaved(lastSnapshot);story.emit('player-died',{floor});}
+function nextFloor(){if(story.paused||!portalReady||!portalNear||state!=='playing')return;if(!story.canLeave(floor))return;story.emit('floor-left',{floor});if(floor===window.VesperFloors.floors.length){clearInput();setState('complete');story.emit('run-complete',{floor,kills});return;}floor++;if(session)return travelSaved();player.hp=Math.min(player.maxHp,player.hp+Math.round(player.maxHp*.2));player.potions=Math.min(equipment.balance.potions,player.potions+1);dashTime=0;invul=1;newFloor();sfx('door');}
 function updateHUD(){if(!player)return;$('hpbar').style.width=(100*player.hp/player.maxHp)+'%';$('xpbar').style.width=(100*player.xp/player.xpNeeded)+'%';$('hptext').textContent=Math.ceil(player.hp)+' / '+Math.ceil(player.maxHp)+(combat.statuses.some(s=>s.kind==='poison')?' · POISON':'');$('cointext').textContent='✦ '+ash+' ASH';$('lvlabel').textContent='LVL '+level;$('floorlabel').textContent='FLOOR '+floor+' / 5 · '+world.config.name;$('potionlabel').textContent=player.potions+' / 3';const gear=equipmentStats();$('player-shield').textContent=gear.shield?'SHIELD '+Math.ceil(player.shield||0)+' / '+gear.shield:'';
  const remaining=finalEncounter.filter(e=>!e.dead).length;
  if(!portalReady)$('obj').textContent=(remaining?(world.config.final==='elite'?'ELITE GUARDIANS':'CHAMBER GUARDIANS')+' · '+remaining+' REMAIN · ':'')+'SEAL · '+Math.max(0,needed-floorKills)+' SOULS';
@@ -358,12 +354,13 @@ function tick(dt){updateBossHUD();if(state==='cinematic'){if(!document.hidden)bo
  bullets=bullets.filter(b=>b.ttl>0);
  for(const l of loots){l.phase+=dt*3;if(l.kind==='equipment')continue;if(l.kind==='potion'&&player.potions>=equipment.balance.potions)continue;
   if(dist(l.x,l.y,player.x,player.y)<1.05){const a=Math.atan2(player.y-l.y,player.x-l.x);l.x+=Math.cos(a)*dt*5;l.y+=Math.sin(a)*dt*5;}
-  if(dist(l.x,l.y,player.x,player.y)<.42){if(l.kind==='potion'){if(!equipment.addPotion(runEquipment))continue;flyText(l.x,l.y,'POTION','#ef8585');}else ash+=l.value;sfx('collect');l.gone=true;updateHUD();}}
+  if(dist(l.x,l.y,player.x,player.y)<.42){if(l.dropId){if(!l.pending&&time>=(l.retryAt||0))pickSaved(l);continue;}if(l.kind==='potion'){if(!equipment.addPotion(runEquipment))continue;flyText(l.x,l.y,'POTION','#ef8585');}else ash+=l.value;sfx('collect');l.gone=true;updateHUD();}}
  loots=loots.filter(l=>!l.gone);
  const nearbyLoot=nearestEquipment();$('pickup-loot').hidden=!nearbyLoot;if(nearbyLoot){$('pickup-loot').textContent='Collect '+equipment.definition(nearbyLoot.item).name+(equipment.modifiers(nearbyLoot.item).length?' ✦'+equipment.modifiers(nearbyLoot.item).length:'')+' · R';$('pickup-loot').style.color=nearbyLoot.color;}
- for(const c of chests){if(!c.opened&&dist(c.x,c.y,player.x,player.y)<.8){c.opened=true;const item=equipment.roll('chest',floor,rand);if(item)dropEquipment(item,c.x,c.y);let n=randi(9,18);for(let i=0;i<n;i++)loots.push({x:c.x+rnd(-.7,.7),y:c.y+rnd(-.7,.7),kind:'ash',value:1,phase:rnd(0,TAU)});if(rand()<.40)loots.push({x:c.x,y:c.y,kind:'potion',phase:0});burst(c.x,c.y,'#eec58a',20,1.7);sfx('door');showToast('A FORGOTTEN RELIQUARY','The ashes are yours');}}
+ for(const c of chests){if(!c.opened&&dist(c.x,c.y,player.x,player.y)<.8){c.opened=true;const drops=chestDrops(c);if(session){if(c.chestId)persistChest(c,drops);}else drops.forEach(placeDrop);burst(c.x,c.y,'#eec58a',20,1.7);sfx('door');showToast('A FORGOTTEN RELIQUARY','The ashes are yours');}}
  for(const tr of traps){if(Math.sin(time*2.4+tr.phase)>.12&&dist(tr.x,tr.y,player.x,player.y)<.40&&time-tr.last>1.2){tr.last=time;hurt(10,tr.x,tr.y);}}
  if(player.xp>=player.xpNeeded)gainLevel();
+ if(session&&time>=autosaveAt&&!session.pending){autosaveAt=time+1;persist('snapshot',st=>({ok:true,applied:false,state:st}));}
  portalNear=portalReady&&dist(player.x,player.y,stair.x,stair.y)<1.35;$('descend').style.display=portalNear?'block':'none';$('dashlabel').textContent=dashTimer>0?dashTimer.toFixed(1):'DASH';
  cam.x=lerp(cam.x,player.x,Math.min(1,dt*5));cam.y=lerp(cam.y,player.y,Math.min(1,dt*5));
 }
@@ -477,22 +474,141 @@ stick.addEventListener('pointerdown',e=>{e.preventDefault();joy.id=e.pointerId;s
 const attackBtn=$('attack');attackBtn.addEventListener('pointerdown',e=>{e.preventDefault();attackBtn.setPointerCapture(e.pointerId);holdAttack=true;attackBtn.classList.add('down');attemptAttack();});for(const evt of ['pointerup','pointercancel','lostpointercapture'])attackBtn.addEventListener(evt,()=>{holdAttack=false;attackBtn.classList.remove('down');});
 $('dash').addEventListener('pointerdown',e=>{e.preventDefault();dash();});$('potion').addEventListener('pointerdown',e=>{e.preventDefault();drink();});
 for(const id of Object.keys(abilitySystem.definitions))$('ability-'+id).addEventListener('pointerdown',e=>{e.preventDefault();activateAbility(id);});
-const dirkeys=['1','2','3','w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Shift','q','Q','j','J','k','K','e','E'];addEventListener('keydown',e=>{if(state==='cinematic'){if(e.key==='Escape'){e.preventDefault();bosses.skip();}return;}if(story.paused||e.isComposing||e.keyCode===229)return;if(dirkeys.includes(e.key))e.preventDefault();key[e.key]=true;if(e.repeat)return;if(['1','2','3'].includes(e.key))activateAbility({'1':'execution','2':'aegis','3':'stunning'}[e.key]);if(e.key==='Shift'||e.key==='k'||e.key==='K')dash();if(e.key==='q'||e.key==='Q')drink();if(e.key==='e'||e.key==='E')nextFloor();if(e.key==='r'||e.key==='R')collectEquipment();if((e.key==='c'||e.key==='C')&&state==='playing')bosses.interact();if(e.key==='Escape'||e.key==='p'||e.key==='P')togglePause();if(state==='title'&&e.key==='Enter')story.opening(startGame);});addEventListener('keyup',e=>{key[e.key]=false;});
+// ---- Persistent character (ARPG Phase 2 PR5): New Character, Continue, checkpoint respawn and once-only rewards.
+// The saved character is authoritative. The simulation above is unchanged; these adapters commit what it reports through
+// the session (game-session.js) and publish committed results back. Nothing is acknowledged before it is saved.
+const CS=window.VesperCharacter,CG=window.VesperCampaign,CK=window.VesperCommands,SS=window.VesperSaveStore,VS=window.VesperSession;
+let session=null,saveStore=null,saveId=null,saveEpoch=0,trial=false,leaseTimer=null,autosaveAt=0,areaInstance=null,saveBusy=false,saveResume=null,titleMode='new',confirmNew=false;
+function uuid(){if(crypto.randomUUID)return crypto.randomUUID();const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;const h=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);}
+// The writer lease belongs to this tab: a reload of the same tab reuses its ID (sessionStorage) and so its own lease, instead
+// of being locked out until it expires. A duplicated tab sharing the ID is still stopped by the revision check (stale).
+function tabSessionId(){let id=null;try{id=sessionStorage.getItem('vesperTabSession');}catch{}if(!/^tab-[0-9a-f]{8}$/.test(id||'')){id='tab-'+uuid().slice(0,8);try{sessionStorage.setItem('vesperTabSession',id);}catch{}}return id;}
+// `publish` applies a committed result to the runtime synchronously, before the next queued command samples the runtime
+// (game-session.js); it is ignored if this session has since ended or been replaced.
+function persist(name,fn,options={}){if(!session)return Promise.resolve({ok:false,code:'no-session'});const owner=session,publish=options.publish;return session.enqueue(name,fn,{tap:!!options.tap,publish:publish?r=>{if(session===owner)publish(r);}:null});}
+const keepState=st=>({ok:true,applied:false,state:st});
+// Noncritical runtime values folded into every command and the one-second autosave; never after death (see die()).
+function runtimeSnapshot(){if(!player||state==='dead'||state==='title')return null;return {hp:player.hp,shield:player.shield||0,cooldowns:{...abilities.cooldowns},attackRemaining:attackTimer,dodgeRemaining:dashTimer,firePassiveRemaining:fireCooldown,shieldDelay};}
+function showSaveStatus(){const el=$('save-status');if(!session){el.textContent='';el.dataset.state='';return;}const status=session.status;el.dataset.state=trial?'trial':status;
+ el.textContent=trial?'UNSAVED TRIAL':status==='saving'?'SAVING…':status==='saved'?'✓ SAVED':status==='stale'?'NOT SAVED · OTHER TAB':'NOT SAVED';
+ if(status==='failed'||status==='stale')saveFailed();}
+// A failed save pauses play with an honest message: retry, export the unsaved progress, or leave without it.
+function saveFailed(){if(!session||state==='title')return;if(state!=='savefail')saveResume=state;clearInput();abilities.cancelCast();$('savefail-text').textContent=CK.statusLabel(session.status);$('save-retry').hidden=session.status==='stale';state='savefail';showOverlay('savefail');uiPlaying(false);updateAbilityHUD();}
+function download(text,label){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.href=url;a.download='vesper-character-'+label+'-'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function lootFor(d){if(d.kind==='item'){const spec=equipment.definition(d.item);return {x:d.x,y:d.y,kind:'equipment',item:d.item,color:equipment.rarities[spec.rarity].color,phase:0,pickAt:time+.4,dropId:d.dropId};}return {x:d.x,y:d.y,kind:d.kind,value:d.amount,phase:(d.x*3.7+d.y*1.3)%TAU,dropId:d.dropId};}
+// Ground loot mirrors the committed drops of the current area: new drops appear, picked ones disappear.
+function syncLoots(s){const inst=s.world.instances[areaInstance];if(!inst)return;const ids=new Set(inst.groundDrops.map(d=>d.dropId));loots=loots.filter(l=>!l.dropId||ids.has(l.dropId));const have=new Set(loots.map(l=>l.dropId));for(const d of inst.groundDrops)if(!have.has(d.dropId))loots.push(lootFor(d));}
+// XP, levels, ash and potions always come from the committed character; level growth is applied as a delta.
+function syncProgress(s){const c=s.character,gained=c.level-level;if(gained>0){player.maxHp+=gained*CS.progression.hpPerLevel;player.damage+=gained*CS.progression.damagePerLevel;sfx('level');showToast('LEVEL '+c.level,gained+' skill point'+(gained>1?'s':'')+' banked · '+c.unspentSkillPoints+' unspent');}
+ level=c.level;player.xp=c.xpIntoLevel;player.xpNeeded=CS.levelFor(c.lifetimeXp).xpNeeded||Infinity;ash=c.ash;runEquipment.potions=s.run.potions;updateHUD();}
+// Keep the runtime loadout holding exactly the committed items; if an item is missing, adopt the committed arrangement.
+function reconcileRun(s){const owned=new Map([s.run.main,s.run.off,...s.run.bag].filter(Boolean).map(i=>[i.id,i])),keep=i=>i&&owned.has(i.id)?owned.get(i.id):null;
+ runEquipment.main=keep(runEquipment.main);runEquipment.off=keep(runEquipment.off);runEquipment.bag=runEquipment.bag.map(keep);
+ const held=new Set([runEquipment.main,runEquipment.off,...runEquipment.bag].filter(Boolean).map(i=>i.id));
+ if([...owned.keys()].some(id=>!held.has(id))){runEquipment.main=s.run.main;runEquipment.off=s.run.off;runEquipment.bag=s.run.bag.slice();}
+ runEquipment.potions=s.run.potions;player.shield=Math.min(player.shield||0,equipmentStats().shield);updateHUD();}
+const rewardKey=()=>CG.campaignRewardKey(CS.locations[floor-1],'final','item');
+function persistKill(e){const instanceId=areaInstance,spawnId=e.spawnId,xp=e.xp,drops=lootDrops(e.x,e.y,e).map(({phase,...d})=>d);persist('kill',st=>CG.recordKill(st,{instanceId,spawnId,xp,drops}),{publish:r=>{if(r.ok&&session){syncLoots(r.state);syncProgress(r.state);}}});}
+function persistChest(c,drops){const instanceId=areaInstance,chestId=c.chestId;persist('chest',st=>CG.openChest(st,{instanceId,chestId,drops:drops.map(({phase,...d})=>d)}),{publish:r=>{if(r.ok&&session)syncLoots(r.state);}});}
+function persistReward(item){const instanceId=areaInstance,key=rewardKey(),x=stair.x,y=stair.y;persist('reward',st=>CG.grantReward(st,{rewardKey:key,item,instanceId,x,y}),{publish:r=>{if(r.ok&&session)syncLoots(r.state);}});}
+function completeHere(){const locationId=CS.locations[floor-1];persist('complete',st=>CG.completeArea(st,{locationId}));}
+function pickSaved(l){l.pending=true;const instanceId=areaInstance;persist('pickup',st=>CG.pickUp(st,{instanceId,dropId:l.dropId}),{publish:r=>{l.pending=false;if(!session)return;if(!r.ok){l.retryAt=time+1;return;}if(r.applied){sfx('collect');if(l.kind==='potion')flyText(l.x,l.y,'POTION','#ef8585');}syncLoots(r.state);syncProgress(r.state);}});}
+function collectSaved(loot){if(loot.pending)return;if(!runEquipment.bag.includes(null)){showToast('BACKPACK FULL','Drop or equip something first');return;}loot.pending=true;const instanceId=areaInstance;
+ persist('pickup',st=>CG.pickUp(st,{instanceId,dropId:loot.dropId}),{publish:r=>{loot.pending=false;if(!session)return;if(!r.ok){if(r.code==='bag-full')showToast('BACKPACK FULL',r.message);return;}reconcileRun(r.state);syncLoots(r.state);if(r.applied){showToast('RELIC ACQUIRED',[equipment.definition(loot.item).name,...equipment.modifiers(loot.item).map(equipment.describeModifier)].join(' · '),equipment.definition(loot.item).rarity);sfx('collect');}}});}
+function dropSaved(item,x,y){const instanceId=areaInstance,itemId=item.id;persist('drop',st=>CG.dropItem(st,{instanceId,itemId,x,y}),{publish:r=>{if(!session)return;reconcileRun(session.state);if(r.ok)syncLoots(r.state);}});}
+// Potion and ability taps commit before they take effect; a second tap while saving is refused (no double spend).
+function drinkSaved(){if(player.potions<=0||player.hp>=player.maxHp)return;persist('potion',st=>CK.drinkPotion(st),{tap:true,publish:r=>{if(!r.ok||!session)return;runEquipment.potions=r.state.run.potions;heal(r.healed);}});}
+function activateSaved(id){if(!abilities.available(id))return false;persist('ability:'+id,st=>CK.reserveAbility(st,id),{tap:true,publish:r=>{if(!r.ok||!session)return;
+ // The cooldown is already committed: if the cast can no longer start, the runtime still honours the reservation.
+ if(!abilities.activate(id))abilities.cooldowns[id]=abilitySystem.definitions[id].cooldown;updateAbilityHUD();}});return true;}
+function recordDeathSaved(snap){const deathId='death-'+uuid();persist('death',st=>{const a=VS.applySnapshot(st,snap);return a.ok?CK.recordDeath(a.state,deathId):a;});}
+function travelSaved(){dashTime=0;invul=1;newFloor();sfx('door');const manifest=areaManifest;persist('arrive',st=>VS.arrive(st,{manifest}),{publish:r=>{if(!r.ok||!session){if(session&&!session.halted)showToast('TRAVEL NOT SAVED',r.message||r.code);return;}if(r.recovered)player.hp=Math.min(player.maxHp,player.hp+r.recovered.hp);syncProgress(r.state);}});}
+// Rebuild the current area from its saved seed: killed enemies stay dead, opened chests stay open, ground loot returns.
+function restoreArea(s){const plan=VS.restorePlan(s,areaManifest);if(!plan.ok){showToast('AREA NOT RESTORED',plan.message);return;}
+ for(const e of enemies)if(plan.killed.has(e.spawnId)){e.dead=true;e.state='dead';e.hp=0;e.deadAt=-1e9;}
+ floorKills=[...plan.killed].length;for(const c of chests)if(plan.opened.has(c.chestId))c.opened=true;loots=plan.drops.map(lootFor);
+ const boss=enemies.find(e=>e.type==='boss');if(boss?.dead){bossDead=true;bosses.reset(null,world.exit,floor);story.emit('boss-defeated',{floor,x:boss.x,y:boss.y});}
+ encounter.rewarded=Object.hasOwn(s.campaign.rewardLedger,rewardKey());checkEncounter();
+ if(floorKills>=needed&&finalEncounter.every(e=>e.dead)){portalReady=true;completeHere();story.emit('seal-open',{floor});}updateHUD();}
+// Enter play from committed state: derived stats, resources, cooldowns and timers as saved, at the area's entrance.
+function beginSaved(s){$('boss-sequence').hidden=true;abilities.reset();const c=s.character,st=s.stats;
+ runEquipment={main:s.run.main,off:s.run.off,bag:s.run.bag.slice(),potions:s.run.potions};level=c.level;ash=c.ash;kills=Object.values(s.world.instances).reduce((n,i)=>n+i.killed.length,0);
+ player={x:0,y:0,r:.26,hp:c.resources.hp,maxHp:st.maxHp,xp:c.xpIntoLevel,xpNeeded:CS.levelFor(c.lifetimeXp).xpNeeded||Infinity,damage:st.damage,speed:st.speed,range:st.range,arc:st.arc,attackRate:st.attackRate,dashCd:st.dashCd,get potions(){return runEquipment.potions},set potions(n){runEquipment.potions=clamp(Math.floor(n),0,equipment.balance.potions)},shield:c.resources.equipmentShield,leech:0,crit:st.crit,facing:-Math.PI/2,walk:0};
+ for(const id of Object.keys(abilities.cooldowns))abilities.cooldowns[id]=c.timers.abilityCooldowns[id];
+ attackTimer=c.timers.attackRemaining;dashTimer=c.timers.dodgeRemaining;fireCooldown=c.timers.firePassiveRemaining;shieldDelay=c.timers.shieldDelay;invul=1;dashTime=0;holdAttack=false;joy.x=joy.y=0;
+ const area=VS.currentArea(s);floor=area.floor;newFloor(area.seed===null?undefined:area.seed);
+ if(area.seed===null){const manifest=areaManifest;persist('arrive',st2=>VS.arrive(st2,{manifest}),{publish:r=>{if(r.ok&&session)syncProgress(r.state);}});}else restoreArea(s);
+ autosaveAt=time+1;setState('playing');showSaveStatus();story.emit('run-start');sfx('door');}
+async function openSession(id,epoch,envelope,isTrial=false){
+ trial=isTrial;saveId=id;saveEpoch=epoch;session=VS.createSession({store:saveStore,characterId:id,epoch,envelope,snapshot:runtimeSnapshot,onStatus:showSaveStatus});
+ clearInterval(leaseTimer);leaseTimer=setInterval(()=>{if(session&&!session.halted)saveStore.renewLease(id,epoch);},5000);
+ let s=session.state;
+ if(s.world.lifecycle.mode==='dead-pending-respawn'){const r=await persist('respawn',st=>VS.respawn(st,{respawnId:'respawn-'+st.world.lifecycle.deathId}),{tap:true});if(!r.ok)return;s=r.state;}
+ beginSaved(s);}
+function respawnHere(){if(!session)return startGame();persist('respawn',st=>VS.respawn(st,{respawnId:'respawn-'+st.world.lifecycle.deathId}),{tap:true,publish:r=>{if(!session)return;if(r.ok||r.code==='alive')beginSaved(session.state);}});}
+function endSession(){if(session&&saveStore&&!trial)saveStore.releaseLease(saveId,saveEpoch);session=null;trial=false;clearInterval(leaseTimer);showSaveStatus();}
+async function quitToTitle(save=true){if(session&&save&&!session.halted)await persist('snapshot',keepState);endSession();setState('title');refreshTitle();}
+async function newCharacter(isTrial=false){
+ if(isTrial||!saveStore)saveStore=SS.createStore({adapter:SS.memoryAdapter(),sessionId:'trial'});
+ const id=uuid(),lease=await saveStore.acquireLease(id);if(!lease.ok)return titleNote('Could not start a character ('+lease.code+').');
+ const made=await saveStore.create(id,CS.dehydrate(CS.create()),lease.epoch);if(!made.ok)return titleNote('Could not create the character ('+made.code+'). Nothing was overwritten.');
+ await openSession(id,lease.epoch,made.envelope,isTrial);}
+function titleNote(text){$('save-note').textContent=text;setState('title');}
+// Recovery: compare backups newest first and restore one explicitly; corrupt or newer-version records are only exported.
+function showRecovery(options){const box=$('recovery');box.replaceChildren();box.hidden=false;
+ for(const b of options.backups){const line=document.createElement('div');line.textContent='Revision '+b.revision+(b.pinned?' (pinned)':'')+' · '+String(b.savedAt||'').slice(0,16).replace('T',' ')+' · '+(b.status==='valid'?'LVL '+b.summary.level+' · '+b.summary.ash+' ash · '+b.summary.items+' items':b.status.toUpperCase());box.append(line);
+  if(b.status!=='valid')continue;const button=document.createElement('button');button.className='installcta';button.type='button';button.textContent=(b.key===options.recommended?'RESTORE (RECOMMENDED) · REVISION ':'RESTORE REVISION ')+b.revision;
+  button.addEventListener('click',async()=>{if(saveBusy)return;saveBusy=true;try{const lease=await saveStore.acquireLease(saveId);if(!lease.ok){titleNote(lease.code==='locked'?'This character is open in another tab.':'Cannot restore ('+lease.code+').');return;}const r=await saveStore.restoreBackup(saveId,b.key,lease.epoch,{expectedRevision:options.expectedRevision});await saveStore.releaseLease(saveId,lease.epoch);$('save-note').textContent=r.ok?'Restored revision '+b.revision+'.':'Not restored ('+r.code+'); storage is unchanged.';}finally{saveBusy=false;}if($('save-note').textContent.startsWith('Restored'))refreshTitle(true);});box.append(button);}}
+// Title: read what is stored without creating anything. Storage that cannot be used offers only an unsaved trial.
+async function refreshTitle(keepNote=false){
+ const note=$('save-note');$('continue').hidden=true;$('recovery').hidden=true;$('save-export').hidden=true;$('start').textContent='BEGIN YOUR STORY';titleMode='new';confirmNew=false;if(!keepNote)note.textContent='';
+ if(!SS||!VS)return;
+ try{
+  if(!saveStore||saveStore.sessionId==='trial')saveStore=SS.createStore({adapter:SS.indexedDBAdapter(),sessionId:tabSessionId()});
+  const active=await saveStore.activeCharacter();
+  if(!active.ok){if(active.code!=='missing')throw active;if(!keepNote)note.textContent='No saved character in this browser yet.';return;}
+  saveId=active.characterId;const options=await saveStore.recoveryOptions(saveId);if(!options.ok)throw options;
+  $('save-export').hidden=false;$('start').textContent='NEW CHARACTER';
+  if(options.state==='saved'){const loaded=await saveStore.load(saveId),c=loaded.envelope.payload.character;titleMode='saved';$('continue').hidden=false;$('continue').textContent='CONTINUE · LVL '+c.level;if(!keepNote)note.textContent='Saved in this browser · '+c.ash+' ash · '+loaded.envelope.payload.campaign.unlockedLocations.length+' / 5 floors unlocked';}
+  else if(options.state==='recovery-required'){titleMode='recovery';note.textContent=CK.statusLabel('recovery-required');showRecovery(options);}
+  else if(options.state==='read-only'){titleMode='read-only';note.textContent=CK.statusLabel('read-only');}
+  else {titleMode='new';$('start').textContent='BEGIN YOUR STORY';$('save-export').hidden=true;}
+ }catch(e){titleMode='unavailable';$('start').textContent='PLAY UNSAVED TRIAL';note.textContent='Saving is unavailable in this browser ('+(e?.code||'error')+'). An unsaved trial is lost when the page closes unless you export it.';}
+}
+$('start').addEventListener('click',()=>{
+ if(!SS||!VS)return story.opening(startGame);
+ if(titleMode==='unavailable')return story.opening(()=>newCharacter(true));
+ // A saved, damaged or newer character is never replaced silently: the first tap explains, the second confirms.
+ if(titleMode!=='new'&&!confirmNew){confirmNew=true;$('start').textContent='CONFIRM NEW CHARACTER';$('save-note').textContent='Continue will load the new character. The current one stays in this browser but will no longer be offered; export it first to keep a copy.';return;}
+ confirmNew=false;story.opening(()=>newCharacter());});
+// Enter on the title takes the same guarded path as the buttons (a focused button activates itself): Continue a saved
+// character, begin a new one or the labelled unsaved trial when nothing is stored, and never confirm a replacement.
+function titleEnter(){if(!SS||!VS)return story.opening(startGame);if(titleMode==='saved')return $('continue').click();if(titleMode==='new'||titleMode==='unavailable')return $('start').click();}
+$('continue').addEventListener('click',async()=>{if(saveBusy||!saveId)return;saveBusy=true;try{const lease=await saveStore.acquireLease(saveId);if(!lease.ok){$('save-note').textContent=lease.code==='locked'?'This character is open in another tab. Close it there, then continue here.':'Cannot open the save ('+lease.code+').';return;}
+ const loaded=await saveStore.load(saveId);if(!loaded.ok){await saveStore.releaseLease(saveId,lease.epoch);refreshTitle();return;}await openSession(saveId,lease.epoch,loaded.envelope);}finally{saveBusy=false;}});
+$('save-export').addEventListener('click',async()=>{if(!saveStore||!saveId)return;const r=await saveStore.exportLatest(saveId);if(r.ok)download(r.text,'stored');else $('save-note').textContent='Export failed ('+r.code+').';});
+$('save-retry').addEventListener('click',async()=>{if(!session||saveBusy)return;saveBusy=true;try{await session.retry();}finally{saveBusy=false;}if(session&&!session.halted&&session.status!=='stale'&&session.status!=='failed'){const back=saveResume;saveResume=null;setState(back==='dead'||back==='complete'?back:'playing');}});
+$('save-export-unsaved').addEventListener('click',async()=>{if(!session)return;const r=await session.exportUnsaved();if(r.ok)return download(r.text,'unsaved');if(r.code==='nothing-unsaved'&&!trial){const e=await saveStore.exportLatest(saveId);if(e.ok)return download(e.text,'stored');}$('savefail-text').textContent='Export failed ('+r.code+').';});
+$('save-title').addEventListener('click',()=>quitToTitle(false));
+addEventListener('pagehide',()=>{if(session&&!trial&&!session.pending)saveStore.releaseLease(saveId,saveEpoch);});
+// A trial is never stored, so its export is always labelled unsaved; a saved character exports the stored record.
+$('pause-export').addEventListener('click',async()=>{if(!session)return;if(!trial)await persist('snapshot',keepState);const r=trial?await session.exportUnsaved(session.state):await saveStore.exportLatest(saveId);if(r.ok)download(r.text,trial?'unsaved-trial':'stored');else showToast('EXPORT FAILED',r.code);});
+const dirkeys=['1','2','3','w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Shift','q','Q','j','J','k','K','e','E'];addEventListener('keydown',e=>{if(state==='cinematic'){if(e.key==='Escape'){e.preventDefault();bosses.skip();}return;}if(story.paused||e.isComposing||e.keyCode===229)return;if(dirkeys.includes(e.key))e.preventDefault();key[e.key]=true;if(e.repeat)return;if(['1','2','3'].includes(e.key))activateAbility({'1':'execution','2':'aegis','3':'stunning'}[e.key]);if(e.key==='Shift'||e.key==='k'||e.key==='K')dash();if(e.key==='q'||e.key==='Q')drink();if(e.key==='e'||e.key==='E')nextFloor();if(e.key==='r'||e.key==='R')collectEquipment();if((e.key==='c'||e.key==='C')&&state==='playing')bosses.interact();if(e.key==='Escape'||e.key==='p'||e.key==='P')togglePause();if(state==='title'&&e.key==='Enter'&&!e.target?.closest?.('button')){e.preventDefault();titleEnter();}});addEventListener('keyup',e=>{key[e.key]=false;});
 canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&state==='playing'){holdAttack=true;attemptAttack();}});window.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')holdAttack=false;});// Mobile browser chrome and embedded toolbars can blur a visible page on a tap.
 // Clear held input on blur, but pause only when the document actually leaves view.
 window.addEventListener('blur',clearInput);
-document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();abilities.cancelCast();if(state==='playing')togglePause();}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();abilities.cancelCast();if(state==='playing')togglePause();if(session&&!session.halted)persist('snapshot',keepState);}});
 // Safari can ignore viewport zoom limits. Cancel native game-surface gestures
 // without cancelling the click events used by menus, pause and story buttons.
 const gameSurface=target=>target?.closest?.('#game,#castle-scene,#stick,#attack,#dash,#potion,.ability');
 window.addEventListener('touchend',e=>{if(state==='playing'&&!story.paused&&gameSurface(e.target)&&e.cancelable)e.preventDefault();},{passive:false});
 for(const name of ['gesturestart','gesturechange','dblclick'])window.addEventListener(name,e=>{if(state==='playing'&&!story.paused&&e.cancelable)e.preventDefault();},{passive:false});
-function togglePause(){if(story.paused)return;if(state==='playing'){state='paused';showOverlay('paused');$('descend').style.display='none';holdAttack=false;}else if(state==='paused')setState('playing');}
+function togglePause(){if(story.paused)return;if(state==='playing'){state='paused';$('pause-export').hidden=!session;$('pause-export').textContent=trial?'EXPORT UNSAVED TRIAL':'EXPORT SAVE FILE';showOverlay('paused');$('descend').style.display='none';holdAttack=false;}else if(state==='paused')setState('playing');}
 $('viewmode').addEventListener('click',()=>{if(window.castleView){window.castleView.enabled=!window.castleView.enabled;$('viewmode').textContent=window.castleView.enabled?'3D':'2D';}});
-$('start').addEventListener('click',()=>story.opening(startGame));$('retry').addEventListener('click',startGame);$('resume').addEventListener('click',()=>setState('playing'));$('quit').addEventListener('click',()=>{setState('title');$('best').textContent='BEST RUN · '+(store.get('vesperBest')||0)+' SOULS';});$('pausebtn').addEventListener('click',togglePause);$('descend').addEventListener('click',nextFloor);$('sound').addEventListener('click',()=>{soundOn=!soundOn;$('sound').textContent=soundOn?'♫':'♪̸';});
+$('retry').addEventListener('click',respawnHere);$('again').addEventListener('click',()=>session?quitToTitle():startGame());$('resume').addEventListener('click',()=>setState('playing'));$('quit').addEventListener('click',()=>{if(session)return quitToTitle();setState('title');$('best').textContent='BEST RUN · '+(store.get('vesperBest')||0)+' SOULS';});$('pausebtn').addEventListener('click',togglePause);$('descend').addEventListener('click',nextFloor);$('sound').addEventListener('click',()=>{soundOn=!soundOn;$('sound').textContent=soundOn?'♫':'♪̸';});
 $('best').textContent=Number(store.get('vesperBest')||0)?'BEST RUN · '+store.get('vesperBest')+' SOULS':'No previous descents';
 // Atmospheric preview behind the menu, ready when player enters.
-reseed();player={x:0,y:0,r:.26,hp:115,maxHp:115,xp:0,xpNeeded:48,damage:30,speed:3.9,range:1.7,arc:1.06,attackRate:.36,dashCd:2.2,get potions(){return runEquipment.potions},set potions(n){runEquipment.potions=clamp(Math.floor(n),0,equipment.balance.potions)},shield:equipment.definition(runEquipment.off)?.shield||0,leech:0,crit:0,facing:-Math.PI/2,walk:0};newFloor();$('toast').classList.remove('visible');messageTimeout=0;setState('title');
+reseed();player={x:0,y:0,r:.26,hp:115,maxHp:115,xp:0,xpNeeded:48,damage:30,speed:3.9,range:1.7,arc:1.06,attackRate:.36,dashCd:2.2,get potions(){return runEquipment.potions},set potions(n){runEquipment.potions=clamp(Math.floor(n),0,equipment.balance.potions)},shield:equipment.definition(runEquipment.off)?.shield||0,leech:0,crit:0,facing:-Math.PI/2,walk:0};newFloor();$('toast').classList.remove('visible');messageTimeout=0;setState('title');if(SS&&VS)refreshTitle();
 })();
 </script>
 

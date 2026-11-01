@@ -1,6 +1,6 @@
 /* Pure campaign world state and once-only reward ledger (ARPG Phase 2 PR2, docs/arpg/SPEC.md section 6). It operates on
  * hydrated character state (character-state.js) using Phase 2 PR1 identities. No DOM, storage, renderer or combat:
- * not loaded by the game yet. Every operation copies the state, applies the change, validates the whole result against
+ * loaded by the game through game-session.js (Phase 2 PR5). Every operation copies the state, applies the change, validates the whole result against
  * the save schema and returns a new state; the input is never mutated, so a rejected operation changes nothing.
  * Repeating an operation (replay, reload, double tap) is a no-op: `applied:false`, same state, nothing granted. */
 (() => {
@@ -108,6 +108,15 @@
   if(drop.rewardKey!==null)next.campaign.rewardLedger[drop.rewardKey]='claimed';
   return finish(next,{picked:drop.kind});
  }
+ // The player drops a backpack item in an area: the same item moves to the ground (never copied), with the drop ID
+ // "<instance key>:item:<item ID>". Picking it up again moves it back through pickUp.
+ function dropItem(state,{instanceId,itemId,x,y}={}){
+  const inst=instanceOf(state,instanceId);if(!inst)return fail('unknown-area','no such area instance');
+  const index=state.run.bag.findIndex(i=>i&&i.id===itemId);if(index<0)return fail('missing','that item is not in the backpack');
+  const next=copy(state),item=next.run.bag[index];next.run.bag[index]=null;
+  next.world.instances[instanceId].groundDrops.push({dropId:instanceId+':item:'+item.id,kind:'item',item,amount:1,x,y,rewardKey:null});
+  return finish(next);
+ }
  // A once-only reward (for example a campaign boss item, generated once by the caller). If its key was ever granted it is
  // never granted again, whether it is still held or already claimed. It is held as a ground drop in an area, or in
  // reward escrow when no area is given, and is claimed by moving that same item later.
@@ -143,6 +152,6 @@
   if(locationId==='throne-of-ash')next.campaign.campaignComplete=true;
   return finish(next,{firstClear:true,unlocked:nextLocation});
  }
- const api=Object.freeze({transition,campaignRewardKey,enterArea,recordKill,openChest,pickUp,grantReward,claimEscrow,completeArea});
+ const api=Object.freeze({transition,campaignRewardKey,enterArea,recordKill,openChest,pickUp,dropItem,grantReward,claimEscrow,completeArea});
  if(node)module.exports=api;else window.VesperCampaign=api;
 })();

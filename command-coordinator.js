@@ -1,7 +1,7 @@
 /* Critical gameplay commands committed atomically to the save repository (ARPG Phase 2 PR3, docs/arpg/SPEC.md section 5).
  * Each command computes its new state with a pure transition, commits it in one compare-and-swap save, and only then
  * publishes it: an aborted or refused write acknowledges nothing. A failed critical save pauses further commands with an
- * honest status instead of continuing unsaved. No DOM or renderer: not loaded by the game yet (wiring is Phase 2 PR5). */
+ * honest status instead of continuing unsaved. No DOM or renderer: used by the game through game-session.js (Phase 2 PR5). */
 (() => {
  'use strict';
  const node=typeof module!=='undefined';
@@ -40,7 +40,7 @@
   });
  }
  // Campaign ledger commands from campaign-state.js, committed through the same path.
- const ledger=Object.freeze(['enterArea','recordKill','openChest','pickUp','grantReward','claimEscrow','completeArea']);
+ const ledger=Object.freeze(['enterArea','recordKill','openChest','pickUp','dropItem','grantReward','claimEscrow','completeArea']);
 
  // ---- coordinator: one committed state per character, one command at a time
  // Status: 'saved' | 'saving' | 'failed' (a retryable save failure; commands are paused until retry succeeds) |
@@ -77,7 +77,7 @@
    }catch(e){saved={ok:false,code:'storage',message:e?.message};}
    finally{pending=false;}
    if(!saved.ok){
-    failed={name,args};unsaved=r.state;
+    failed={name,again:()=>execute(name,args,transitionFn)};unsaved=r.state;
     setStatus(STALE.has(saved.code)?'stale':'failed',{command:name,code:saved.code,message:saved.message});
     return {ok:false,code:saved.code,message:saved.message,status};
    }
@@ -88,13 +88,15 @@
    drinkPotion:()=>execute('drinkPotion',[],s=>drinkPotion(s)),
    reserveAbility:id=>execute('reserveAbility',[id],s=>reserveAbility(s,id)),
    recordDeath:deathId=>execute('recordDeath',[deathId],s=>recordDeath(s,deathId)),
-   ledger:(name,args)=>ledger.includes(name)?execute(name,[args],s=>G[name](s,args)):Promise.resolve(fail('invalid','unknown ledger command'))
+   ledger:(name,args)=>ledger.includes(name)?execute(name,[args],s=>G[name](s,args)):Promise.resolve(fail('invalid','unknown ledger command')),
+   // Any other pure transition (Phase 2 PR5 runtime adapters): state in, transition result out, committed the same way.
+   run:(name,transitionFn)=>typeof name==='string'&&typeof transitionFn==='function'?execute(name,[],transitionFn):Promise.resolve(fail('invalid','a command name and transition are required'))
   };
   // Retry re-runs the failed command against the last committed state; a stale session cannot retry.
   async function retry(){
    if(status!=='failed'||!failed)return fail('nothing-to-retry','no failed save to retry');
-   const {name,args}=failed;status='saved';
-   return ledger.includes(name)?commands.ledger(name,args[0]):commands[name](...args);
+   const {again}=failed;status='saved';
+   return again();
   }
   // Emergency export of progress that is not saved: the refused candidate by default, or in-memory state the caller
   // holds (for example the runtime's uncommitted snapshot). It works in every status, including failed and stale, and

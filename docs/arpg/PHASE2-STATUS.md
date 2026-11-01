@@ -40,8 +40,8 @@ Do not replace this with an AI assumption.
 | P2 PR1 | [#32](https://github.com/Harrisonxaph/catherdral-game/issues/32) | MERGED_BY_OWNER | `ef177df` | [#38](https://github.com/Harrisonxaph/catherdral-game/pull/38) | 0 / 3 | `0ab4890` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/32#issuecomment-6549470246)); merged by owner |
 | P2 PR2 | [#33](https://github.com/Harrisonxaph/catherdral-game/issues/33) | MERGED_BY_OWNER | `0ab4890` | [#39](https://github.com/Harrisonxaph/catherdral-game/pull/39) | 1 / 3 | `562f4e7` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/33#issuecomment-6549916332)); merge approved ([record](https://github.com/Harrisonxaph/catherdral-game/pull/39#issuecomment-6550402823)) |
 | P2 PR3 | [#34](https://github.com/Harrisonxaph/catherdral-game/issues/34) | MERGED_BY_OWNER | `562f4e7` | [#40](https://github.com/Harrisonxaph/catherdral-game/pull/40) | 1 / 3 | `2e3d810` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/34#issuecomment-6550265324)); merged by owner |
-| P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | AWAITING_INDEPENDENT_REVIEW | `2e3d810` | draft PR linked from #35 | 0 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869)); merge pending |
-| P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | WAITING_FOR_PR4 | unset | none | 0 / 3 | — | pending |
+| P2 PR4 | [#35](https://github.com/Harrisonxaph/catherdral-game/issues/35) | MERGED_BY_OWNER | `2e3d810` | [#41](https://github.com/Harrisonxaph/catherdral-game/pull/41) | 0 / 3 | `258f67e` | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/35#issuecomment-6550268869)); merged by owner |
+| P2 PR5 | [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36) | AWAITING_INDEPENDENT_REVIEW | `258f67e` | [#42](https://github.com/Harrisonxaph/catherdral-game/pull/42) | 2 / 3 | — | authorised ([approval](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090)); merge pending |
 
 Update this table inside the commits that open, correct or block a stage. Record a stage's merge commit in the next stage's first commit. Do not mark a step merged on review success alone.
 
@@ -156,6 +156,72 @@ Copy the following section under this heading **for each new PR and each review 
 - Open blockers / data-loss risk: none known; nothing is wired into the game. `restoreBackup` callers over a good save must now pass `expectedRevision` (no runtime caller exists yet).
 - Rollback: revert the PR; no stored data exists.
 - Status: AWAITING_INDEPENDENT_REVIEW.
+
+### 2026-11-01 — P2 PR4 — merged by owner
+- PR [#41](https://github.com/Harrisonxaph/catherdral-game/pull/41) merged into main as `258f67e79ce41ef3bc6047cd3617b9584539840d` (reviewed head `6b2d0a8`, unchanged). Codex review of that head: no findings ([comment](https://github.com/Harrisonxaph/catherdral-game/pull/41#issuecomment-6550878425)). Correction cycles used: 0 / 3.
+
+### 2026-11-01 — P2 PR5 — initial implementation
+- Issue: [#36](https://github.com/Harrisonxaph/catherdral-game/issues/36).
+- Approval source and scope: [`OWNER APPROVAL: P2 PR5 (#36)`](https://github.com/Harrisonxaph/catherdral-game/issues/36#issuecomment-6550272090), effective once P2 PR4 merged (it did, above): connect New Character, Continue, persistent progression and checkpoint respawning on the PR1–PR4 foundations; preserve equipment/mods, once-only rewards, combat, graphics, narrative, mobile controls and offline support; New Character never silently overwrites a save; record unverified physical-device testing.
+- Developer: Claude Code. Reviewer: independent Codex session (pending).
+- Base: `main @ 258f67e`. Feature branch: `development/arpg-p2-pr5-continue`.
+- PR URL and exact head SHAs: the draft PR linked from #36 and its developer handoff comments.
+- Change summary:
+  - New `game-session.js`, with pure transitions:
+    - runtime snapshot (health, equipment shield and timers, clamped; never revives or refills);
+    - `respawn` (once per death, full health, everything kept);
+    - `syncRun` (inventory rearrangement only: same saved items, same potions);
+    - `arrive` (area instance, current area and entrance checkpoint in one change; the +20% health / +1 potion transition recovery once per location, marked by a `recovery:<location>` story flag);
+    - `restorePlan`.
+  - `createSession` queues runtime events in order (never refused as busy). It refuses repeated taps while saving, folds the latest snapshot into every command, and halts on a failed save until retry.
+  - `index.html`:
+    - Title: Continue · LVL n, New Character with a two-step confirmation when a save exists, recovery choices, stored export, and an explicitly labelled unsaved trial when storage is unavailable.
+    - Kills, chests, ash/potion/relic pick-ups, inventory drops and rearrangement, the boss/elite reward (campaign key `campaign:<location>:final:item`), first clear at the seal, travel, death and respawn, potions and abilities all commit through the session.
+    - Continue rebuilds the saved floor from its seed: killed enemies stay dead, opened chests stay open, ground loot returns, and the player starts at the entrance.
+    - One-second autosave and a flush when hidden.
+    - HUD save status, and a save-failure pause with Retry, Export unsaved progress and Return to title.
+    - Deterministic level growth (+5 health, +1 damage, one banked skill point per level) replaces the random blessings.
+    - The tab's lease ID is kept in sessionStorage, so a reload continues immediately.
+  - `campaign-state.js` adds `dropItem`; save schema v1 (unreleased) accepts player drop IDs `<instance>:item:<item ID>`. `command-coordinator.js` adds a generic `run` command and a retry that re-runs any failed command.
+  - Five new runtime modules are cached; `CACHE_VERSION` bumped to v22. CI runs the new `test:persistence-browser` suite.
+- Not done in this PR (recorded, not claimed):
+  - legacy best/narrative import into `payload.legacy` (stays `null`; old localStorage keys are untouched);
+  - a save-aware service-worker update flow;
+  - skill-point spending (Phase 4); Sanctuary, travel menu and replay (Phase 3).
+- Physical iPhone/Android/Safari testing: NOT VERIFIED.
+- Correction cycles consumed: 0 / 3.
+- Open blockers / data-loss risk: none known. Known limitation (SPEC section 5): up to about 1 s of noncritical health/position may be lost on an OS kill, and events queued behind a failed save are not included in its unsaved export.
+- Rollback: revert the PR. Saves created by this version stay in IndexedDB (`vesper-arpg`) and are ignored by older builds, which do not load the save modules.
+- Status: AWAITING_INDEPENDENT_REVIEW.
+
+### 2026-11-01 — P2 PR5 — correction 1
+- Findings: [Codex review of `9b244d5`](https://github.com/Harrisonxaph/catherdral-game/pull/42#issuecomment-6553236480), three BLOCKING:
+  1. The next queued command sampled the runtime before the previous command's effect was published (promise callbacks run later), so a snapshot could store a reserved cooldown as 0 or overwrite a committed heal.
+  2. Pressing Enter on the title still called the old unsaved `startGame` flow.
+  3. The emergency export after a failed save held only the failed command, not the commands queued behind it.
+- Fixes:
+  1. Each queued command now carries a `publish` callback that the session runs synchronously as it settles, before the next command samples the runtime. All twelve runtime adapters use it, ignored if their session has ended. A throwing publish never stops the queue.
+  2. Enter on the title takes the same guarded path as the buttons: Continue a saved character, or begin a new character or the labelled unsaved trial when nothing is stored. It never confirms a replacement, and it prevents the stray keypress that used to close the opening dialog at once.
+  3. `exportUnsaved` folds every pending command (the failed head, those queued behind it, and those a stale session could not save) over the committed state as pure transitions. It writes nothing and leaves the queue intact.
+  - Also found while testing: after a successful retry, play resumed only if no further command was already saving. It now resumes whenever the queue is no longer halted.
+- Regression tests:
+  - Node:
+    - an ability reservation, with a snapshot and kill queued behind it, stores the full cooldown;
+    - a potion heal followed by a snapshot stores the healed health;
+    - a throwing publish does not stop the queue;
+    - an export after a failure with two queued kills holds both (XP, killed, drops), verifies, hydrates, writes nothing and leaves the queue intact, and retry then applies both once;
+    - a stale session's export holds both commands it could not save.
+  - Each fails when its fix is removed (4 mutations).
+  - Browser: Enter starts a new character, continues a saved one and starts the trial without storage; the ability is reserved in the same turn as a kill; the failed-save export holds both kills, and retry resumes play and applies them once. The new browser suite fails on `9b244d5`.
+- Correction cycles consumed: 1 / 3.
+- Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 1" handoff comment).
+
+### 2026-11-01 — P2 PR5 — correction 2
+- Finding: [Codex review of `23a4e79`](https://github.com/Harrisonxaph/catherdral-game/pull/42#issuecomment-6553487958), BLOCKING. The emergency export re-applied the live runtime snapshot before every pending command. Export never publishes, so the runtime did not yet hold earlier pending effects: a pending Aegis reservation exported as 0 s instead of 20 s, and a pending heal could be overwritten.
+- Fix: `exportUnsaved` folds the runtime snapshot into the committed state once, then applies the pending commands' pure transitions in order without re-sampling. It still writes, publishes and dequeues nothing.
+- Regression test, for both a failed save and a stale session: an ability reservation, a snapshot, a kill, a potion and a snapshot are pending. The export holds the 20 s cooldown, the healed health, one potion spent and the kill's XP, and it hydrates. Storage, the queue and the runtime are unchanged. The test fails when per-command re-sampling is restored; the four correction-1 mutations still fail too.
+- Correction cycles consumed: 2 / 3.
+- Status: AWAITING_INDEPENDENT_REVIEW of the new head (exact SHA in the PR's "Correction 2" handoff comment).
 
 ## Setup event — 2026-10-29
 

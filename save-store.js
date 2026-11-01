@@ -1,5 +1,5 @@
 /* Persistent character repository (docs/arpg/SPEC.md section 5): revisioned snapshots, rotating and pinned backups,
- * a fenced writer lease, corruption quarantine and recovery over IndexedDB. ARPG Phase 1A: not loaded by the game yet.
+ * a fenced writer lease, corruption quarantine and recovery over IndexedDB. ARPG Phase 1A; loaded by the game since Phase 2 PR5.
  * Storage goes through an adapter so Node tests inject an in-memory store with failure injection; browsers use IndexedDB. */
 (() => {
  'use strict';

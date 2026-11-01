@@ -1,5 +1,5 @@
 /* Real-browser IndexedDB checks for the persistent character repository (ARPG Phase 1A; recovery and export: Phase 2 PR4).
- * A bare harness page loads only the pure modules; the real game page must never create or open the save database. */
+ * A bare harness page loads only the pure modules; the real game page must not write anything before New Character. */
 const {chromium}=require('playwright');
 const fs=require('node:fs');
 const path=require('node:path');
@@ -98,13 +98,13 @@ const check=(ok,message)=>{if(!ok)throw Error(message);};
  check(upgrade.closed&&upgrade.blocked===false&&upgrade.load==='unsupported','version change: '+JSON.stringify(upgrade));
  await tabA.evaluate(async()=>{await new Promise(r=>{const q=indexedDB.deleteDatabase('vesper-arpg');q.onsuccess=q.onerror=q.onblocked=r;});});
 
- // The shipped game does not load these modules and never creates or opens the save database.
+ // Since Phase 2 PR5 the game loads these modules and reads the save database at boot, but it never creates a character
+ // (or writes anything) until the player chooses New Character.
  const game=await context.newPage();game.on('pageerror',e=>errors.push(e.message));
- await game.goto(base+'/index.html');await game.waitForFunction(()=>window.castleView!==undefined||document.readyState==='complete');
- await game.locator('#start').click();await game.waitForTimeout(1500);
- const untouched=await game.evaluate(async()=>({dbs:(await indexedDB.databases()).map(d=>d.name),modules:[!!window.VesperCharacter,!!window.VesperSaveStore],scripts:[...document.scripts].map(s=>s.src).filter(s=>/character-state|save-store/.test(s))}));
- check(!untouched.dbs.includes('vesper-arpg')&&!untouched.modules[0]&&!untouched.modules[1]&&!untouched.scripts.length,'game touched persistence: '+JSON.stringify(untouched));
+ await game.goto(base+'/index.html');await game.waitForFunction(()=>window.castleView!==undefined&&/BEGIN YOUR STORY/.test(document.getElementById('start').textContent));await game.waitForTimeout(500);
+ const untouched=await game.evaluate(async()=>{const S=VesperSaveStore,adapter=S.indexedDBAdapter(),store=S.createStore({adapter,sessionId:'probe'}),active=await store.activeCharacter();const records=await adapter.transact(['characters','meta','leases'],'readonly',async tx=>[(await tx.getAll('characters')).length,(await tx.getAll('meta')).length,(await tx.getAll('leases')).length]);await adapter.close();return {active:active.code,records,modules:[!!window.VesperCharacter,!!window.VesperSaveStore,!!window.VesperSession]};});
+ check(untouched.active==='missing'&&untouched.records.join()==='0,0,0'&&untouched.modules.every(Boolean),'game wrote persistence before New Character: '+JSON.stringify(untouched));
  check(!errors.length,'page errors: '+JSON.stringify(errors));
  await browser.close();
- console.log(JSON.stringify({saveStoreBrowser:'passed',reopen:first,aborted:true,secondTab:second,recovered,recovery,denied,upgrade,gameUntouched:untouched.dbs}));
+ console.log(JSON.stringify({saveStoreBrowser:'passed',reopen:first,aborted:true,secondTab:second,recovered,recovery,denied,upgrade,gameUntouched:untouched.records}));
 })().catch(e=>{console.error(e);process.exit(1);});

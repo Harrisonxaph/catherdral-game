@@ -69,6 +69,7 @@ jobs:
           npm run test:boss-art-browser
           npm run test:offline-browser
           npm run test:save-store-browser
+          npm run test:persistence-browser
   graphics-budget:
     # Re-measures the current head: baseline (387a900) and head are captured on the same runner,
     # so rasteriser and font differences cannot pass or fail the comparison on their own.
